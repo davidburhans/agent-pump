@@ -92,3 +92,14 @@ IMPORTANT: All work must be done on branch '{branch}'.
 Before starting, run: git checkout {branch} || git checkout -b {branch}
 Ensure you are on this branch before making any changes.
 """
+
+    def get_setup_instructions(self) -> str:
+        """
+        Get setup instructions for installing this backend.
+
+        Override this method to provide backend-specific installation instructions.
+
+        Returns:
+            Installation instructions string for display to users
+        """
+        return f"Please install '{self.command}' and ensure it is available in your PATH."

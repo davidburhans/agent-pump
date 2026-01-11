@@ -1,51 +1,47 @@
-"""Claude Code CLI backend implementation.
+"""Qwen Code CLI backend implementation.
 
-Claude Code CLI Reference (https://docs.anthropic.com/claude-code)
-===================================================================
+Qwen Code CLI Reference (https://github.com/QwenLM/qwen-code)
+==============================================================
 
 COMMAND:
-    claude
+    qwen
 
-NON-INTERACTIVE MODE (Print Mode):
-    claude -p "Your prompt"
-    claude --print "Your prompt"
-    - Executes a single query and prints the response
-    - Ideal for scripting, automation, and CI/CD pipelines
-
-    Output formats (--output-format):
-        text         - Plain text output (default)
-        json         - Structured JSON with result, session ID, metadata
-        stream-json  - Newline-delimited JSON for real-time streaming
-
-    Example:
-        claude -p "Summarize this project" --output-format json
+NON-INTERACTIVE MODE:
+    Prompt is passed via stdin (similar to Gemini CLI)
+    echo "Your prompt" | qwen
 
 INTERACTIVE MODE:
-    claude
-    - Starts an interactive chat session
-
-PIPING CONTENT:
-    cat logs.txt | claude -p "Explain these errors"
-    git diff | claude -p "Review these changes"
-
-SESSION CONTINUATION:
-    claude --continue          - Continue the previous session
-    claude --resume SESSION_ID - Resume a specific session
-
-TOOL ALLOWLISTING:
-    claude --allowedTools tool1,tool2   - Auto-approve specific tools
+    qwen
+    - Launches TUI for interactive coding sessions
 
 AUTHENTICATION:
-    - Set ANTHROPIC_API_KEY environment variable
-    - Or run: claude auth login
+    Option 1: Qwen OAuth (free tier: 2000 requests/day)
+              Run 'qwen' and follow OAuth prompts
+    Option 2: OpenAI-compatible API key
+              Set OPENAI_API_KEY environment variable
+
+SUPPORTED MODELS:
+    - Qwen3-Coder (optimized, default)
+    - Any OpenAI-compatible model via OpenRouter, etc.
 
 INSTALLATION:
-    npm install -g @anthropic-ai/claude-code
+    # npm (recommended)
+    npm install -g @qwen-code/qwen-code@latest
 
-    Requirements: Node.js 18+
+    # Homebrew (macOS/Linux)
+    brew install qwen-code
+
+    Requirements: Node.js 20+
+
+FEATURES:
+    - AI-powered code generation, debugging, refactoring
+    - Agentic workflows (PR handling, rebasing, test generation)
+    - Integrated web search via Qwen OAuth
+    - Interactive approval for code changes
+    - Cross-platform (Windows, macOS, Linux)
 
 RATE LIMITS:
-    Watch for: "rate_limit_error", "overloaded_error", "credit balance"
+    Watch for: "request limit", "daily limit", "quota exceeded"
 """
 
 import asyncio
@@ -64,46 +60,53 @@ from agent_pump.backends.base import AgentBackend
 logger = logging.getLogger(__name__)
 
 
-class ClaudeBackend(AgentBackend):
+class QwenBackend(AgentBackend):
     """
-    Backend for Anthropic's Claude Code CLI.
+    Backend for Qwen Code CLI (https://github.com/QwenLM/qwen-code).
 
-    Uses `claude -p "prompt"` for non-interactive execution with
-    print mode. Supports stream-json output format for real-time streaming.
+    Qwen Code is an AI coding agent optimized for Qwen3-Coder models,
+    supporting agentic programming workflows directly in the terminal.
+
+    Uses stdin to pass prompts (similar to Gemini CLI).
     """
 
     @property
     def name(self) -> str:
-        return "Claude Code"
+        return "Qwen Code"
 
     @property
     def command(self) -> str:
-        return "claude"
+        return "qwen"
 
     async def is_available(self) -> bool:
-        """Check if claude command is available in PATH."""
+        """Check if qwen command is available in PATH."""
         available = shutil.which(self.command) is not None
-        logger.debug(f"Claude Code availability check: {available}")
+        logger.debug(f"Qwen Code availability check: {available}")
         return available
 
     def get_setup_instructions(self) -> str:
-        """Return setup instructions for installing Claude Code CLI."""
+        """Return setup instructions for installing Qwen Code CLI."""
         return """
 ╔══════════════════════════════════════════════════════════════════════╗
-║                    Claude Code CLI Not Found                         ║
+║                     Qwen Code CLI Not Found                          ║
 ╠══════════════════════════════════════════════════════════════════════╣
-║ Install using npm:                                                   ║
+║ Install using one of these methods:                                  ║
 ║                                                                      ║
-║    npm install -g @anthropic-ai/claude-code                          ║
+║ 1. npm (recommended):                                                ║
+║    npm install -g @qwen-code/qwen-code@latest                        ║
+║                                                                      ║
+║ 2. Homebrew (macOS/Linux):                                           ║
+║    brew install qwen-code                                            ║
 ║                                                                      ║
 ║ Requirements:                                                        ║
-║    - Node.js 18 or higher                                            ║
+║    - Node.js 20 or higher                                            ║
 ║                                                                      ║
 ║ Authentication:                                                      ║
-║    Option 1: Set ANTHROPIC_API_KEY environment variable              ║
-║    Option 2: Run 'claude auth login'                                 ║
+║    Option 1: Run 'qwen' and follow Qwen OAuth prompts                ║
+║              (Free tier: 2000 requests/day)                          ║
+║    Option 2: Set OPENAI_API_KEY for OpenAI-compatible models         ║
 ║                                                                      ║
-║ More info: https://docs.anthropic.com/claude-code                    ║
+║ More info: https://github.com/QwenLM/qwen-code                       ║
 ╚══════════════════════════════════════════════════════════════════════╝
 """
 
@@ -116,35 +119,33 @@ class ClaudeBackend(AgentBackend):
         extra_args: list[str] | None = None,
     ) -> AsyncIterator[str]:
         """
-        Execute Claude Code CLI with the given prompt.
+        Execute Qwen Code CLI with the given prompt.
 
-        Uses `claude -p "prompt"` for non-interactive (print) mode.
-        The prompt is passed via stdin to avoid shell escaping issues.
+        Prompt is passed via stdin for reliable operation.
         """
         executable = shutil.which(self.command)
         if not executable:
-            logger.error("Claude Code CLI not found in PATH")
+            logger.error("Qwen Code CLI not found in PATH")
             yield f"[ERROR] Command '{self.command}' not found in PATH.\n"
             yield self.get_setup_instructions()
             return
 
-        # Build command: claude -p (prompt via stdin)
-        # Using --output-format text for simple streaming
-        cmd = [executable, "-p"]
+        # Build command: qwen (prompt via stdin)
+        cmd = [executable]
 
-        # Apply extra args (e.g., --output-format, --allowedTools)
+        # Apply extra args (e.g., --model)
         if extra_args:
             cmd.extend(extra_args)
             logger.debug(f"Applied extra args: {extra_args}")
 
-        logger.debug(f"Command: {self.command} -p (prompt via stdin, len={len(prompt)})")
+        logger.debug(f"Command: {self.command} (prompt via stdin, len={len(prompt)})")
 
         start_time = time.time()
         line_count = 0
 
         # Log command for debugging
         cmd_str = subprocess.list2cmdline(cmd)
-        log_file = project_path / ".agent-pump" / "claude_cmd.log"
+        log_file = project_path / ".agent-pump" / "qwen_cmd.log"
         log_file.parent.mkdir(parents=True, exist_ok=True)
         try:
             with open(log_file, "a", encoding="utf-8") as f:
@@ -252,6 +253,6 @@ class ClaudeBackend(AgentBackend):
 
             elapsed = time.time() - start_time
             logger.info(
-                f"Claude Code CLI completed: {line_count} lines in {elapsed:.1f}s, "
+                f"Qwen Code CLI completed: {line_count} lines in {elapsed:.1f}s, "
                 f"exit code: {process.returncode}"
             )

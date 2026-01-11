@@ -1,16 +1,24 @@
 """Agent backends package - extensible AI coding agent integrations."""
 
+from agent_pump.backends.availability import (
+    BackendAvailability,
+    BackendStatus,
+    check_all_backends,
+    get_available_backend_names,
+)
 from agent_pump.backends.base import AgentBackend, AgentResult, BackendError
 from agent_pump.backends.claude import ClaudeBackend
 from agent_pump.backends.fallback import FallbackBackendRunner
 from agent_pump.backends.gemini import GeminiBackend
 from agent_pump.backends.opencode import OpenCodeBackend
+from agent_pump.backends.qwen import QwenBackend
 
 # Registry of available backends by name
 BACKEND_REGISTRY: dict[str, type[AgentBackend]] = {
     "gemini": GeminiBackend,
     "claude": ClaudeBackend,
     "opencode": OpenCodeBackend,
+    "qwen": QwenBackend,
 }
 
 
@@ -63,14 +71,19 @@ def create_fallback_runner_from_config(backend_instances: list) -> FallbackBacke
 __all__ = [
     "AgentBackend",
     "AgentResult",
+    "BackendAvailability",
     "BackendError",
+    "BackendStatus",
     "BACKEND_REGISTRY",
     "ClaudeBackend",
     "FallbackBackendRunner",
     "GeminiBackend",
     "OpenCodeBackend",
+    "QwenBackend",
+    "check_all_backends",
     "create_fallback_runner",
     "create_fallback_runner_from_config",
+    "get_available_backend_names",
     "get_backend",
 ]
 

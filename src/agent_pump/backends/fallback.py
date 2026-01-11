@@ -13,7 +13,13 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Indicators that suggest quota/rate limit issues
+# Includes patterns for multiple providers:
+# - General patterns (quota, rate limit, 429, capacity)
+# - Anthropic/Claude patterns (overloaded, credit balance)
+# - OpenAI patterns (insufficient_quota, billing)
+# - Qwen patterns (daily limit, request limit)
 QUOTA_ERROR_INDICATORS = [
+    # General patterns
     "quota exceeded",
     "rate limit",
     "429",
@@ -21,6 +27,26 @@ QUOTA_ERROR_INDICATORS = [
     "out of tokens",
     "too many requests",
     "capacity",
+    "throttl",  # throttled, throttling
+    # Anthropic/Claude-specific
+    "rate_limit_error",
+    "overloaded_error",
+    "overloaded",
+    "api_error",
+    "credit balance",
+    "usage limit",
+    # OpenAI-compatible (used by OpenCode, Qwen with OpenRouter)
+    "insufficient_quota",
+    "billing",
+    "exceeded your current quota",
+    "rate_limit_exceeded",
+    # Qwen-specific
+    "request limit",
+    "daily limit",
+    "free tier limit",
+    # Google/Gemini-specific
+    "quota_exceeded",
+    "rateLimitExceeded",
 ]
 
 
@@ -131,7 +157,8 @@ class FallbackBackendRunner:
 
             try:
                 hit_quota = False
-                async for line in backend.run(
+                # pyright doesn't fully understand abstract async generators
+                async for line in backend.run(  # type: ignore[reportGeneralTypeIssues]
                     project_path, prompt, timeout, verbose, extra_args=args_for_backend
                 ):
                     # Check for quota/rate limit errors in output
