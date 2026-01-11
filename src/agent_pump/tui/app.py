@@ -10,6 +10,7 @@ from textual.widgets import Button, Footer, Header, Static
 
 from agent_pump.backends.gemini import GeminiBackend
 from agent_pump.config import Config
+from agent_pump.models.app_state import AppState
 from agent_pump.models.project import Project
 from agent_pump.orchestrator.workflow import ProjectWorkflow
 from agent_pump.tui.screens import AddProjectModal
@@ -30,8 +31,11 @@ class AgentPumpApp(App):
         Binding("q", "quit", "Quit"),
         Binding("a", "add_project", "Add Project"),
         Binding("r", "remove_project", "Remove Project"),
-        Binding("p", "toggle_pause", "Pause/Resume"),
-        Binding("s", "skip_feature", "Skip Feature"),
+        Binding("s", "start_selected", "Start"),
+        Binding("x", "stop_selected", "Stop"),
+        Binding("S", "start_all", "Start All"),
+        Binding("X", "stop_all", "Stop All"),
+        Binding("k", "skip_feature", "Skip Feature"),
         Binding("d", "toggle_dark", "Toggle Dark"),
         Binding("w", "show_workflow", "Show Workflow"),
     ]
@@ -50,6 +54,7 @@ class AgentPumpApp(App):
         self.log_panel: LogPanel | None = None
         self.workflow_panel: WorkflowPanel | None = None
         self.selected_project: Path | None = None
+        self.app_state = AppState.load()
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -61,8 +66,8 @@ class AgentPumpApp(App):
                     Container(id="project-list"),
                     Horizontal(
                         Button("+ Add", id="btn-add", variant="success"),
-                        Button("▶ Start All", id="btn-start", variant="primary"),
-                        Button("⏸ Pause All", id="btn-pause", variant="warning"),
+                        Button("▶ Start All", id="btn-start-all", variant="primary"),
+                        Button("⏹ Stop All", id="btn-stop-all", variant="error"),
                         classes="button-row",
                     ),
                     id="sidebar",
@@ -139,6 +144,10 @@ class AgentPumpApp(App):
 
             self._log(f"Added project: {project.name} ({path})")
 
+            # Persist to global state
+            if self.app_state.add_project(path):
+                self.app_state.save()
+
             if not project.has_roadmap():
                 self._log(f"  ⚠ Warning: No ROADMAP.md found in {path}")
             if not project.has_best_practices():
@@ -178,6 +187,10 @@ class AgentPumpApp(App):
         # Remove from state
         del self.projects[path]
         del self.workflows[path]
+
+        # Persist removal
+        if self.app_state.remove_project(path):
+            self.app_state.save()
 
         # Clear workflow panel if this was selected
         if self.selected_project == path:
@@ -235,22 +248,43 @@ class AgentPumpApp(App):
         if self.selected_project:
             self._remove_project(self.selected_project)
 
-    def action_toggle_pause(self) -> None:
-        """Handle pause/resume action."""
+    def action_start_selected(self) -> None:
+        """Start the selected project."""
+        if self.selected_project:
+            self._run_project(self.selected_project)
+            project = self.projects.get(self.selected_project)
+            if project:
+                self._log(f"Started project: {project.name}")
+
+    def action_stop_selected(self) -> None:
+        """Stop the selected project."""
+        if self.selected_project:
+            workflow = self.workflows.get(self.selected_project)
+            if workflow and workflow.is_running():
+                workflow.cancel()
+                project = self.projects.get(self.selected_project)
+                if project:
+                    self._log(f"Stopped project: {project.name}")
+
+    def action_start_all(self) -> None:
+        """Start all projects."""
+        count = 0
+        for path in self.projects:
+            workflow = self.workflows.get(path)
+            # Only start if not already running
+            if workflow and not workflow.is_running():
+                self._run_project(path)
+                count += 1
+        self._log(f"Started {count} projects")
+
+    def action_stop_all(self) -> None:
+        """Stop all projects."""
+        count = 0
         for workflow in self.workflows.values():
             if workflow.is_running():
                 workflow.cancel()
-                self._log("Paused all workflows")
-                return
-
-        # Resume first idle/paused project
-        for path, workflow in self.workflows.items():
-            if not workflow.is_running():
-                self._run_project(path)
-                project = self.projects.get(path)
-                project_name = project.name if project else str(path)
-                self._log(f"Resumed workflow for: {project_name}")
-                return
+                count += 1
+        self._log(f"Stopped {count} projects")
 
     def action_skip_feature(self) -> None:
         """Handle skip feature action."""
@@ -280,14 +314,10 @@ class AgentPumpApp(App):
         """Handle button presses."""
         if event.button.id == "btn-add":
             self.action_add_project()
-        elif event.button.id == "btn-start":
-            for path in self.projects:
-                self._run_project(path)
-            self._log("Started all workflows")
-        elif event.button.id == "btn-pause":
-            for workflow in self.workflows.values():
-                workflow.cancel()
-            self._log("Paused all workflows")
+        elif event.button.id == "btn-start-all":
+            self.action_start_all()
+        elif event.button.id == "btn-stop-all":
+            self.action_stop_all()
 
     def on_project_card_selected(self, event: ProjectCard.Selected) -> None:
         """Handle project card selection."""
@@ -295,9 +325,9 @@ class AgentPumpApp(App):
         project_list = self.query_one("#project-list", Container)
         for card in project_list.query(ProjectCard):
             card.remove_class("selected")
-        
+
         event.card.add_class("selected")
-        
+
         self.selected_project = event.project.path
         self._log(f"Selected project: {event.project.name}")
 

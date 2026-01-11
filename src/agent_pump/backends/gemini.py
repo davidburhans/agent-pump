@@ -44,7 +44,10 @@ class GeminiBackend(AgentBackend):
         executable = shutil.which(self.command)
         if not executable:
             logger.error("Gemini CLI not found in PATH")
-            yield f"[ERROR] Command '{self.command}' not found in PATH. Please install the backend tool.\n"
+            yield (
+                f"[ERROR] Command '{self.command}' not found in PATH. "
+                "Please install the backend tool.\n"
+            )
             return
 
         # Use --yolo for auto-approval mode
@@ -155,7 +158,10 @@ class GeminiBackend(AgentBackend):
 
                     if not line:
                         # Empty line means EOF - process has finished
-                        logger.debug(f"EOF reached after {line_count} lines, elapsed: {elapsed:.1f}s")
+                        logger.debug(
+                            f"EOF reached after {line_count} lines, "
+                            f"elapsed: {elapsed:.1f}s"
+                        )
                         break
 
                     line_count += 1
@@ -166,18 +172,30 @@ class GeminiBackend(AgentBackend):
                     # Check for directory mismatch error and provide hint
                     if "Directory mismatch" in decoded and "IDEClient" in decoded:
                         yield decoded
-                        yield f"\n[HINT] The Gemini backend requires the project ({project_path}) to be open in your IDE.\n"
-                        yield "       Please open this folder in your IDE workspace and try again.\n"
+                        yield (
+                            f"\n[HINT] The Gemini backend requires the project ({project_path}) "
+                            "to be open in your IDE.\n"
+                        )
+                        yield (
+                            "       Please open this folder in your IDE "
+                            "workspace and try again.\n"
+                        )
                     else:
                         yield decoded
 
                 except TimeoutError:
                     # No output for 1 second, check if process is still running
                     if process.returncode is not None:
-                        logger.debug(f"Process exited with code {process.returncode} after {line_count} lines")
+                        logger.debug(
+                            f"Process exited with code {process.returncode} "
+                            f"after {line_count} lines"
+                        )
                         break
                     # Process still running, continue waiting for output
-                    logger.debug(f"Waiting for output... ({elapsed:.1f}s elapsed, {line_count} lines so far)")
+                    logger.debug(
+                        f"Waiting for output... ({elapsed:.1f}s elapsed, "
+                        f"{line_count} lines so far)"
+                    )
                     continue
 
         except asyncio.CancelledError:
@@ -192,4 +210,7 @@ class GeminiBackend(AgentBackend):
                 await process.wait()
 
             elapsed = time.time() - start_time
-            logger.info(f"Gemini CLI completed: {line_count} lines in {elapsed:.1f}s, exit code: {process.returncode}")
+            logger.info(
+                f"Gemini CLI completed: {line_count} lines in {elapsed:.1f}s, "
+                f"exit code: {process.returncode}"
+            )

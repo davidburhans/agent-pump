@@ -170,7 +170,7 @@ class ProjectWorkflow:
 
         # Calculate duration
         duration = (datetime.now() - start_time).total_seconds()
-        
+
         # specific check for min execution time
         if success and not self._cancelled:
             if duration < self.project.min_execution_time_seconds:

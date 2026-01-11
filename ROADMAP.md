@@ -12,20 +12,6 @@ This document tracks feature development for Agent Pump. Items are processed in 
 
 ## Current Sprint
 
-### 🔴 Dynamic Project Management
-**Priority: High**
-
-Enable adding and removing projects at runtime with concurrent execution.
-
-**Acceptance Criteria:**
-- Add projects via TUI or CLI
-- Remove projects without affecting others
-- Each project runs independently
-- No artificial concurrency limits
-- Project state persists
-
----
-
 ### 🔴 Custom Verification Commands
 **Priority: Medium**
 
@@ -237,6 +223,20 @@ Remember previously loaded projects and automatically load them on startup.
 ## Completed
 
 *Features that have been implemented and verified.*
+
+### 🟢 Dynamic Project Management
+**Priority: High**
+
+Enable adding and removing projects at runtime with concurrent execution.
+
+**Acceptance Criteria:**
+- Add projects via TUI or CLI
+- Remove projects without affecting others
+- Each project runs independently
+- No artificial concurrency limits
+- Project state persists
+
+---
 
 ### 🟢 Basic TUI Dashboard
 **Priority: High**

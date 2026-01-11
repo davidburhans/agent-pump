@@ -235,17 +235,17 @@ class TestMinimumExecutionTime:
         """Test that run_phase fails if backend returns too quickly."""
         project.min_execution_time_seconds = 1.0
         workflow = ProjectWorkflow(project=project)
-        
+
         # Mock backend that returns immediately
         mock_backend = MagicMock()
         mock_backend.run = MagicMock()
-        
+
         async def fast_output(*args, **kwargs):
             yield "Some output"
-            
+
         mock_backend.run.return_value = fast_output()
         workflow.backend = mock_backend
-        
+
         success = await workflow.run_phase("prompt", "test_phase")
         assert not success
 
@@ -254,16 +254,16 @@ class TestMinimumExecutionTime:
         """Test that run_phase succeeds if min_execution_time_seconds is 0."""
         project.min_execution_time_seconds = 0
         workflow = ProjectWorkflow(project=project)
-        
+
         # Mock backend that returns immediately
         mock_backend = MagicMock()
         mock_backend.run = MagicMock()
-        
+
         async def fast_output(*args, **kwargs):
             yield "Some output"
-            
+
         mock_backend.run.return_value = fast_output()
         workflow.backend = mock_backend
-        
+
         success = await workflow.run_phase("prompt", "test_phase")
         assert success

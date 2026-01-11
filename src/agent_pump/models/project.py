@@ -26,12 +26,17 @@ class Project(BaseModel):
     path: Path = Field(description="Absolute path to the project root")
     name: str = Field(description="Display name for the project")
     status: ProjectStatus = Field(default=ProjectStatus.IDLE)
-    current_feature: str | None = Field(default=None, description="Feature currently being worked on")
+    current_feature: str | None = Field(
+        default=None, description="Feature currently being worked on"
+    )
     completed_features: list[str] = Field(default_factory=list)
     failed_features: list[str] = Field(default_factory=list)
     backend: str = Field(default="gemini", description="Which agent backend to use")
     branch: str | None = Field(default=None, description="Optional branch to isolate work")
-    min_execution_time_seconds: int = Field(default=10, description="Minimum execution time for a backend call to be considered successful")
+    min_execution_time_seconds: int = Field(
+        default=10,
+        description="Minimum execution time for a backend call to be considered successful",
+    )
     error_message: str | None = Field(default=None)
     iteration_count: int = Field(default=0, description="Number of workflow iterations completed")
 

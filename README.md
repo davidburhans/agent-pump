@@ -83,6 +83,24 @@ Start the TUI dashboard:
 uv run agent-pump
 ```
 
+### CLI Commands
+
+You can also manage projects directly from the command line:
+
+```bash
+# Add a project
+uv run agent-pump project add ./my-project
+
+# Remove a project
+uv run agent-pump project remove ./my-project
+
+# List managed projects
+uv run agent-pump project list
+
+# Run with specific projects (launches TUI)
+uv run agent-pump ./my-project ./another-project
+```
+
 ### 3. Orchestrate
 
 1.  Use the **TUI** to add your project directory.

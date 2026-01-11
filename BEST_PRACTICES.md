@@ -281,6 +281,13 @@ config_path = "~/.config/agent-pump/config.yml"
 - **Visual State Management**: Separating "focus" (keyboard interaction) from "selection" (active application state) is crucial in TUIs. Use dedicated CSS classes (e.g., `.selected`) for application state rather than relying on `:focus` pseudo-classes.
 - **Message Passing**: When using `post_message` with custom messages, pass the widget instance (`self`) if the receiver needs to call methods on the sender.
 - **Testing TUIs**: While full interaction testing requires a `Pilot`, unit testing widget logic (like formatting methods) is effective for quick validation.
+- **Textual @work Decorator**: Methods decorated with `@work` become fire-and-forget. They return a `Worker` object immediately and schedule the coroutine. When mocking these methods in tests, use `MagicMock` instead of `AsyncMock` if the caller does not await them (which they shouldn't).
+- **Granular Controls**: For multi-project management, provide both global (Start All) and granular (Start Selected) controls. Bindings should be intuitive (e.g., `s` for Start Selected, `Shift+S` for Start All).
+
+### 2026-01-11: App State Persistence & Testing
+- **Mocking Filesystem**: When testing code that uses `Path.mkdir` or `Path.home`, ensure your mocks (like `monkeypatch.setattr`) either create the directory structure in the tempdir or mock the paths to point to existing temp locations. Mocking `Path.home` is often cleaner than mocking specific methods like `get_state_path`.
+- **Dual State Management**: When an app has both CLI and TUI components, ensure both respect the same source of truth (e.g., a persistent JSON file). Load state on startup and save on every mutation.
+- **TUI State Injection**: Inject persistent state managers (like `AppState`) into the TUI application constructor rather than re-loading inside the TUI. This makes testing easier and ensures consistency if the CLI modifies state before launching the TUI.
 
 
 ---
