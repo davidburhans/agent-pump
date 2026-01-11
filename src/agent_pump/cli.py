@@ -10,7 +10,7 @@ from agent_pump.tui.app import AgentPumpApp
 console = Console()
 
 
-@click.command()
+@click.command(name="agent-pump")
 @click.argument(
     "projects",
     nargs=-1,
@@ -53,13 +53,36 @@ def main(
         agent-pump --branch feature/dev ./my-project
     """
     if no_tui:
-        console.print("[yellow]Headless mode not yet implemented[/yellow]")
-        console.print("Use the TUI for now: remove --no-tui flag")
+        import asyncio
+        asyncio.run(_run_headless(list(projects), max_iterations, branch))
         return
 
     # Launch TUI app
     app = AgentPumpApp(project_paths=list(projects))
     app.run()
+
+
+async def _run_headless(projects: list[Path], max_iterations: int, branch: str | None) -> None:
+    """Run workflows in headless mode."""
+    from agent_pump.backends.gemini import GeminiBackend
+    from agent_pump.models.project import Project
+    from agent_pump.orchestrator.workflow import ProjectWorkflow
+
+    for path in projects:
+        try:
+            console.print(f"[bold green]Starting project: {path}[/bold green]")
+            project = Project.from_path(path)
+            if branch:
+                project.branch = branch
+
+            workflow = ProjectWorkflow(
+                project=project,
+                backend=GeminiBackend(),
+                on_output=lambda line: console.print(line, end=""),
+            )
+            await workflow.run(max_iterations=max_iterations)
+        except Exception as e:
+            console.print(f"[bold red]Error running project {path}: {e}[/bold red]")
 
 
 if __name__ == "__main__":

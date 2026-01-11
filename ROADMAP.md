@@ -12,19 +12,6 @@ This document tracks feature development for Agent Pump. Items are processed in 
 
 ## Current Sprint
 
-### 🔴 Core Infrastructure
-**Priority: Critical**
-
-Set up the foundational project structure with uv, implement basic CLI entry point, and establish the module architecture.
-
-**Acceptance Criteria:**
-- Project initializes with `uv init`
-- CLI runs with `uv run agent-pump --help`
-- All dependencies install correctly
-- Project structure matches implementation plan
-
----
-
 ### 🔴 Extensible Agent Backend System
 **Priority: Critical**
 
@@ -33,6 +20,7 @@ Create the abstract base class for agent backends and implement the Gemini CLI b
 **Acceptance Criteria:**
 - Abstract `AgentBackend` base class with clear interface
 - `GeminiBackend` implementation with `--yolo`, `--checkpointing`, `--prompt` flags
+- [ ] Add `--verbose` flag for improved debug output
 - Async streaming of agent output
 - Backend availability detection
 - Placeholder files for future backends (Claude, OpenCode)
@@ -81,6 +69,19 @@ Enable adding and removing projects at runtime with concurrent execution.
 
 ---
 
+### 🔴 Custom Verification Commands
+**Priority: Medium**
+
+Support project-specific build, lint, and test commands via configuration.
+
+**Acceptance Criteria:**
+- Read commands from `.agent-pump.yml`
+- Auto-detect common patterns (npm, cargo, go, uv, etc.)
+- Report verification results clearly
+- Allow skipping verification phases
+
+---
+
 ## Future Enhancements
 
 ### 🔴 Claude Code Backend
@@ -121,19 +122,6 @@ Save workflow state to disk and resume after interruption.
 
 ---
 
-### 🔴 Custom Verification Commands
-**Priority: Medium**
-
-Support project-specific build, lint, and test commands via configuration.
-
-**Acceptance Criteria:**
-- Read commands from `.agent-pump.yml`
-- Auto-detect common patterns (npm, cargo, go, uv, etc.)
-- Report verification results clearly
-- Allow skipping verification phases
-
----
-
 ### 🔴 Notification System
 **Priority: Low**
 
@@ -143,6 +131,19 @@ Send notifications on feature completion, errors, or when human intervention is 
 - Desktop notifications (optional)
 - Webhook support for Slack/Discord
 - Configurable notification levels
+
+---
+
+### 🔴 Feature Prioritization
+**Priority: Medium**
+
+Allow users to prioritize which roadmap items are worked on next via the TUI.
+
+**Acceptance Criteria:**
+- List all uncompleted roadmap items in a dedicated TUI view
+- Support moving items up/down the list (k/j keys or dragging)
+- Persistent reordering of ROADMAP.md based on user selection
+- Orchestrator respects the new order
 
 ---
 
@@ -172,9 +173,48 @@ Continuously monitor ROADMAP.md for new items and automatically start work.
 
 ---
 
+### 🔴 Graphical State Machine Visualization
+**Priority: Low**
+
+Render the workflow state machine as a graphical image (PNG/SVG) using pytransitions' GraphMachine and display in the TUI.
+
+**Acceptance Criteria:**
+- Use `transitions.extensions.GraphMachine` to generate state diagrams
+- Requires Graphviz to be installed on the system
+- Use `textual-image` library for terminal image display
+- Fallback to ASCII diagram if image rendering fails
+- Current state highlighted in the diagram
+- Works across different terminal emulators (Sixel, TGP, Unicode fallback)
+
+---
+
+### 🔴 Git Hook Integration
+**Priority: Low**
+
+Automatically run verifications (lint, test) on pre-commit.
+
+**Acceptance Criteria:**
+- Install pre-commit hooks via CLI
+- Run `uv run pytest` and `uv run ruff` before commit
+- Prevent commit if verification fails
+- Option to bypass hooks
+
+---
+
 ## Completed
 
 *Features that have been implemented and verified.*
+
+### 🟢 Core Infrastructure
+**Priority: Critical**
+
+Set up the foundational project structure with uv, implement basic CLI entry point, and establish the module architecture.
+
+**Acceptance Criteria:**
+- Project initializes with `uv init`
+- CLI runs with `uv run agent-pump --help`
+- All dependencies install correctly
+- Project structure matches implementation plan
 
 ---
 

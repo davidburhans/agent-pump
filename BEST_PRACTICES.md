@@ -86,15 +86,51 @@ except GeminiError as e:
 ```
 
 ### Logging
-- Use structured logging with `extra` dict
-- Include correlation IDs for tracing
-- Log at appropriate levels:
-  - `DEBUG`: Detailed internal state
-  - `INFO`: Important state changes
-  - `WARNING`: Recoverable issues
-  - `ERROR`: Failures requiring attention
+
+Logging is critical for debugging issues in production. Every module should use a logger.
+
+#### Configuration
+```python
+import logging
+logger = logging.getLogger(__name__)
+```
+
+#### Log Levels
+- `DEBUG`: Internal state, variable values, loop iterations - anything useful for tracing execution flow
+- `INFO`: Important state transitions, operation start/complete, configuration loaded
+- `WARNING`: Recoverable issues, fallback behavior triggered, deprecated usage
+- `ERROR`: Operation failures, exceptions caught, invalid state detected
+
+#### What to Log
+- **Process lifecycle**: Start, completion, cancellation, timeout
+- **External calls**: Before/after calling external tools (gemini-cli, git, etc.)
+- **State transitions**: Workflow state changes, project status updates
+- **Performance**: Elapsed time for long operations, line/item counts
+- **Errors**: Full context including relevant variables
+
+```python
+# Good - logs process lifecycle with context
+logger.info(f"Starting Gemini CLI in {project_path}")
+logger.debug(f"Command: gemini --yolo --prompt <{len(prompt)} chars>")
+# ... run process ...
+logger.info(f"Gemini CLI completed: {line_count} lines in {elapsed:.1f}s, exit code: {return_code}")
+
+# Good - logs waiting/retry state
+logger.debug(f"Waiting for output... ({elapsed:.1f}s elapsed, {line_count} lines so far)")
+
+# Bad - no context
+logger.info("Process finished")
+```
+
+#### Backend Debugging Pattern
+For subprocess execution, log:
+1. Command being executed (sanitize secrets)
+2. Process ID after spawn
+3. Periodic status while waiting (every 1-5 seconds)
+4. Final result with metrics
 
 ---
+
 
 ## Testing Standards
 
@@ -195,6 +231,35 @@ config_path = "~/.config/agent-pump/config.yml"
 - Established core practices document
 - Defined tech stack and rationale
 - Set testing and code style standards
+
+### 2026-01-10: TUI Debugging Session
+- **Textual CSS Variables**: Only use standard Textual variables (`$primary`, `$surface`, `$text`, `$background`). Variables like `$on-primary` do NOT exist and will crash the app on stylesheet load.
+- **Widget ID Consistency**: Use kebab-case for IDs (e.g., `workflow-panel`). Ensure `compose()` IDs match `query_one()` selectors exactly.
+- **Backend Error Propagation**: Check output for `[ERROR]` markers and treat empty output as failure. Prevents infinite loops when backends are missing.
+- **Windows File Encoding**: Always use `encoding="utf-8"` with `Path.write_text()` when writing Unicode content (emoji, special characters). Windows defaults to cp1252 which fails on non-ASCII.
+- **TextArea vs RichLog**: Use `TextArea(read_only=True)` for user-selectable logs. Use `RichLog` only when rich styling is more important than selection.
+
+### 2026-01-10: Async Reading Loop Bug
+- **TimeoutError in Loops**: When using `asyncio.wait_for()` inside a `while True` loop, the `TimeoutError` exception must be caught **inside** the loop with an explicit `continue`. Catching it outside or letting it fall through exits the loop prematurely.
+- **Path(".").name Returns Empty**: `Path(".").name` returns `""`, not the directory name. Use `Path(".").resolve().name` or store the resolved name during project creation.
+- **Add Debug Logging Early**: Subprocess execution should log: command, PID, periodic waiting status, and final metrics. Without this, silent failures are impossible to diagnose.
+
+### 2026-01-10: TUI ASCII Art Best Practices
+- **Avoid Inline State Markers in ASCII Art**: Using f-strings to inject variable-width text (e.g., `[IDLE]` vs ` IDLE `) into ASCII diagrams breaks alignment. Instead, show the current state as a separate header line.
+- **Test ASCII Art at Multiple Widths**: Box-drawing characters (║, ═, ┌, etc.) have varying widths in different terminals/fonts. Keep diagrams narrow (<50 chars) and test in the actual TUI.
+- **Simple is Better**: Complex box-drawing diagrams are fragile. A clean flowchart without outer borders is more maintainable and displays consistently.
+- **Textual Image Support**: Textual doesn't natively support images (on roadmap). Use `textual-image` library with Sixel/TGP protocols, but expect terminal compatibility issues. ASCII fallback is always more reliable.
+
+### 2026-01-10: Gemini CLI Arguments
+- **Check CLI Help Regularly**: Gemini CLI flags change between versions. `--prompt` is deprecated (use positional arg), `--checkpointing` doesn't exist.
+- **Correct Syntax**: `gemini --yolo "your prompt here"` - the prompt is positional, not a flag value.
+- **Monitor Stdin**: `gemini-cli` requires input via stdin or the `--prompt` argument (deprecated) to detect one-shot mode correctly on some platforms.
+- **Pass Prompt to Stdin**: For robust execution on Windows, pipe the prompt to the subprocess `stdin` instead of using command-line arguments. This avoids shell quoting issues and length limits with `cmd.exe`.
+- **Log Commands For Debugging**: When subprocess output is corrupted, log the full command line to a file for post-mortem debugging.
+
+### 2026-01-10: Core Infrastructure Setup
+- **Pytest and Text Files**: `pytest` may attempt to collect/parse files starting with `test_` even if they have `.txt` extension if they are in the root directory. Keep the root clean or explicitly configure `testpaths`.
+- **Click Command Naming**: Always explicitly set `name="app-name"` in `@click.command()` to ensure help text and `CliRunner` tests display the correct program name instead of the function name (e.g., `Usage: agent-pump` vs `Usage: main`).
 
 ---
 
