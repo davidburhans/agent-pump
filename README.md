@@ -38,6 +38,7 @@ It feels less like "chatting with a bot" and more like **pair programming with a
 - **🖥️ Beautiful TUI Dashboard**: A rich terminal interface built with Textual to monitor multiple projects simultaneously.
 - **🧠 Pluggable Intelligence**: Currently powered by the **Gemini CLI**, with architecture ready for Claude Code and OpenCode.
 - **✅ Automated Verification**: Runs your tests, linters, and build commands. If they fail, the agent fixes the code automatically.
+- **⚙️ Custom Verification Commands**: Configure project-specific build, lint, and test commands via `.agent-pump.yml` or through the TUI.
 - **📝 Living Roadmap**: The agent doesn't just write code; it reads your `ROADMAP.md` to decide what to work on next.
 - **⚡ "YOLO" Mode**: Option to fully automate the process or require manual approval at key checkpoints.
 - **🛡️ Safety First**: All changes are sandboxed in git branches. The agent commits its own work with conventional commit messages.
@@ -99,6 +100,40 @@ uv run agent-pump project list
 
 # Run with specific projects (launches TUI)
 uv run agent-pump ./my-project ./another-project
+```
+
+### Verification Commands
+
+Configure custom build, lint, and test commands for your projects:
+
+```bash
+# Set build command for a project
+uv run agent-pump verification set-build ./my-project "npm run build"
+
+# Set lint command for a project
+uv run agent-pump verification set-lint ./my-project "npm run lint"
+
+# Set test command for a project
+uv run agent-pump verification set-test ./my-project "npm test"
+
+# Toggle skip verification for a project
+uv run agent-pump verification toggle-skip ./my-project --enable
+
+# Show current verification configuration
+uv run agent-pump verification show ./my-project
+
+# Detect project type and suggest appropriate commands
+uv run agent-pump verification detect ./my-project
+```
+
+You can also configure verification commands in your `.agent-pump.yml` file:
+
+```yaml
+verification:
+  build_cmd: "npm run build"
+  lint_cmd: "npm run lint"
+  test_cmd: "npm test"
+  skip_verification: false
 ```
 
 ### 3. Orchestrate

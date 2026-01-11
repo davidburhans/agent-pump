@@ -40,14 +40,15 @@ FIRST, check if ROADMAP.md and BEST_PRACTICES.md exist. If either is missing, cr
 
 THEN, proceed with planning:
 1. Read ROADMAP.md and identify the first uncompleted item (marked with 🔴 or "Not Started")
-2. Read BEST_PRACTICES.md to understand the project's coding standards
-3. Create a detailed ENGINEERING_PLAN.md with:
+4. Read BEST_PRACTICES.md to understand the project's coding standards
+5. Create a detailed ENGINEERING_PLAN.md with:
    - Feature description and goals
    - Detailed task list with checkboxes
    - Each task should be small and actionable
    - Include tasks for: implementation, testing, documentation
    - THE FINAL TASK MUST BE: "Reflect on the work done and update BEST_PRACTICES.md with any lessons learned, \
       and check if README.md needs updates as a result"
+6. Create a TASK_NAME file containing ONLY the exact title of the feature you are working on.
 
 Be thorough but concise. The task list will guide the implementation phase.
 """
@@ -127,6 +128,7 @@ Your task:
    - Move it from "Future Enhancements" to "Current Sprint" (mark as 🔴 Not Started)
    This ensures the roadmap always has ready-to-implement items.
 5. Delete ENGINEERING_PLAN.md (it's no longer needed)
+6. Delete TASK_NAME (it's no longer needed)
 {ideas_section}
 Focus on practical, valuable improvements that align with the project's goals.
 """

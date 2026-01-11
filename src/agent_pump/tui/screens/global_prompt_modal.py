@@ -9,7 +9,6 @@ from textual.widgets import Button, Input, Label, Static, TabbedContent, TabPane
 from agent_pump.backends import BACKEND_REGISTRY
 from agent_pump.models.workspace import GlobalPromptSettings
 
-
 # Well-known models for each engine
 KNOWN_MODELS = {
     "gemini": ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"],
@@ -142,7 +141,8 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
             yield Static("🌐 Global Prompt Settings", id="modal-title")
             yield Label(
                 "Configure prompt prefix/suffix that applies across all phases.\n"
-                "Engine settings apply to all uses of that backend. Model settings are more specific.",
+                "Engine settings apply to all uses of that backend. "
+                "Model settings are more specific.",
                 classes="help-text",
             )
 
@@ -155,7 +155,10 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
                             suffix = self.settings.engine_suffixes.get(engine_name, "")
 
                             with Vertical(classes="engine-section"):
-                                yield Label(f"🔧 {engine_name.capitalize()}", classes="engine-title")
+                                yield Label(
+                                    f"🔧 {engine_name.capitalize()}",
+                                    classes="engine-title"
+                                )
 
                                 with Vertical(classes="textarea-row"):
                                     yield Label("Prefix:", classes="textarea-label")
@@ -191,10 +194,17 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
                             prefix = self.settings.model_prefixes.get(model_name, "")
                             suffix = self.settings.model_suffixes.get(model_name, "")
 
-                            with Vertical(classes="engine-section", id=f"model-section-{self._safe_id(model_name)}"):
+                            with Vertical(
+                                classes="engine-section",
+                                id=f"model-section-{self._safe_id(model_name)}"
+                            ):
                                 with Horizontal():
                                     yield Label(f"📦 {model_name}", classes="engine-title")
-                                    yield Button("×", variant="error", id=f"remove-model-{self._safe_id(model_name)}")
+                                    yield Button(
+                                        "×",
+                                        variant="error",
+                                        id=f"remove-model-{self._safe_id(model_name)}"
+                                    )
 
                                 with Vertical(classes="textarea-row"):
                                     yield Label("Prefix:", classes="textarea-label")
@@ -253,7 +263,10 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
         input_widget.value = ""
 
         # Add the new model section (simplified - would need to mount dynamically)
-        self.notify(f"Added model '{model_name}'. Save and reopen to configure.", severity="information")
+        self.notify(
+            f"Added model '{model_name}'. Save and reopen to configure.",
+            severity="information"
+        )
 
     def _remove_model(self, model_id: str) -> None:
         """Remove a model configuration."""

@@ -317,10 +317,22 @@ config_path = "~/.config/agent-pump/config.yml"
 
 ---
 
+### 2026-01-11: TUI Global Actions & Tabs
+- **Global Actions for Tabs**: When placing buttons outside of `TabbedContent` that affect the active tab (like "Add Backend"), use `query_one(TabbedContent).active` to determine the context. This avoids duplicating buttons inside every tab.
+- **Tab ID Parsing**: Ensure tab IDs follow a parseable pattern (e.g., `id="tab-{phase}"`) so you can easily extract the data key (e.g., `phase`) from the active tab ID.
+
 ### 2026-01-11: Qwen CLI Integration & Tooling
 - **Prefer Stdin for Piped Input**: Even if a CLI (like `qwen`) suggests using positional arguments for non-interactive mode, piping input via standard input (`stdin`) avoids OS command-line length limits and shell escaping issues. This is especially critical on Windows.
 - **Headless Execution**: Always invoke agentic CLIs with their "headless" or "auto-approve" flags (e.g., `qwen --yolo`, `gemini -y`) to prevent the backend from hanging indefinitely while waiting for user confirmation.
 - **Modern Python Tooling**: Use `uv` for running tests and linters (`uv run pytest`) to ensure a consistent, isolated environment without manually activating virtual environments.
+
+### 2026-01-11: Custom Verification Commands Implementation
+- **Project Model Extension**: When extending models with new functionality, ensure the model attributes match the expected access patterns. For example, when adding verification config to Project, make sure the workflow accesses it correctly (`project.config` vs `project.config.verification`).
+- **Case Sensitivity in File Detection**: When detecting project types by file names, be mindful of case sensitivity differences across operating systems. Using `.lower()` on filenames helps ensure consistent detection across platforms.
+- **Pydantic Model Integration**: When integrating new Pydantic models into existing systems, ensure proper imports and field definitions to maintain compatibility with existing code.
+- **Command Validation**: When allowing users to specify custom commands, implement validation to prevent dangerous patterns like command chaining (`||`, `&&`), semicolons (`;`), and command substitution (`$()`, `` `cmd` ``).
+- **Async Subprocess Management**: When executing subprocesses asynchronously, implement proper timeout handling and process termination to prevent hanging processes.
+- **Error Reporting**: Provide clear error messages and status reports for verification command execution to help users understand what succeeded or failed.
 
 ## Verification Checklist
 

@@ -208,10 +208,24 @@ class GeminiBackend(AgentBackend):
             raise
         finally:
             # Ensure process is terminated
-            if process.returncode is None:
-                logger.debug("Terminating process in finally block")
-                process.terminate()
-                await process.wait()
+            try:
+                if process.returncode is None:
+                    logger.debug("Terminating process in finally block")
+                    try:
+                        process.terminate()
+                        await process.wait()
+                    except ProcessLookupError:
+                        pass
+                    except RuntimeError as e:
+                        # Handle "Event loop is closed" if it occurs during wait()
+                        logger.warning(f"RuntimeError during process cleanup: {e}")
+                        try:
+                            process.kill()
+                        except:
+                            pass
+            except Exception as e:
+                logger.error(f"Error during process cleanup: {e}")
+
 
             elapsed = time.time() - start_time
             logger.info(

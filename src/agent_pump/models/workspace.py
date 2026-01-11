@@ -6,6 +6,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from .verification_config import VerificationConfig
+
 logger = logging.getLogger(__name__)
 
 
@@ -17,6 +19,7 @@ class BackendInstance(BaseModel):
         default_factory=list,
         description="Extra command-line args (e.g., ['--model', 'gemini-2.5-flash'])",
     )
+    timeout: int | None = Field(default=None, description="Timeout in seconds (None = use global default)")
 
 
 class BackendFallback(BaseModel):
@@ -166,6 +169,7 @@ class ProjectConfig(BaseModel):
     name: str = Field(default="", description="Display name for the project")
     phase_backends: PhaseBackends = Field(default_factory=PhaseBackends)
     prompt_customization: PromptCustomization = Field(default_factory=PromptCustomization)
+    verification: VerificationConfig = Field(default_factory=VerificationConfig, description="Verification command configuration")
     branch: str | None = Field(default=None, description="Optional branch to isolate work")
     min_execution_time_seconds: int = Field(
         default=10,
@@ -174,6 +178,10 @@ class ProjectConfig(BaseModel):
     workflow_name: str = Field(
         default="default",
         description="Name of workflow definition to use (default = built-in 5-phase)",
+    )
+    idea_queue: list[IdeaQueueItem] = Field(
+        default_factory=list,
+        description="Ideas to feed to the brainstormer for this project",
     )
 
     model_config = {"arbitrary_types_allowed": True}

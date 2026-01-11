@@ -8,6 +8,7 @@ from rich.console import Console
 
 from agent_pump.models.app_state import AppState
 from agent_pump.tui.app import AgentPumpApp
+from agent_pump.utils.verification import load_verification_config, save_verification_config
 
 console = Console()
 
@@ -16,7 +17,7 @@ console = Console()
 @click.argument(
     "projects",
     nargs=-1,
-    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
+    type=click.Path(exists=False, file_okay=False, dir_okay=True, path_type=Path),
 )
 @click.option(
     "--no-tui",
@@ -308,3 +309,105 @@ def remove_idea(index: int) -> None:
     removed = workspace.idea_queue.pop(index - 1)
     workspace.save()
     console.print(f"[green]Removed: {removed.idea}[/green]")
+
+
+# ============================================================================
+# Verification Commands
+# ============================================================================
+
+@main.group(name="verification")
+def verification_group() -> None:
+    """Manage verification commands for projects."""
+    pass
+
+
+@verification_group.command(name="set-build")
+@click.argument("project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path))
+@click.argument("command")
+def set_build_command(project_path: Path, command: str) -> None:
+    """Set the build command for a project."""
+    config = load_verification_config(project_path)
+    config.build_cmd = command
+    save_verification_config(project_path, config)
+    console.print(f"[green]Set build command for {project_path}: {command}[/green]")
+
+
+@verification_group.command(name="set-lint")
+@click.argument("project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path))
+@click.argument("command")
+def set_lint_command(project_path: Path, command: str) -> None:
+    """Set the lint command for a project."""
+    config = load_verification_config(project_path)
+    config.lint_cmd = command
+    save_verification_config(project_path, config)
+    console.print(f"[green]Set lint command for {project_path}: {command}[/green]")
+
+
+@verification_group.command(name="set-test")
+@click.argument("project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path))
+@click.argument("command")
+def set_test_command(project_path: Path, command: str) -> None:
+    """Set the test command for a project."""
+    config = load_verification_config(project_path)
+    config.test_cmd = command
+    save_verification_config(project_path, config)
+    console.print(f"[green]Set test command for {project_path}: {command}[/green]")
+
+
+@verification_group.command(name="toggle-skip")
+@click.argument("project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path))
+@click.option("--enable/--disable", default=None, help="Enable or disable skipping verification")
+def toggle_skip_verification(project_path: Path, enable: bool | None) -> None:
+    """Toggle whether to skip verification for a project."""
+    config = load_verification_config(project_path)
+
+    if enable is None:
+        # Toggle the current value
+        config.skip_verification = not config.skip_verification
+    else:
+        config.skip_verification = enable
+
+    save_verification_config(project_path, config)
+    status = "enabled" if config.skip_verification else "disabled"
+    console.print(f"[green]Skip verification {status} for {project_path}[/green]")
+
+
+@verification_group.command(name="show")
+@click.argument("project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path))
+def show_verification_config(project_path: Path) -> None:
+    """Show the verification configuration for a project."""
+    config = load_verification_config(project_path)
+
+    console.print(f"[bold]Verification configuration for {project_path}:[/bold]")
+    console.print(f"  Build command: {config.build_cmd or '[not set]'}")
+    console.print(f"  Lint command: {config.lint_cmd or '[not set]'}")
+    console.print(f"  Test command: {config.test_cmd or '[not set]'}")
+    console.print(f"  Skip verification: {'Yes' if config.skip_verification else 'No'}")
+
+
+@verification_group.command(name="detect")
+@click.argument("project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path))
+def detect_project_type(project_path: Path) -> None:
+    """Detect project type and suggest appropriate verification commands."""
+    from agent_pump.models.verification_config import detect_project_type as detect_proj_type
+
+    result = detect_proj_type(project_path)
+
+    console.print(f"[bold]Detected project type: {result.project_type or 'unknown'}[/bold]")
+    console.print(f"  Suggested build command: {result.build_cmd or '[none]'}")
+    console.print(f"  Suggested lint command: {result.lint_cmd or '[none]'}")
+    console.print(f"  Suggested test command: {result.test_cmd or '[none]'}")
+
+    # Ask if user wants to apply the suggestions
+    if result.build_cmd or result.lint_cmd or result.test_cmd:
+        apply_suggestions = click.confirm("Apply these suggestions to the project configuration?")
+        if apply_suggestions:
+            config = load_verification_config(project_path)
+            if result.build_cmd:
+                config.build_cmd = result.build_cmd
+            if result.lint_cmd:
+                config.lint_cmd = result.lint_cmd
+            if result.test_cmd:
+                config.test_cmd = result.test_cmd
+            save_verification_config(project_path, config)
+            console.print("[green]Applied suggested commands to project configuration.[/green]")

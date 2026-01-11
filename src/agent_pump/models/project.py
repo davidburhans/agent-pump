@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from .verification_config import VerificationConfig
+
 
 class ProjectStatus(str, Enum):
     """Status of a project in the workflow."""
@@ -39,6 +41,7 @@ class Project(BaseModel):
     )
     error_message: str | None = Field(default=None)
     iteration_count: int = Field(default=0, description="Number of workflow iterations completed")
+    config: VerificationConfig = Field(default_factory=VerificationConfig, description="Verification configuration for the project")
 
     model_config = {"arbitrary_types_allowed": True}
 

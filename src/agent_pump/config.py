@@ -6,12 +6,14 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, Field
 
+from agent_pump.models.verification_config import VerificationConfig
+
 
 class WorkflowConfig(BaseModel):
     """Workflow configuration options."""
 
     max_iterations: int = Field(default=10, description="Maximum workflow iterations")
-    timeout: int = Field(default=1200, description="Timeout per agent invocation in seconds")
+    timeout: int = Field(default=1800, description="Timeout per agent invocation in seconds")
     branch: str | None = Field(default=None, description="Optional branch to isolate work")
 
 
@@ -20,6 +22,7 @@ class Config(BaseModel):
 
     backend: str = Field(default="gemini", description="AI agent backend to use")
     workflow: WorkflowConfig = Field(default_factory=WorkflowConfig)
+    verification: VerificationConfig = Field(default_factory=VerificationConfig, description="Verification command configuration")
 
     @classmethod
     def load(cls, project_path: Path) -> "Config":

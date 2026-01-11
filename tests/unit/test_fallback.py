@@ -1,12 +1,12 @@
 """Tests for fallback backend runner."""
 
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from agent_pump.backends import BACKEND_REGISTRY, create_fallback_runner, get_backend
 from agent_pump.backends.fallback import FallbackBackendRunner
-from agent_pump.backends import create_fallback_runner, get_backend, BACKEND_REGISTRY
 
 
 class TestFallbackBackendRunner:

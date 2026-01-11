@@ -22,6 +22,7 @@ from agent_pump.orchestrator.prompts import (
     build_planning_prompt,
     build_verifying_prompt,
 )
+from agent_pump.orchestrator.verification_executor import VerificationExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -77,11 +78,13 @@ class ProjectWorkflow:
         self,
         project: Project,
         backend: AgentBackend | None = None,
+        config: Any | None = None,  # Avoid circular import, typed as Any but expects Config
         phase_backends: PhaseBackends | None = None,
         prompt_customization: PromptCustomization | None = None,
         idea_queue: list[str] | None = None,
         on_output: Callable[[str], None] | None = None,
         on_state_change: Callable[[str, str], None] | None = None,
+        on_ideas_processed: Callable[[Path], None] | None = None,
     ):
         """
         Initialize the workflow for a project.
@@ -89,21 +92,31 @@ class ProjectWorkflow:
         Args:
             project: The project to manage
             backend: The AI agent backend to use (defaults to GeminiBackend)
+            config: The full application configuration
             phase_backends: Optional phase-specific backend configuration
             prompt_customization: Optional per-phase prompt prefix/suffix overrides
             idea_queue: Optional list of ideas to include in brainstorming
             on_output: Callback for agent output lines
             on_state_change: Callback for state changes (old_state, new_state)
+            on_ideas_processed: Callback when ideas have been processed
         """
         self.project = project
         self.backend = backend or GeminiBackend()
+        self.config = config
         self.phase_backends = phase_backends
         self.prompt_customization = prompt_customization or PromptCustomization()
         self.idea_queue = idea_queue or []
         self.on_output = on_output
         self.on_state_change = on_state_change
+        self.on_ideas_processed = on_ideas_processed
         self._running = False
         self._cancelled = False
+
+        # Initialize verification executor with project's verification config
+        self.verification_executor = VerificationExecutor(
+            project_path=project.path,
+            config=project.config
+        )
 
         # Load or create workflow state
         self.workflow_state = WorkflowState.load(project.path) or WorkflowState(
@@ -210,11 +223,28 @@ class ProjectWorkflow:
         # Get the backend for this phase
         backend = self._get_backend_for_phase(phase_name)
 
+        # Determine timeout:
+        # 1. Start with global default (1800s / 30m)
+        timeout = 1800
+        if self.config and hasattr(self.config, "workflow"):
+            timeout = self.config.workflow.timeout
+
+        # 2. Check for step-specific override in PhaseBackends
+        if self.phase_backends:
+            phase_config = getattr(self.phase_backends, phase_name, None)
+            if phase_config and phase_config.backends:
+                # Use the timeout from the first backend in the chain if set
+                # (For fallback chains, we strictly use the first one's timeout preference for now
+                # to keep it simple, or we could pass it down to the fallback runner)
+                step_timeout = phase_config.backends[0].timeout
+                if step_timeout is not None and step_timeout > 0:
+                    timeout = step_timeout
+
         try:
             async for line in backend.run(
                 project_path=self.project.path,
                 prompt=prompt,
-                timeout=600,
+                timeout=timeout,
             ):
                 if self._cancelled:
                     self._emit_output("\n[PAUSED] Workflow paused by user\n")
@@ -304,13 +334,40 @@ class ProjectWorkflow:
                         self.implement_failed()  # type: ignore
 
                 elif current_state == "verifying":
+                    # First run the AI verification phase
                     base_prompt = build_verifying_prompt(self.project.branch)
                     prompt = self.prompt_customization.apply_to_prompt("verifying", base_prompt)
-                    success = await self.run_phase(prompt, "verifying")
+                    ai_success = await self.run_phase(prompt, "verifying")
+
                     if self._cancelled:
                         break
-                    if success:
-                        self.verify_complete()  # type: ignore
+
+                    # Then run the custom verification commands
+                    if ai_success:
+                        self._emit_output("\n[INFO] Running custom verification commands...\n")
+
+                        # Run all verification commands
+                        verification_results = await self.verification_executor.run_all()
+
+                        # Check if all verification commands passed
+                        all_passed = all(result.success for result in verification_results.values())
+
+                        # Log verification results
+                        for cmd_type, result in verification_results.items():
+                            status = "PASSED" if result.success else "FAILED"
+                            self._emit_output(f"\n[{status}] {cmd_type.upper()} command: {result.command or 'N/A'}")
+                            if result.stdout:
+                                self._emit_output(f"STDOUT:\n{result.stdout}")
+                            if result.stderr:
+                                self._emit_output(f"STDERR:\n{result.stderr}")
+                            self._emit_output(f"DURATION: {result.duration:.2f}s\n")
+
+                        if all_passed:
+                            self._emit_output("\n[SUCCESS] All verification commands passed!\n")
+                            self.verify_complete()  # type: ignore
+                        else:
+                            self._emit_output("\n[ERROR] Some verification commands failed\n")
+                            self.verify_failed()  # type: ignore
                     else:
                         self.verify_failed()  # type: ignore
 
@@ -320,6 +377,9 @@ class ProjectWorkflow:
                     prompt = self.prompt_customization.apply_to_prompt("brainstorming", base_prompt)
                     success = await self.run_phase(prompt, "brainstorming")
                     # Clear ideas after they've been processed
+                    if self.idea_queue and success and self.on_ideas_processed:
+                        self.on_ideas_processed(self.project.path)
+
                     self.idea_queue = []
                     if self._cancelled:
                         break

@@ -2,7 +2,7 @@
 
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Container, Horizontal, Vertical, VerticalScroll
+from textual.containers import Container, Horizontal, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label, Select, Static, TabbedContent, TabPane
 
@@ -15,7 +15,6 @@ from agent_pump.models.workspace import (
     ProjectConfig,
     Workspace,
 )
-
 
 PHASES = ["planning", "implementing", "verifying", "brainstorming", "committing"]
 
@@ -105,8 +104,13 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
         width: 20;
     }
 
-    .backend-row Input {
-        width: 1fr;
+    .backend-row .args-input {
+        width: 3fr;
+    }
+
+    .backend-row .timeout-input {
+        width: 12;
+        margin-left: 1;
     }
 
     .backend-row Button {
@@ -168,7 +172,8 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
         with Container(id="modal-container"):
             yield Static(f"⚙️ Backend Configuration: {self.project_config.name}", id="modal-title")
             yield Label(
-                "Configure backend fallback chains. Backends tried in order. Ctrl+S to save, Esc to cancel.",
+                "Configure backend fallback chains. Backends tried in order. "
+                "Ctrl+S to save, Esc to cancel.",
                 classes="help-text"
             )
 
@@ -192,7 +197,9 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
                                 if p != phase:
                                     copy_options.append((f"Phase: {p.capitalize()}", f"phase:{p}"))
                             for preset_name in preset_names:
-                                copy_options.append((f"Preset: {preset_name}", f"preset:{preset_name}"))
+                                copy_options.append(
+                                    (f"Preset: {preset_name}", f"preset:{preset_name}")
+                                )
 
                             with Horizontal(classes="copy-row"):
                                 yield Label("Copy from:")
@@ -202,21 +209,25 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
                                     allow_blank=False,
                                     id=f"{phase}-copy-from",
                                 )
-                                yield Button("Save as Preset", id=f"{phase}-save-preset", variant="primary")
+                                yield Button(
+                                    "Save as Preset", 
+                                    id=f"{phase}-save-preset", 
+                                    variant="primary"
+                                )
 
-                            yield Label(f"Backend Chain (tried in order):", classes="section-label")
+                            yield Label("Backend Chain (tried in order):", classes="section-label")
 
                             with VerticalScroll(classes="backend-list", id=f"{phase}-backend-list"):
                                 for idx, backend in enumerate(backends):
-                                    yield self._create_backend_row(phase, idx, backend, available_backends)
-
-                            with Horizontal(classes="add-row"):
-                                yield Button("+ Add Backend", id=f"{phase}-add-backend", variant="success")
+                                    yield self._create_backend_row(
+                                        phase, idx, backend, available_backends
+                                    )
 
             with Horizontal(classes="button-row"):
                 yield Button("Reset to Default", variant="warning", id="btn-reset")
-                yield Button("Cancel (Esc)", variant="error", id="btn-cancel")
+                yield Button("+ Add Backend", id="btn-add-backend", variant="success")
                 yield Button("Save (Ctrl+S)", variant="success", id="btn-save")
+                yield Button("Cancel (Esc)", variant="error", id="btn-cancel")
 
     def _create_backend_row(
         self, phase: str, idx: int, backend: BackendInstance, available_backends: list[str]
@@ -238,6 +249,16 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
                 value=" ".join(backend.args),
                 placeholder="args (e.g., --model gemini-2.5-flash)",
                 id=f"{phase}-args-{rc}-{idx}",
+                classes="args-input",
+            )
+        )
+        row.compose_add_child(
+            Input(
+                value=str(backend.timeout) if backend.timeout else "",
+                placeholder="timeout(s)",
+                id=f"{phase}-timeout-{rc}-{idx}",
+                classes="timeout-input",
+                type="integer",
             )
         )
         row.compose_add_child(Button("✕", id=f"{phase}-remove-{rc}-{idx}", variant="error"))
@@ -290,9 +311,13 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
             self.action_save()
         elif button_id == "btn-reset":
             self.call_later(self._reset_to_default)
-        elif "-add-backend" in button_id:
-            phase = button_id.replace("-add-backend", "")
-            self.call_later(self._add_backend, phase)
+        elif button_id == "btn-add-backend":
+            # Determine active phase from TabbedContent
+            tabs = self.query_one(TabbedContent)
+            if tabs.active:
+                # Active tab ID is "tab-{phase}"
+                phase = tabs.active.replace("tab-", "")
+                self.call_later(self._add_backend, phase)
         elif "-remove-" in button_id:
             # ID format: {phase}-remove-{counter}-{idx}
             # Extract index from the end
@@ -308,7 +333,10 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
         """Add a new backend to the chain."""
         self._sync_phase_from_ui(phase)  # Preserve current values
         self._phase_backends_lists[phase].append(BackendInstance())
-        self.notify(f"Added backend #{len(self._phase_backends_lists[phase])} to {phase}", severity="information")
+        self.notify(
+            f"Added backend #{len(self._phase_backends_lists[phase])} to {phase}",
+            severity="information"
+        )
         await self._rebuild_backend_list(phase)
 
     async def _remove_backend(self, phase: str, idx: int) -> None:
@@ -368,8 +396,15 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
             try:
                 backend_select = self.query_one(f"#{phase}-backend-{rc}-{idx}", Select)
                 args_input = self.query_one(f"#{phase}-args-{rc}-{idx}", Input)
+                timeout_input = self.query_one(f"#{phase}-timeout-{rc}-{idx}", Input)
                 backends[idx].name = str(backend_select.value)
                 backends[idx].args = args_input.value.split() if args_input.value.strip() else []
+                # Parse timeout
+                try:
+                    t_val = timeout_input.value.strip()
+                    backends[idx].timeout = int(t_val) if t_val else None
+                except ValueError:
+                    backends[idx].timeout = None
             except Exception:
                 pass  # Row may have been removed
 

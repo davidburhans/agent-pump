@@ -4,7 +4,6 @@ This module provides configurable base prompts that can be viewed/edited in the 
 The BasePromptManager bridges between default prompts and custom overrides.
 """
 
-from typing import Callable
 
 from pydantic import BaseModel, Field
 
@@ -58,6 +57,8 @@ THEN, proceed with planning:
    - Include tasks for: implementation, testing, documentation
    - THE FINAL TASK MUST BE: "Reflect on the work done and update BEST_PRACTICES.md with any lessons learned, \
       and check if README.md needs updates as a result"
+6. Create a TASK_NAME file containing ONLY the exact title of the feature you are working on.
+
 
 Be thorough but concise. The task list will guide the implementation phase.""",
     ),
@@ -117,6 +118,8 @@ Your task:
    - Move it from "Future Enhancements" to "Current Sprint" (mark as 🔴 Not Started)
    This ensures the roadmap always has ready-to-implement items.
 5. Delete ENGINEERING_PLAN.md (it's no longer needed)
+6. Delete TASK_NAME (it's no longer needed)
+
 
 Focus on practical, valuable improvements that align with the project's goals.""",
     ),

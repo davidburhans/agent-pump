@@ -4,11 +4,19 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
 from textual.screen import ModalScreen
-from textual.widgets import Button, Checkbox, Collapsible, Label, Static, TabbedContent, TabPane, TextArea
+from textual.widgets import (
+    Button,
+    Checkbox,
+    Collapsible,
+    Label,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
 
 from agent_pump.models.workspace import ProjectConfig, PromptCustomization
 from agent_pump.orchestrator.base_prompts import get_base_prompt_manager
-
 
 PHASES = ["planning", "implementing", "verifying", "brainstorming", "committing"]
 
@@ -142,7 +150,8 @@ class PromptConfigModal(ModalScreen[PromptCustomization | None]):
         with Container(id="modal-container"):
             yield Static(f"📝 Prompt Customization: {self.project_config.name}", id="modal-title")
             yield Label(
-                "Edit prefix/suffix (Ctrl+S save, Ctrl+B toggle base, Ctrl+R reset phase, Esc cancel)",
+                "Edit prefix/suffix "
+                "(Ctrl+S save, Ctrl+B toggle base, Ctrl+R reset phase, Esc cancel)",
                 classes="help-text"
             )
 
@@ -166,26 +175,40 @@ class PromptConfigModal(ModalScreen[PromptCustomization | None]):
                         with Vertical(classes="phase-config"):
                             # Prefix
                             with Vertical(classes="textarea-container"):
-                                yield Label(f"Prefix (added BEFORE {phase} prompt):", classes="textarea-label")
+                                yield Label(
+                                    f"Prefix (added BEFORE {phase} prompt):",
+                                    classes="textarea-label"
+                                )
                                 yield TextArea(prefix, id=f"{phase}-prefix")
 
                             # Suffix
                             with Vertical(classes="textarea-container"):
-                                yield Label(f"Suffix (added AFTER {phase} prompt):", classes="textarea-label")
+                                yield Label(
+                                    f"Suffix (added AFTER {phase} prompt):",
+                                    classes="textarea-label"
+                                )
                                 yield TextArea(suffix, id=f"{phase}-suffix")
 
                             yield Label(PHASE_HINTS.get(phase, ""), classes="textarea-hint")
 
                             # Base prompt section (collapsible)
                             with Vertical(classes="base-prompt-section"):
-                                with Collapsible(title="Base Prompt (click to expand)", collapsed=True, id=f"{phase}-base-collapsible"):
+                                with Collapsible(
+                                    title="Base Prompt (click to expand)",
+                                    collapsed=True,
+                                    id=f"{phase}-base-collapsible"
+                                ):
                                     with Horizontal(classes="override-row"):
                                         yield Checkbox(
                                             "Override base prompt",
                                             value=has_override,
                                             id=f"{phase}-override-checkbox",
                                         )
-                                        yield Button("Reset to Default", variant="warning", id=f"{phase}-reset-base")
+                                        yield Button(
+                                            "Reset to Default",
+                                            variant="warning",
+                                            id=f"{phase}-reset-base"
+                                        )
                                     yield TextArea(
                                         base_override if has_override else default_base,
                                         id=f"{phase}-base",
@@ -203,7 +226,7 @@ class PromptConfigModal(ModalScreen[PromptCustomization | None]):
         if checkbox_id and checkbox_id.endswith("-override-checkbox"):
             phase = checkbox_id.replace("-override-checkbox", "")
             base_area = self.query_one(f"#{phase}-base", TextArea)
-            
+
             if event.value:
                 # User wants to override - make editable
                 base_area.read_only = False
@@ -233,7 +256,7 @@ class PromptConfigModal(ModalScreen[PromptCustomization | None]):
         default_base = self.prompt_manager.get_default(phase)
         base_area = self.query_one(f"#{phase}-base", TextArea)
         checkbox = self.query_one(f"#{phase}-override-checkbox", Checkbox)
-        
+
         base_area.text = default_base
         base_area.read_only = True
         checkbox.value = False
@@ -290,7 +313,7 @@ class PromptConfigModal(ModalScreen[PromptCustomization | None]):
 
             setattr(self.prompt_customization, f"{phase}_prefix", prefix_area.text)
             setattr(self.prompt_customization, f"{phase}_suffix", suffix_area.text)
-            
+
             # Only save base override if checkbox is checked
             if override_checkbox.value:
                 setattr(self.prompt_customization, f"{phase}_base", base_area.text)

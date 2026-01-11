@@ -13,9 +13,20 @@ from agent_pump.backends.gemini import GeminiBackend
 from agent_pump.config import Config
 from agent_pump.models.app_state import AppState
 from agent_pump.models.project import Project
-from agent_pump.models.workspace import GlobalPromptSettings, PhaseBackends, PromptCustomization, Workspace
+from agent_pump.models.workspace import (
+    GlobalPromptSettings,
+    IdeaQueueItem,
+    PhaseBackends,
+    PromptCustomization,
+    Workspace,
+)
 from agent_pump.orchestrator.workflow import ProjectWorkflow
-from agent_pump.tui.screens import AddProjectModal, BackendConfigModal, GlobalPromptModal, PromptConfigModal
+from agent_pump.tui.screens import (
+    AddProjectModal,
+    BackendConfigModal,
+    GlobalPromptModal,
+    PromptConfigModal,
+)
 from agent_pump.tui.widgets.log_panel import LogPanel
 from agent_pump.tui.widgets.project_card import ProjectCard
 from agent_pump.tui.widgets.workflow_panel import WorkflowPanel
@@ -134,7 +145,7 @@ class AgentPumpApp(App):
             ("b", "config_backends", "Back"),
             ("p", "config_prompts", "Prmt"),
         ]
-        
+
         if self.selected_project is not None and not self._project_bindings_active:
             # Add project-specific bindings
             for key, action, description in project_bindings:
@@ -172,8 +183,13 @@ class AgentPumpApp(App):
             phase_backends = project_config.phase_backends if project_config else None
             prompt_customization = project_config.prompt_customization if project_config else None
 
-            # Get queued ideas for brainstorming
-            idea_queue = self.workspace.peek_ideas()
+            # Get queued ideas for brainstorming from project config if available
+            idea_queue = []
+            if project_config and project_config.idea_queue:
+                idea_queue = [item.idea for item in project_config.idea_queue]
+            elif not project_config:
+                # Fallback to global queue if no project config (unlikely)
+                idea_queue = self.workspace.peek_ideas()
 
             # Determine primary backend
             if project_config and project_config.phase_backends.implementing.backends:
@@ -188,11 +204,13 @@ class AgentPumpApp(App):
             workflow = ProjectWorkflow(
                 project=project,
                 backend=backend,
+                config=config,
                 phase_backends=phase_backends,
                 prompt_customization=prompt_customization,
                 idea_queue=idea_queue,
                 on_output=lambda msg, p=path: self._log(msg, project_path=p),
                 on_state_change=lambda old, new, p=path: self._on_workflow_state_change(p, old, new),
+                on_ideas_processed=lambda p=path: self._on_ideas_processed(p),
             )
             self.workflows[path] = workflow
 
@@ -230,6 +248,15 @@ class AgentPumpApp(App):
             if path in self.projects:
                 del self.projects[path]
 
+    def _on_ideas_processed(self, path: Path) -> None:
+        """Callback when ideas have been processed by the workflow."""
+        project_config = self.workspace.get_project_config(path)
+        if project_config:
+            # Clear ideas from project queue
+            project_config.idea_queue = []
+            self.workspace.save()
+            self._log("Project idea queue processed and cleared", project_path=path)
+
     def _on_workflow_state_change(self, path: Path, old_state: str, new_state: str) -> None:
         """Handle workflow state changes."""
         # Update project card
@@ -264,7 +291,7 @@ class AgentPumpApp(App):
         # Persist removal
         if self.app_state.remove_project(path):
             self.app_state.save()
-        
+
         # Remove from workspace
         if self.workspace.remove_project(path):
             self.workspace.save()
@@ -391,10 +418,9 @@ class AgentPumpApp(App):
 
     async def action_add_idea(self) -> None:
         """Add an idea to the brainstorming queue."""
-        from textual.widgets import Input
-        from textual.screen import ModalScreen
         from textual.containers import Vertical
-        from textual.widgets import Button, Label
+        from textual.screen import ModalScreen
+        from textual.widgets import Button, Input, Label
 
         class IdeaInputModal(ModalScreen[str | None]):
             """Modal for entering a new idea."""
@@ -435,10 +461,18 @@ class AgentPumpApp(App):
 
         def handle_idea(idea: str | None) -> None:
             if idea and idea.strip():
-                self.workspace.add_idea(idea.strip())
-                self.workspace.save()
-                self._log(f"Added idea to queue: {idea.strip()}")
-                self._log(f"Total ideas in queue: {len(self.workspace.idea_queue)}")
+                if self.selected_project:
+                    project_config = self.workspace.get_project_config(self.selected_project)
+                    if project_config:
+                        project_config.idea_queue.append(
+                            IdeaQueueItem(idea=idea.strip())
+                        )
+                        self.workspace.save()
+                        self._log(f"Added idea to project queue: {idea.strip()}")
+                else:
+                    self.workspace.add_idea(idea.strip())
+                    self.workspace.save()
+                    self._log(f"Added idea to global queue: {idea.strip()}")
             else:
                 self._log("No idea added")
 

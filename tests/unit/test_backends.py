@@ -1,7 +1,6 @@
 """Tests for agent backends."""
 
 import sys
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -77,7 +76,10 @@ async def test_gemini_run_success(gemini_backend, sample_project_path):
     mock_process.wait = AsyncMock()
 
     # Determine which subprocess creator to mock based on platform
-    target = "asyncio.create_subprocess_shell" if sys.platform == "win32" else "asyncio.create_subprocess_exec"
+    if sys.platform == "win32":
+        target = "asyncio.create_subprocess_shell"
+    else:
+        target = "asyncio.create_subprocess_exec"
 
     with patch(target, return_value=mock_process) as mock_exec, \
          patch("shutil.which", return_value="/usr/bin/gemini"):
@@ -121,7 +123,10 @@ async def test_gemini_run_verbose(gemini_backend, sample_project_path):
     mock_process.wait = AsyncMock()
 
     # Determine which subprocess creator to mock based on platform
-    target = "asyncio.create_subprocess_shell" if sys.platform == "win32" else "asyncio.create_subprocess_exec"
+    if sys.platform == "win32":
+        target = "asyncio.create_subprocess_shell"
+    else:
+        target = "asyncio.create_subprocess_exec"
 
     with patch(target, return_value=mock_process) as mock_exec, \
          patch("shutil.which", return_value="/usr/bin/gemini"):
@@ -167,7 +172,7 @@ async def test_claude_run_not_found(claude_backend, sample_project_path):
         lines = []
         async for line in claude_backend.run(sample_project_path, "Test prompt"):
             lines.append(line)
-        
+
         # Should have error message and setup instructions
         assert len(lines) >= 2
         assert "[ERROR]" in lines[0]
@@ -194,7 +199,10 @@ async def test_claude_run_success(claude_backend, sample_project_path):
     mock_process.stdout = mock_stdout
     mock_process.wait = AsyncMock()
 
-    target = "asyncio.create_subprocess_shell" if sys.platform == "win32" else "asyncio.create_subprocess_exec"
+    if sys.platform == "win32":
+        target = "asyncio.create_subprocess_shell"
+    else:
+        target = "asyncio.create_subprocess_exec"
 
     with patch(target, return_value=mock_process), \
          patch("shutil.which", return_value="/usr/bin/claude"):
@@ -236,7 +244,7 @@ async def test_opencode_run_not_found(opencode_backend, sample_project_path):
         lines = []
         async for line in opencode_backend.run(sample_project_path, "Test prompt"):
             lines.append(line)
-        
+
         # Should have error message and setup instructions
         assert len(lines) >= 2
         assert "[ERROR]" in lines[0]
@@ -259,7 +267,10 @@ async def test_opencode_run_success(opencode_backend, sample_project_path):
     mock_process.stdout = mock_stdout
     mock_process.wait = AsyncMock()
 
-    target = "asyncio.create_subprocess_shell" if sys.platform == "win32" else "asyncio.create_subprocess_exec"
+    if sys.platform == "win32":
+        target = "asyncio.create_subprocess_shell"
+    else:
+        target = "asyncio.create_subprocess_exec"
 
     with patch(target, return_value=mock_process), \
          patch("shutil.which", return_value="/usr/bin/opencode"):
@@ -301,7 +312,7 @@ async def test_qwen_run_not_found(qwen_backend, sample_project_path):
         lines = []
         async for line in qwen_backend.run(sample_project_path, "Test prompt"):
             lines.append(line)
-        
+
         # Should have error message and setup instructions
         assert len(lines) >= 2
         assert "[ERROR]" in lines[0]
@@ -338,7 +349,7 @@ async def test_qwen_run_success(qwen_backend, sample_project_path):
 
         assert len(lines) == 1
         assert "Qwen response" in lines[0]
-        
+
         # Verify prompt was written to stdin
         mock_process.stdin.write.assert_called_once()
         assert b"Test prompt" in mock_process.stdin.write.call_args[0][0]
@@ -359,7 +370,7 @@ async def test_qwen_run_success(qwen_backend, sample_project_path):
 def test_backend_registry_contains_all():
     """Test that all backends are registered."""
     from agent_pump.backends import BACKEND_REGISTRY
-    
+
     assert "gemini" in BACKEND_REGISTRY
     assert "claude" in BACKEND_REGISTRY
     assert "opencode" in BACKEND_REGISTRY
@@ -370,16 +381,16 @@ def test_backend_registry_contains_all():
 def test_get_backend():
     """Test getting backends by name."""
     from agent_pump.backends import get_backend
-    
+
     gemini = get_backend("gemini")
     assert gemini.name == "Gemini CLI"
-    
+
     claude = get_backend("claude")
     assert claude.name == "Claude Code"
-    
+
     opencode = get_backend("opencode")
     assert opencode.name == "OpenCode"
-    
+
     qwen = get_backend("qwen")
     assert qwen.name == "Qwen Code"
 
@@ -387,7 +398,7 @@ def test_get_backend():
 def test_get_backend_unknown():
     """Test that unknown backend raises ValueError."""
     from agent_pump.backends import get_backend
-    
+
     with pytest.raises(ValueError, match="Unknown backend"):
         get_backend("unknown_backend")
 

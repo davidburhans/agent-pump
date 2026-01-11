@@ -122,7 +122,11 @@ class ProjectCard(Static):
         if total == 0:
             return "No features processed yet"
 
-        return f"✓ {completed} completed | ✗ {failed} failed | 🔄 {self.project.iteration_count} iterations"
+        return (
+            f"✓ {completed} completed | "
+            f"✗ {failed} failed | "
+            f"🔄 {self.project.iteration_count} iterations"
+        )
 
     def refresh_content(self) -> None:
         """Refresh the card content."""

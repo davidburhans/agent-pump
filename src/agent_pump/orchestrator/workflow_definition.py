@@ -51,7 +51,7 @@ class WorkflowDefinition(BaseModel):
         default_factory=list,
         description="Ordered list of workflow phases",
     )
-    
+
     def get_states(self) -> list[str]:
         """Get all states in this workflow.
         
@@ -74,7 +74,7 @@ class WorkflowDefinition(BaseModel):
             List of transition dicts for pytransitions Machine.
         """
         transitions = []
-        
+
         # Start transition (idle -> first phase)
         if self.phases:
             transitions.append({
@@ -82,7 +82,7 @@ class WorkflowDefinition(BaseModel):
                 "source": self.initial_state,
                 "dest": self.phases[0].name,
             })
-        
+
         # Phase transitions
         for phase in self.phases:
             # Success transition
@@ -98,7 +98,7 @@ class WorkflowDefinition(BaseModel):
                     "source": phase.name,
                     "dest": phase.on_failure,
                 })
-        
+
         # Error recovery
         if "error" in self.terminal_states:
             transitions.append({
@@ -106,7 +106,7 @@ class WorkflowDefinition(BaseModel):
                 "source": "error",
                 "dest": self.initial_state,
             })
-        
+
         # Completion transition from last phase (if looping)
         if self.phases and self.phases[-1].on_success == self.phases[0].name:
             # Loop workflow - add no_more_features to break the loop
@@ -115,7 +115,7 @@ class WorkflowDefinition(BaseModel):
                 "source": self.phases[-1].name,
                 "dest": "completed",
             })
-        
+
         return transitions
 
     def get_phase(self, name: str) -> WorkflowPhase | None:
@@ -211,10 +211,10 @@ def get_workflow(name: str, custom_workflows: dict[str, dict] | None = None) -> 
     """
     if name == "default":
         return DEFAULT_WORKFLOW
-    
+
     if custom_workflows and name in custom_workflows:
         return WorkflowDefinition.model_validate(custom_workflows[name])
-    
+
     raise KeyError(f"Unknown workflow: {name}")
 
 
