@@ -1,0 +1,75 @@
+/* Agent Pump TUI Styles */
+
+/* Main Layout */
+#app-container {
+    height: 100%;
+    width: 100%;
+}
+
+#main-layout {
+    height: 100%;
+    width: 100%;
+}
+
+/* Sidebar */
+#sidebar {
+    width: 40;
+    min-width: 30;
+    max-width: 50;
+    height: 100%;
+    background: $surface;
+    border-right: solid $primary-background;
+    padding: 1;
+}
+
+/* Project List */
+#project-list {
+    height: 1fr;
+    overflow-y: auto;
+    padding: 0 1;
+}
+
+/* Button Row */
+.button-row {
+    height: auto;
+    padding: 1;
+    dock: bottom;
+}
+
+.button-row Button {
+    margin: 0 1;
+}
+
+/* Main Content */
+#main-content {
+    height: 100%;
+    padding: 1;
+}
+
+/* Section Titles */
+.section-title {
+    text-style: bold;
+    color: $primary;
+    padding: 1 2;
+    background: $surface;
+}
+
+/* Log Panel */
+#log-panel {
+    height: 1fr;
+    background: $background;
+    border: solid $primary-background;
+}
+
+/* General */
+Screen {
+    background: $background;
+}
+
+Header {
+    background: $primary;
+}
+
+Footer {
+    background: $surface;
+}

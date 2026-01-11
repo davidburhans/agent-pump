@@ -1,0 +1,332 @@
+"""Workflow state machine using pytransitions."""
+
+import asyncio
+import logging
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Callable
+
+from transitions import Machine
+
+from agent_pump.backends.base import AgentBackend
+from agent_pump.backends.gemini import GeminiBackend
+from agent_pump.models.project import Project, ProjectStatus
+from agent_pump.models.state import WorkflowState
+from agent_pump.orchestrator.prompts import (
+    build_brainstorming_prompt,
+    build_committing_prompt,
+    build_implementing_prompt,
+    build_planning_prompt,
+)
+
+logger = logging.getLogger(__name__)
+
+
+class ProjectWorkflow:
+    """
+    State machine for managing a project's development workflow.
+
+    Uses pytransitions for state management with visualization support.
+    """
+
+    # Define states matching ProjectStatus
+    states = [
+        "idle",
+        "planning",
+        "implementing",
+        "brainstorming",
+        "committing",
+        "error",
+        "completed",
+    ]
+
+    # Define transitions
+    transitions = [
+        {"trigger": "start", "source": "idle", "dest": "planning"},
+        {"trigger": "plan_complete", "source": "planning", "dest": "implementing"},
+        {"trigger": "plan_failed", "source": "planning", "dest": "error"},
+        {"trigger": "implement_complete", "source": "implementing", "dest": "brainstorming"},
+        {"trigger": "implement_failed", "source": "implementing", "dest": "error"},
+        {"trigger": "brainstorm_complete", "source": "brainstorming", "dest": "committing"},
+        {"trigger": "commit_complete", "source": "committing", "dest": "planning"},
+        {"trigger": "no_more_features", "source": "committing", "dest": "completed"},
+        {"trigger": "reset", "source": "error", "dest": "idle"},
+        {"trigger": "pause", "source": "*", "dest": "idle"},
+    ]
+
+    def __init__(
+        self,
+        project: Project,
+        backend: AgentBackend | None = None,
+        on_output: Callable[[str], None] | None = None,
+        on_state_change: Callable[[str, str], None] | None = None,
+    ):
+        """
+        Initialize the workflow for a project.
+
+        Args:
+            project: The project to manage
+            backend: The AI agent backend to use (defaults to GeminiBackend)
+            on_output: Callback for agent output lines
+            on_state_change: Callback for state changes (old_state, new_state)
+        """
+        self.project = project
+        self.backend = backend or GeminiBackend()
+        self.on_output = on_output
+        self.on_state_change = on_state_change
+        self._running = False
+        self._cancelled = False
+
+        # Load or create workflow state
+        self.workflow_state = WorkflowState.load(project.path) or WorkflowState(
+            project_path=project.path
+        )
+
+        # Initialize state machine
+        self.machine = Machine(
+            model=self,
+            states=self.states,
+            transitions=self.transitions,
+            initial=self.workflow_state.current_state,
+            auto_transitions=False,
+            after_state_change=self._after_state_change,
+        )
+
+    def _after_state_change(self, *args: Any, **kwargs: Any) -> None:
+        """Called after each state change."""
+        old_state = self.workflow_state.current_state
+        new_state = self.state  # type: ignore
+
+        # Update workflow state
+        self.workflow_state.current_state = new_state
+        self.workflow_state.last_updated = datetime.now()
+
+        # Update project status
+        try:
+            self.project.status = ProjectStatus(new_state)
+        except ValueError:
+            pass
+
+        # Save state
+        self.workflow_state.save()
+
+        # Notify callback
+        if self.on_state_change:
+            self.on_state_change(old_state, new_state)
+
+        logger.info(f"State changed: {old_state} -> {new_state}")
+
+    def _emit_output(self, line: str) -> None:
+        """Emit output line to callback."""
+        if self.on_output:
+            self.on_output(line)
+
+    async def run_phase(self, prompt: str, phase_name: str) -> bool:
+        """
+        Run a single phase by invoking the agent.
+
+        Args:
+            prompt: The prompt to send to the agent
+            phase_name: Name of the phase for logging
+
+        Returns:
+            True if successful, False otherwise
+        """
+        self.workflow_state.log_phase_start(phase_name)
+        self._emit_output(f"\n{'='*60}\n")
+        self._emit_output(f"Starting {phase_name} phase...\n")
+        self._emit_output(f"{'='*60}\n\n")
+
+        output_lines: list[str] = []
+        success = True
+
+        try:
+            async for line in self.backend.run(
+                project_path=self.project.path,
+                prompt=prompt,
+                timeout=600,
+            ):
+                if self._cancelled:
+                    self._emit_output("\n[CANCELLED] Workflow cancelled by user\n")
+                    success = False
+                    break
+                output_lines.append(line)
+                self._emit_output(line)
+
+        except Exception as e:
+            logger.exception(f"Error in {phase_name} phase")
+            self._emit_output(f"\n[ERROR] {e}\n")
+            success = False
+
+        # Log phase completion
+        summary = "".join(output_lines[-10:]) if output_lines else None
+        self.workflow_state.log_phase_complete(success, summary)
+        self.workflow_state.save()
+
+        return success
+
+    async def run(self, max_iterations: int = 10) -> None:
+        """
+        Run the full workflow loop.
+
+        Args:
+            max_iterations: Maximum number of plan->implement->commit cycles
+        """
+        if self._running:
+            raise RuntimeError("Workflow is already running")
+
+        self._running = True
+        self._cancelled = False
+
+        try:
+            # Start if idle
+            if self.state == "idle":  # type: ignore
+                self.start()  # type: ignore
+
+            iteration = 0
+            while iteration < max_iterations and not self._cancelled:
+                current_state = self.state  # type: ignore
+
+                if current_state == "planning":
+                    prompt = build_planning_prompt(self.project.branch)
+                    success = await self.run_phase(prompt, "planning")
+                    if success:
+                        self.plan_complete()  # type: ignore
+                    else:
+                        self.plan_failed()  # type: ignore
+
+                elif current_state == "implementing":
+                    prompt = build_implementing_prompt(self.project.branch)
+                    success = await self.run_phase(prompt, "implementing")
+                    if success:
+                        self.implement_complete()  # type: ignore
+                    else:
+                        self.implement_failed()  # type: ignore
+
+                elif current_state == "brainstorming":
+                    prompt = build_brainstorming_prompt()
+                    success = await self.run_phase(prompt, "brainstorming")
+                    self.brainstorm_complete()  # type: ignore
+
+                elif current_state == "committing":
+                    prompt = build_committing_prompt(self.project.branch)
+                    success = await self.run_phase(prompt, "committing")
+
+                    # Check if there are more features
+                    # For now, always continue; the brainstorm phase will indicate if done
+                    self.workflow_state.iteration_count += 1
+                    self.project.iteration_count = self.workflow_state.iteration_count
+                    iteration += 1
+
+                    if iteration >= max_iterations:
+                        self._emit_output(f"\n[INFO] Max iterations ({max_iterations}) reached\n")
+                        self.no_more_features()  # type: ignore
+                    else:
+                        self.commit_complete()  # type: ignore
+
+                elif current_state == "error":
+                    self._emit_output("\n[ERROR] Workflow is in error state. Resetting...\n")
+                    await asyncio.sleep(5)
+                    self.reset()  # type: ignore
+
+                elif current_state == "completed":
+                    self._emit_output("\n[DONE] Workflow completed!\n")
+                    break
+
+                else:
+                    self._emit_output(f"\n[UNKNOWN] Unknown state: {current_state}\n")
+                    break
+
+        finally:
+            self._running = False
+
+    def cancel(self) -> None:
+        """Cancel the running workflow."""
+        self._cancelled = True
+
+    def is_running(self) -> bool:
+        """Check if the workflow is currently running."""
+        return self._running
+
+    def get_diagram_source(self) -> str:
+        """
+        Get the state machine diagram in DOT format.
+
+        Returns:
+            DOT format string for Graphviz visualization
+        """
+        # Build DOT format manually since transitions may not have GraphMachine installed
+        lines = ["digraph workflow {", '    rankdir=LR;', '    node [shape=box];']
+
+        # Highlight current state
+        for state in self.states:
+            if state == self.state:  # type: ignore
+                lines.append(f'    {state} [style=filled, fillcolor=lightblue];')
+            else:
+                lines.append(f"    {state};")
+
+        # Add transitions
+        for t in self.transitions:
+            source = t["source"]
+            dest = t["dest"]
+            trigger = t["trigger"]
+            if source == "*":
+                for s in self.states:
+                    if s != dest:
+                        lines.append(f'    {s} -> {dest} [label="{trigger}", style=dashed];')
+            else:
+                lines.append(f'    {source} -> {dest} [label="{trigger}"];')
+
+        lines.append("}")
+        return "\n".join(lines)
+
+    def get_ascii_diagram(self) -> str:
+        """
+        Get a simple ASCII representation of the workflow.
+
+        Returns:
+            ASCII diagram string
+        """
+        current = self.state  # type: ignore
+        diagram = """
+╔════════════════════════════════════════════════════════════╗
+║                    AGENT PUMP WORKFLOW                      ║
+╠════════════════════════════════════════════════════════════╣
+║                                                              ║
+║   ┌──────┐   start    ┌──────────┐   complete   ┌────────┐  ║
+║   │ IDLE │ ─────────> │ PLANNING │ ──────────> │ IMPL.  │  ║
+║   └──────┘            └──────────┘              └────────┘  ║
+║       ^                    │ failed                  │      ║
+║       │                    v                         │      ║
+║       │               ┌─────────┐                    │      ║
+║       │               │  ERROR  │                    │      ║
+║       │  reset        └─────────┘                    │      ║
+║       └───────────────────┘                          │      ║
+║                                                      │      ║
+║   ┌───────────┐   complete   ┌─────────────┐         │      ║
+║   │ COMMITTING│ <─────────── │ BRAINSTORM  │ <───────┘      ║
+║   └───────────┘              └─────────────┘                ║
+║        │                                                     ║
+║        │ complete (loop) or no_more_features                ║
+║        v                                                     ║
+║   ┌───────────┐                                              ║
+║   │ COMPLETED │                                              ║
+║   └───────────┘                                              ║
+╚════════════════════════════════════════════════════════════╝
+"""
+        # Mark current state
+        state_markers = {
+            "idle": "IDLE",
+            "planning": "PLANNING",
+            "implementing": "IMPL.",
+            "brainstorming": "BRAINSTORM",
+            "committing": "COMMITTING",
+            "completed": "COMPLETED",
+            "error": "ERROR",
+        }
+
+        if current in state_markers:
+            marker = state_markers[current]
+            diagram = diagram.replace(marker, f"[{marker}]")
+
+        return diagram
