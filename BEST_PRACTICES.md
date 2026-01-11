@@ -308,8 +308,19 @@ config_path = "~/.config/agent-pump/config.yml"
 - **Dynamic Widget State**: Use `on_select_changed` to enable/disable related widgets (e.g., disable fallback args when "none" selected).
 - **TabbedContent IDs**: When querying widgets inside tabs, use unique IDs like `{phase}-backend` rather than relying on tab structure.
 
+### 2026-01-11: Module Registry & Extensibility Patterns
+- **Consistent Registry Naming**: When exporting a registry dict (like `BACKEND_REGISTRY`), use the same name everywhere. Renaming it (e.g., to `AVAILABLE_BACKENDS`) causes import errors and confusion.
+- **Checkbox + read_only Pattern**: For "override default" UX, use a Checkbox to toggle `TextArea.read_only`. When unchecked, reset text to default and lock; when checked, unlock for editing.
+- **Collapsible for Advanced Options**: Use `Collapsible(collapsed=True)` to hide advanced options (like base prompt editing) while keeping them accessible. Pair with a keyboard shortcut (e.g., `Ctrl+B`) for power users.
+- **Pydantic Model Extensibility**: Add new optional fields with defaults (e.g., `planning_base: str = ""`) for backward-compatible model evolution. Empty string = "use default" is a clean pattern.
+
 
 ---
+
+### 2026-01-11: Qwen CLI Integration & Tooling
+- **Prefer Stdin for Piped Input**: Even if a CLI (like `qwen`) suggests using positional arguments for non-interactive mode, piping input via standard input (`stdin`) avoids OS command-line length limits and shell escaping issues. This is especially critical on Windows.
+- **Headless Execution**: Always invoke agentic CLIs with their "headless" or "auto-approve" flags (e.g., `qwen --yolo`, `gemini -y`) to prevent the backend from hanging indefinitely while waiting for user confirmation.
+- **Modern Python Tooling**: Use `uv` for running tests and linters (`uv run pytest`) to ensure a consistent, isolated environment without manually activating virtual environments.
 
 ## Verification Checklist
 

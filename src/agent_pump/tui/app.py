@@ -13,9 +13,9 @@ from agent_pump.backends.gemini import GeminiBackend
 from agent_pump.config import Config
 from agent_pump.models.app_state import AppState
 from agent_pump.models.project import Project
-from agent_pump.models.workspace import PhaseBackends, PromptCustomization, Workspace
+from agent_pump.models.workspace import GlobalPromptSettings, PhaseBackends, PromptCustomization, Workspace
 from agent_pump.orchestrator.workflow import ProjectWorkflow
-from agent_pump.tui.screens import AddProjectModal, BackendConfigModal, PromptConfigModal
+from agent_pump.tui.screens import AddProjectModal, BackendConfigModal, GlobalPromptModal, PromptConfigModal
 from agent_pump.tui.widgets.log_panel import LogPanel
 from agent_pump.tui.widgets.project_card import ProjectCard
 from agent_pump.tui.widgets.workflow_panel import WorkflowPanel
@@ -29,20 +29,13 @@ class AgentPumpApp(App):
 
     CSS_PATH = "styles/app.tcss"
 
+    # Base bindings always available
     BINDINGS = [
         Binding("q", "quit", "Quit"),
-        Binding("a", "add_project", "Add Project"),
-        Binding("r", "remove_project", "Remove Project"),
-        Binding("s", "start_selected", "Start"),
-        Binding("x", "stop_selected", "Stop"),
-        Binding("S", "start_all", "Start All"),
-        Binding("X", "stop_all", "Stop All"),
-        Binding("k", "skip_feature", "Skip Feature"),
-        Binding("d", "toggle_dark", "Toggle Dark"),
-        Binding("w", "show_workflow", "Show Workflow"),
-        Binding("i", "add_idea", "Add Idea"),
-        Binding("b", "config_backends", "Backends"),
-        Binding("p", "config_prompts", "Prompts"),
+        Binding("a", "add_project", "Add"),
+        Binding("d", "toggle_dark", "Dark"),
+        Binding("i", "add_idea", "Idea"),
+        Binding("P", "global_prompts", "Global"),
     ]
 
     def __init__(self, project_paths: list[Path] | None = None):
@@ -62,6 +55,8 @@ class AgentPumpApp(App):
         self.app_state = AppState.load()
         # Load workspace for backend configuration
         self.workspace = Workspace.load(self.app_state.current_workspace)
+        # Track project-specific bindings
+        self._project_bindings_active = False
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -80,7 +75,7 @@ class AgentPumpApp(App):
                     id="sidebar",
                 ),
                 Vertical(
-                    Static("Activity Log", classes="section-title"),
+                    Static("Activity Log", id="activity-log-title", classes="section-title"),
                     LogPanel(id="log-panel"),
                     id="main-content",
                 ),
@@ -110,6 +105,50 @@ class AgentPumpApp(App):
         """Log a message to the log panel."""
         if self.log_panel:
             self.log_panel.write(message, project_path=project_path)
+
+    def _update_activity_log_title(self) -> None:
+        """Update the Activity Log title to show the selected project."""
+        try:
+            title_widget = self.query_one("#activity-log-title", Static)
+            if self.selected_project:
+                project = self.projects.get(self.selected_project)
+                if project:
+                    title_widget.update(f"Activity Log - {project.name}")
+                else:
+                    title_widget.update("Activity Log")
+            else:
+                title_widget.update("Activity Log")
+        except Exception:
+            pass  # Widget may not be mounted yet
+
+    def _update_project_bindings(self) -> None:
+        """Update key bindings based on project selection state."""
+        project_bindings = [
+            ("r", "remove_project", "Remove"),
+            ("s", "start_selected", "Start"),
+            ("x", "stop_selected", "Stop"),
+            ("S", "start_all", "All▶"),
+            ("X", "stop_all", "All⏹"),
+            ("k", "skip_feature", "Skip"),
+            ("w", "show_workflow", "Flow"),
+            ("b", "config_backends", "Back"),
+            ("p", "config_prompts", "Prmt"),
+        ]
+        
+        if self.selected_project is not None and not self._project_bindings_active:
+            # Add project-specific bindings
+            for key, action, description in project_bindings:
+                self.bind(key, action, description=description, show=True)
+            self._project_bindings_active = True
+        elif self.selected_project is None and self._project_bindings_active:
+            # Remove project-specific bindings
+            for key, action, description in project_bindings:
+                try:
+                    self.unbind(key)
+                except Exception:
+                    pass
+            self._project_bindings_active = False
+
 
     def _add_project(self, path: Path) -> None:
         """Add a project to the app."""
@@ -163,6 +202,8 @@ class AgentPumpApp(App):
                 self.workflow_panel.set_workflow(workflow)
             if self.log_panel:
                 self.log_panel.set_filter(path)
+            self._update_activity_log_title()
+            self._update_project_bindings()
 
             # Add card to UI
             project_list = self.query_one("#project-list", Container)
@@ -235,6 +276,8 @@ class AgentPumpApp(App):
                 self.workflow_panel.set_workflow(None)
             if self.log_panel:
                 self.log_panel.set_filter(None)
+            self._update_activity_log_title()
+            self._update_project_bindings()
 
         # Remove from UI
         try:
@@ -424,7 +467,7 @@ class AgentPumpApp(App):
             else:
                 self._log("Backend configuration cancelled")
 
-        self.push_screen(BackendConfigModal(project_config), handle_result)
+        self.push_screen(BackendConfigModal(project_config, self.workspace), handle_result)
 
     def action_config_prompts(self) -> None:
         """Configure prompt customizations for the selected project."""
@@ -450,6 +493,19 @@ class AgentPumpApp(App):
                 self._log("Prompt customization cancelled")
 
         self.push_screen(PromptConfigModal(project_config), handle_result)
+
+    def action_global_prompts(self) -> None:
+        """Configure global prompt prefix/suffix per engine and model."""
+        def handle_result(settings: GlobalPromptSettings | None) -> None:
+            if settings is not None:
+                self.workspace.global_prompt_settings = settings
+                self.workspace.save()
+                self._log("Global prompt settings saved")
+            else:
+                self._log("Global prompt settings cancelled")
+
+        self.push_screen(GlobalPromptModal(self.workspace.global_prompt_settings), handle_result)
+
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
@@ -480,3 +536,6 @@ class AgentPumpApp(App):
         # Update log filter
         if self.log_panel:
             self.log_panel.set_filter(event.project.path)
+        self._update_activity_log_title()
+        self._update_project_bindings()
+

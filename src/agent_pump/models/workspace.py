@@ -43,6 +43,13 @@ class PhaseBackends(BaseModel):
     committing: BackendFallback = Field(default_factory=BackendFallback)
 
 
+class BackendPreset(BaseModel):
+    """A named preset for backend configuration (fallback chain)."""
+
+    name: str = Field(description="Display name for the preset")
+    backends: BackendFallback = Field(default_factory=BackendFallback)
+
+
 class PromptCustomization(BaseModel):
     """Custom prompt additions per phase."""
 
@@ -58,6 +65,17 @@ class PromptCustomization(BaseModel):
     brainstorming_suffix: str = Field(default="", description="Added after brainstorming prompt")
     committing_prefix: str = Field(default="", description="Added before committing prompt")
     committing_suffix: str = Field(default="", description="Added after committing prompt")
+
+    # Base prompt overrides (empty = use default from base_prompts.py)
+    planning_base: str = Field(default="", description="Custom base prompt for planning (empty = default)")
+    implementing_base: str = Field(default="", description="Custom base prompt for implementing (empty = default)")
+    verifying_base: str = Field(default="", description="Custom base prompt for verifying (empty = default)")
+    brainstorming_base: str = Field(default="", description="Custom base prompt for brainstorming (empty = default)")
+    committing_base: str = Field(default="", description="Custom base prompt for committing (empty = default)")
+
+    def get_base_override(self, phase: str) -> str:
+        """Get the base prompt override for a phase (empty = use default)."""
+        return getattr(self, f"{phase}_base", "")
 
     def apply_to_prompt(self, phase: str, base_prompt: str) -> str:
         """Apply prefix/suffix to a base prompt for a given phase."""
@@ -81,6 +99,66 @@ class IdeaQueueItem(BaseModel):
     source: str = Field(default="user", description="Where the idea came from")
 
 
+class GlobalPromptSettings(BaseModel):
+    """Global prompt settings applied across all phases.
+    
+    These settings are applied in addition to (not replacing) phase-specific
+    prompt customizations. Order of application:
+    1. Global engine prefix (if backend engine matches)
+    2. Global model prefix (if model matches)
+    3. Phase-specific prefix
+    4. Base prompt (default or custom)
+    5. Phase-specific suffix
+    6. Global model suffix
+    7. Global engine suffix
+    """
+
+    # Per-engine overrides (e.g., "gemini", "claude", "opencode")
+    engine_prefixes: dict[str, str] = Field(
+        default_factory=dict,
+        description="Prefix text per engine name (e.g., {'gemini': 'Use JSON output.'})",
+    )
+    engine_suffixes: dict[str, str] = Field(
+        default_factory=dict,
+        description="Suffix text per engine name",
+    )
+    # Per-model overrides (e.g., "gemini-2.5-flash", "claude-sonnet")
+    model_prefixes: dict[str, str] = Field(
+        default_factory=dict,
+        description="Prefix text per model name (e.g., {'gemini-2.5-flash': 'Be concise.'})",
+    )
+    model_suffixes: dict[str, str] = Field(
+        default_factory=dict,
+        description="Suffix text per model name",
+    )
+
+    def get_engine_additions(self, engine_name: str) -> tuple[str, str]:
+        """Get prefix and suffix for an engine.
+        
+        Args:
+            engine_name: Backend engine name (e.g., "gemini")
+            
+        Returns:
+            Tuple of (prefix, suffix) for the engine.
+        """
+        prefix = self.engine_prefixes.get(engine_name, "")
+        suffix = self.engine_suffixes.get(engine_name, "")
+        return prefix, suffix
+
+    def get_model_additions(self, model_name: str) -> tuple[str, str]:
+        """Get prefix and suffix for a model.
+        
+        Args:
+            model_name: Model name (e.g., "gemini-2.5-flash")
+            
+        Returns:
+            Tuple of (prefix, suffix) for the model.
+        """
+        prefix = self.model_prefixes.get(model_name, "")
+        suffix = self.model_suffixes.get(model_name, "")
+        return prefix, suffix
+
+
 class ProjectConfig(BaseModel):
     """Per-project configuration within a workspace."""
 
@@ -92,6 +170,10 @@ class ProjectConfig(BaseModel):
     min_execution_time_seconds: int = Field(
         default=10,
         description="Minimum execution time for a backend call to be considered successful",
+    )
+    workflow_name: str = Field(
+        default="default",
+        description="Name of workflow definition to use (default = built-in 5-phase)",
     )
 
     model_config = {"arbitrary_types_allowed": True}
@@ -117,6 +199,18 @@ class Workspace(BaseModel):
     default_phase_backends: PhaseBackends = Field(
         default_factory=PhaseBackends,
         description="Default backend config for new projects",
+    )
+    global_prompt_settings: GlobalPromptSettings = Field(
+        default_factory=GlobalPromptSettings,
+        description="Global prompt prefix/suffix per engine and model",
+    )
+    backend_presets: dict[str, BackendPreset] = Field(
+        default_factory=dict,
+        description="Named backend presets (name -> preset)",
+    )
+    workflow_definitions: dict[str, dict] = Field(
+        default_factory=dict,
+        description="Custom workflow definitions (name -> WorkflowDefinition as dict)",
     )
     created_at: datetime = Field(default_factory=datetime.now)
     last_modified: datetime = Field(default_factory=datetime.now)

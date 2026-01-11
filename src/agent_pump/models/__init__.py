@@ -6,6 +6,7 @@ from agent_pump.models.state import WorkflowState
 from agent_pump.models.workspace import (
     BackendFallback,
     BackendInstance,
+    BackendPreset,
     IdeaQueueItem,
     PhaseBackends,
     ProjectConfig,
@@ -17,6 +18,7 @@ __all__ = [
     "AppState",
     "BackendFallback",
     "BackendInstance",
+    "BackendPreset",
     "IdeaQueueItem",
     "PhaseBackends",
     "Project",

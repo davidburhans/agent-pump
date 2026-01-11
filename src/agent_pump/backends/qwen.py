@@ -130,15 +130,18 @@ class QwenBackend(AgentBackend):
             yield self.get_setup_instructions()
             return
 
-        # Build command: qwen (prompt via stdin)
-        cmd = [executable]
+        # Build command: qwen --yolo (prompt via stdin)
+        # Note: While 'qwen -h' suggests positional arguments for non-interactive mode,
+        # we stick to passing prompt via stdin + --yolo for stability and to avoid
+        # command-line length limits on Windows.
+        cmd = [executable, "--yolo"]
 
         # Apply extra args (e.g., --model)
         if extra_args:
             cmd.extend(extra_args)
             logger.debug(f"Applied extra args: {extra_args}")
 
-        logger.debug(f"Command: {self.command} (prompt via stdin, len={len(prompt)})")
+        logger.debug(f"Command: {self.command} --yolo (prompt via stdin, len={len(prompt)})")
 
         start_time = time.time()
         line_count = 0

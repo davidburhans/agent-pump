@@ -329,7 +329,7 @@ async def test_qwen_run_success(qwen_backend, sample_project_path):
 
     target = "asyncio.create_subprocess_shell" if sys.platform == "win32" else "asyncio.create_subprocess_exec"
 
-    with patch(target, return_value=mock_process), \
+    with patch(target, return_value=mock_process) as mock_exec, \
          patch("shutil.which", return_value="/usr/bin/qwen"):
 
         lines = []
@@ -342,6 +342,14 @@ async def test_qwen_run_success(qwen_backend, sample_project_path):
         # Verify prompt was written to stdin
         mock_process.stdin.write.assert_called_once()
         assert b"Test prompt" in mock_process.stdin.write.call_args[0][0]
+
+        # Verify --yolo flag was passed
+        if sys.platform == "win32":
+            args =  mock_exec.call_args[0][0]
+            assert "--yolo" in args
+        else:
+            args = mock_exec.call_args[0]
+            assert "--yolo" in args
 
 
 # =====================
