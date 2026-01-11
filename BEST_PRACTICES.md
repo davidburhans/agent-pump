@@ -302,6 +302,12 @@ config_path = "~/.config/agent-pump/config.yml"
 - **Extra Args Propagation**: When adding optional parameters like `extra_args` to method signatures, add them with `| None = None` default throughout the call chain (base class → implementation → runner → workflow).
 - **Accessing Nested Config Safely**: When accessing `project_config.phase_backends.implementing.backends[0].name`, ensure all intermediate objects exist. Guard with `if project_config and project_config.phase_backends.implementing.backends:`.
 
+### 2026-01-11: Textual Modals & TabbedContent
+- **ModalScreen Pattern**: Use `ModalScreen[ReturnType]` with `self.dismiss(result)` to return values. Caller uses `push_screen(modal, callback)` to handle results.
+- **Bindings in Modals**: Add `priority=True` to bindings like `Ctrl+S` that conflict with TextArea's default bindings.
+- **Dynamic Widget State**: Use `on_select_changed` to enable/disable related widgets (e.g., disable fallback args when "none" selected).
+- **TabbedContent IDs**: When querying widgets inside tabs, use unique IDs like `{phase}-backend` rather than relying on tab structure.
+
 
 ---
 

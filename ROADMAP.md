@@ -10,6 +10,41 @@ This document tracks feature development for Agent Pump. Items are processed in 
 
 ---
 
+## Recently Completed
+
+### 🟢 Backend Fallback Chains
+**Completed: 2026-01-11**
+
+Automatic fallback when primary backend fails or hits quota limits.
+
+- Fallback on unavailability, quota errors, or exceptions
+- Per-backend custom CLI args (e.g., `--model gemini-2.5-flash`)
+- TUI modal for configuration (`b` key)
+
+---
+
+### 🟢 Prompt Customization
+**Completed: 2026-01-11**
+
+Per-project, per-phase prompt prefix/suffix overrides.
+
+- Prefix added before standard prompt, suffix after
+- TUI modal for configuration (`p` key)
+- Saved to workspace config
+
+---
+
+### 🟢 Workspace Configuration
+**Completed: 2026-01-11**
+
+Persistent workspace configuration with project settings.
+
+- Multiple workspaces with `workspace create/switch`
+- Idea queue for brainstormer (`i` key to add)
+- Phase-specific backend configuration
+
+---
+
 ## Current Sprint
 
 ### 🔴 Custom Verification Commands
@@ -26,6 +61,18 @@ Support project-specific build, lint, and test commands via configuration.
 ---
 
 ## Future Enhancements
+
+### 🔴 Copy Config Between Projects
+**Priority: Medium**
+
+Allow copying backend/prompt configuration from one project to another.
+
+**Acceptance Criteria:**
+- "Copy from..." button in config modals
+- Select source project from dropdown
+- Option to copy to all projects (workspace default)
+
+---
 
 ### 🔴 Claude Code Backend
 **Priority: Medium**
