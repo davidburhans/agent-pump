@@ -1,6 +1,7 @@
 """Tests for the CLI."""
 
 from click.testing import CliRunner
+
 from agent_pump.cli import main
 
 

@@ -94,15 +94,15 @@ class AgentPumpApp(App):
         for path in self.project_paths:
             self._add_project(path)
 
-    def _log(self, message: str) -> None:
+    def _log(self, message: str, project_path: Path | None = None) -> None:
         """Log a message to the log panel."""
         if self.log_panel:
-            self.log_panel.write(message)
+            self.log_panel.write(message, project_path=project_path)
 
     def _add_project(self, path: Path) -> None:
         """Add a project to the app."""
         path = path.resolve()
-        
+
         if path in self.projects:
             self._log(f"Project already added: {path}")
             return
@@ -116,19 +116,20 @@ class AgentPumpApp(App):
             project.branch = config.workflow.branch
             project.backend = config.backend
 
-            # Create workflow
             workflow = ProjectWorkflow(
                 project=project,
                 backend=GeminiBackend(),
-                on_output=self._log,
-                on_state_change=self._on_workflow_state_change,
+                on_output=lambda msg: self._log(msg, project_path=path),
+                on_state_change=lambda old, new: self._on_workflow_state_change(path, old, new),
             )
             self.workflows[path] = workflow
-            
+
             # Select this project automatically
             self.selected_project = path
             if self.workflow_panel:
                 self.workflow_panel.set_workflow(workflow)
+            if self.log_panel:
+                self.log_panel.set_filter(path)
 
             # Add card to UI
             project_list = self.query_one("#project-list", Container)
@@ -147,13 +148,23 @@ class AgentPumpApp(App):
             if path in self.projects:
                 del self.projects[path]
 
-    def _on_workflow_state_change(self, old_state: str, new_state: str) -> None:
+    def _on_workflow_state_change(self, path: Path, old_state: str, new_state: str) -> None:
         """Handle workflow state changes."""
-        # Find which project changed (simplified for now as we don't pass project in callback)
-        #Ideally callback should include project reference
-        # For now just refresh global log
-        pass
-        
+        # Update project card
+        try:
+            project_id = self._get_project_id(path)
+            card = self.query_one(f"#{project_id}", ProjectCard)
+            card.refresh_content()
+        except Exception:
+            # Card might not exist anymore
+            pass
+
+        # Update workflow panel if selected
+        if self.selected_project == path:
+             workflow = self.workflows.get(path)
+             if workflow and self.workflow_panel:
+                 self.workflow_panel.set_workflow(workflow)
+
     def _remove_project(self, path: Path) -> None:
         """Remove a project from the app."""
         if path not in self.projects:
@@ -167,12 +178,14 @@ class AgentPumpApp(App):
         # Remove from state
         del self.projects[path]
         del self.workflows[path]
-        
+
         # Clear workflow panel if this was selected
         if self.selected_project == path:
             self.selected_project = None
             if self.workflow_panel:
                 self.workflow_panel.set_workflow(None)
+            if self.log_panel:
+                self.log_panel.set_filter(None)
 
         # Remove from UI
         try:
@@ -192,15 +205,22 @@ class AgentPumpApp(App):
         # Ensure it doesn't start with a number if possible, or just prefix
         return f"project-{safe_name}"
 
-    @work(exclusive=True, group="workflow")
+    @work(group="workflow")
     async def _run_project(self, path: Path) -> None:
         """Run the workflow for a project."""
         workflow = self.workflows.get(path)
         if not workflow:
             return
 
+        # Prevent double-execution of the same workflow
+        if workflow.is_running():
+            return
+
         config = Config.load(path)
-        await workflow.run(max_iterations=config.workflow.max_iterations)
+        try:
+            await workflow.run(max_iterations=config.workflow.max_iterations)
+        except Exception as e:
+            self._log(f"[ERROR] Workflow failed for {path.name}: {e}", project_path=path)
 
     def action_add_project(self) -> None:
         """Handle add project action."""
@@ -223,9 +243,9 @@ class AgentPumpApp(App):
                 self._log("Paused all workflows")
                 return
 
-        # Resume first idle project
+        # Resume first idle/paused project
         for path, workflow in self.workflows.items():
-            if workflow.state == "idle":  # type: ignore
+            if not workflow.is_running():
                 self._run_project(path)
                 project = self.projects.get(path)
                 project_name = project.name if project else str(path)
@@ -240,13 +260,13 @@ class AgentPumpApp(App):
                 failed_feature = workflow.project.current_feature
                 workflow.project.failed_features.append(failed_feature)
                 workflow.project.current_feature = None
-                
+
                 # If running, pause it first
                 if workflow.is_running():
                     workflow.cancel()
-                
+
                 self._log(f"Skipped feature: {failed_feature}")
-                
+
         else:
             self._log("No project selected to skip feature")
 
@@ -273,8 +293,12 @@ class AgentPumpApp(App):
         """Handle project card selection."""
         self.selected_project = event.project.path
         self._log(f"Selected project: {event.project.name}")
-        
+
         # Update workflow panel
         workflow = self.workflows.get(event.project.path)
         if self.workflow_panel:
             self.workflow_panel.set_workflow(workflow)
+
+        # Update log filter
+        if self.log_panel:
+            self.log_panel.set_filter(event.project.path)

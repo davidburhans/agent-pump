@@ -220,15 +220,6 @@ Ability to see the current state of the machine while the machine is executing.
 
 ---
 
-### 🔴 Per-Project Activity Logs
-**Priority: Medium**
-
-Each project should have its own dedicated activity log.
-
-**Acceptance Criteria:**
-- Separate log storage per project
-- TUI view switches logs based on selected project
-- Global log vs Project log usage
 
 ---
 
@@ -306,6 +297,18 @@ Set up the foundational project structure with uv, implement basic CLI entry poi
 ## Deferred
 
 *Features postponed for future consideration.*
+
+---
+
+### 🟢 Per-Project Activity Logs
+**Priority: Medium**
+
+Each project should have its own dedicated activity log.
+
+**Acceptance Criteria:**
+- Separate log storage per project
+- TUI view switches logs based on selected project
+- Global log vs Project log usage
 
 ---
 

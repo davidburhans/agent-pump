@@ -3,7 +3,7 @@
 from pathlib import Path
 
 from textual.app import ComposeResult
-from textual.containers import Container, Horizontal, Vertical
+from textual.containers import Container, Horizontal
 from textual.screen import ModalScreen
 from textual.widgets import Button, DirectoryTree, Input, Label, Static
 
@@ -33,19 +33,32 @@ class AddProjectModal(ModalScreen[Path | None]):
         color: $text;
     }
 
+    .input-row {
+        height: 3;
+        margin-bottom: 1;
+    }
+
+    #path-input {
+        width: 1fr;
+    }
+
+    #btn-parent {
+        margin-left: 1;
+        min-width: 10;
+    }
+
     DirectoryTree {
         height: 1fr;
         border: solid $primary-muted;
-        margin: 1 0;
+        margin-bottom: 1;
     }
 
     .button-row {
         height: 3;
         align: center middle;
-        margin-top: 1;
     }
 
-    Button {
+    .button-row Button {
         margin: 0 1;
     }
     """
@@ -55,7 +68,11 @@ class AddProjectModal(ModalScreen[Path | None]):
         yield Container(
             Static("Add Project", id="modal-title"),
             Label("Select project directory or enter path:"),
-            Input(placeholder="Path to project...", id="path-input"),
+            Horizontal(
+                Input(placeholder="Path to project...", id="path-input"),
+                Button("Parent", variant="primary", id="btn-parent"),
+                classes="input-row",
+            ),
             DirectoryTree("./", id="dir-tree"),
             Horizontal(
                 Button("Cancel", variant="error", id="btn-cancel"),
@@ -85,6 +102,17 @@ class AddProjectModal(ModalScreen[Path | None]):
             self.dismiss(None)
         elif event.button.id == "btn-add":
             self._handle_add_project()
+        elif event.button.id == "btn-parent":
+            self._handle_parent_directory()
+
+    def _handle_parent_directory(self) -> None:
+        """Navigate the directory tree to the parent directory."""
+        tree = self.query_one("#dir-tree", DirectoryTree)
+        current_path = Path(tree.path)
+        parent_path = current_path.parent
+        # Prevent going beyond root if needed, but Path.parent handles root correctly (returns root)
+        if parent_path != current_path:
+            tree.path = str(parent_path)
 
     def _handle_add_project(self) -> None:
         """Validate and add the project."""

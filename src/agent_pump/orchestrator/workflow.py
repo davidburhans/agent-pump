@@ -2,9 +2,9 @@
 
 import asyncio
 import logging
+from collections.abc import Callable
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from transitions import Machine
 
@@ -55,7 +55,6 @@ class ProjectWorkflow:
         {"trigger": "commit_complete", "source": "committing", "dest": "planning"},
         {"trigger": "no_more_features", "source": "committing", "dest": "completed"},
         {"trigger": "reset", "source": "error", "dest": "idle"},
-        {"trigger": "pause", "source": "*", "dest": "idle"},
     ]
 
     def __init__(
@@ -151,14 +150,15 @@ class ProjectWorkflow:
                 timeout=600,
             ):
                 if self._cancelled:
-                    self._emit_output("\n[CANCELLED] Workflow cancelled by user\n")
+                    self._emit_output("\n[PAUSED] Workflow paused by user\n")
+                    # Don't mark as failed, but loop will be broken
                     success = False
                     break
-                
+
                 # Check for explicit error markers
                 if "[ERROR]" in line or "[TIMEOUT]" in line:
                     success = False
-                    
+
                 output_lines.append(line)
                 self._emit_output(line)
 
@@ -167,9 +167,9 @@ class ProjectWorkflow:
             self._emit_output(f"\n[ERROR] {e}\n")
             success = False
 
-        # Fail if no output received
-        if not output_lines and success:
-            self._emit_output(f"\n[ERROR] No output received from backend\n")
+        # Fail if no output received and not cancelled
+        if not output_lines and success and not self._cancelled:
+            self._emit_output("\n[ERROR] No output received from backend\n")
             success = False
 
         # Log phase completion
@@ -204,6 +204,8 @@ class ProjectWorkflow:
                 if current_state == "planning":
                     prompt = build_planning_prompt(self.project.branch)
                     success = await self.run_phase(prompt, "planning")
+                    if self._cancelled:
+                        break
                     if success:
                         self.plan_complete()  # type: ignore
                     else:
@@ -212,6 +214,8 @@ class ProjectWorkflow:
                 elif current_state == "implementing":
                     prompt = build_implementing_prompt(self.project.branch)
                     success = await self.run_phase(prompt, "implementing")
+                    if self._cancelled:
+                        break
                     if success:
                         self.implement_complete()  # type: ignore
                     else:
@@ -220,6 +224,8 @@ class ProjectWorkflow:
                 elif current_state == "verifying":
                     prompt = build_verifying_prompt(self.project.branch)
                     success = await self.run_phase(prompt, "verifying")
+                    if self._cancelled:
+                        break
                     if success:
                         self.verify_complete()  # type: ignore
                     else:
@@ -228,11 +234,15 @@ class ProjectWorkflow:
                 elif current_state == "brainstorming":
                     prompt = build_brainstorming_prompt()
                     success = await self.run_phase(prompt, "brainstorming")
+                    if self._cancelled:
+                        break
                     self.brainstorm_complete()  # type: ignore
 
                 elif current_state == "committing":
                     prompt = build_committing_prompt(self.project.branch)
                     success = await self.run_phase(prompt, "committing")
+                    if self._cancelled:
+                        break
 
                     # Check if there are more features
                     # For now, always continue; the brainstorm phase will indicate if done
@@ -310,7 +320,7 @@ class ProjectWorkflow:
             ASCII diagram string
         """
         current = self.state  # type: ignore
-        
+
         diagram = """
   IDLE ──> PLANNING ──> IMPLEMENTING
     ^          │              │
@@ -324,9 +334,9 @@ class ProjectWorkflow:
                v
            COMPLETED
 """
-        
+
         # Add current state indicator
         state_display = current.upper() if current else "UNKNOWN"
         header = f"═══ Current: [{state_display}] ═══\n"
-        
+
         return header + diagram

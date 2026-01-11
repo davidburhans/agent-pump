@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import pytest
-
 from agent_pump.models.project import Project, ProjectStatus
 from agent_pump.models.state import WorkflowState
 
@@ -83,7 +81,7 @@ class TestWorkflowState:
     def test_log_phase(self, tmp_path):
         """Test logging phase start and complete."""
         state = WorkflowState(project_path=tmp_path)
-        
+
         state.log_phase_start("planning")
         assert len(state.phase_logs) == 1
         assert state.phase_logs[0].phase == "planning"

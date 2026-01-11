@@ -270,6 +270,13 @@ config_path = "~/.config/agent-pump/config.yml"
 - **Async Test Mocking**: Testing infinite async loops requires careful mocking. Use `side_effect` to throw `CancelledError` or break the loop after a set number of iterations to prevent test hangs.
 - **State Persistence**: Pydantic models are excellent for persisting state machine context. Ensure you save state *after* every transition to recover from crashes.
 
+### 2026-01-11: Workflow State & UI Updates
+- **Reactive UI Updates**: TUI widgets (like `ProjectCard`) do not automatically update when backend state changes. You must bind state change callbacks (e.g., `on_state_change`) to explicitly refresh the UI components.
+- **Workflow Resumption vs. Pause**:
+  - **Quitting**: Quitting the app preserves the current phase in `state.json`. Relaunching restarts that phase from the beginning.
+  - **Pausing**: "Pause" should stop the loop *without* resetting variables or transitioning state. Avoid resetting to `IDLE` or `ERROR` on pause, as this forces a restart from `PLANNING` and loses iteration progress.
+- **Graceful Cancellation**: In `asyncio` loops, check for cancellation flags (e.g., `self._cancelled`) frequently. To "pause", break the loop cleanly without throwing exceptions or marking the run as a failure.
+
 ---
 
 ## Verification Checklist

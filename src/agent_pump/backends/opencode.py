@@ -1,7 +1,7 @@
 """OpenCode backend placeholder - for future implementation."""
 
+from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import AsyncIterator
 
 from agent_pump.backends.base import AgentBackend
 
@@ -30,6 +30,7 @@ class OpenCodeBackend(AgentBackend):
         project_path: Path,
         prompt: str,
         timeout: int = 600,
+        verbose: bool = False,
     ) -> AsyncIterator[str]:
         """Not implemented yet."""
         raise NotImplementedError("OpenCode backend is not yet implemented")

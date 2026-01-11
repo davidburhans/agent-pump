@@ -46,7 +46,8 @@ THEN, proceed with planning:
    - Detailed task list with checkboxes
    - Each task should be small and actionable
    - Include tasks for: implementation, testing, documentation
-   - THE FINAL TASK MUST BE: "Reflect on the work done and update BEST_PRACTICES.md with any lessons learned"
+   - THE FINAL TASK MUST BE: "Reflect on the work done and update BEST_PRACTICES.md with any lessons learned, \
+      and check if README.md needs updates as a result"
 
 Be thorough but concise. The task list will guide the implementation phase.
 """
@@ -66,7 +67,8 @@ Your task:
    - Ensure the code builds without errors
    - Ensure linting passes
    - Ensure tests pass (run the test command)
-4. Complete ALL tasks including the final reflection task to update BEST_PRACTICES.md
+4. Complete ALL tasks including the final reflection task to update BEST_PRACTICES.md 
+   and check README.md
 
 Work through the entire task list systematically. Do not skip any tasks.
 """

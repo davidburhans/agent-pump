@@ -1,11 +1,11 @@
 """Tests for agent backends."""
 
-import asyncio
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
 from agent_pump.backends.claude import ClaudeBackend
 from agent_pump.backends.gemini import GeminiBackend
 from agent_pump.backends.opencode import OpenCodeBackend
@@ -44,7 +44,7 @@ async def test_gemini_run_success(gemini_backend, sample_project_path):
     mock_process.stdin.write = MagicMock()
     mock_process.stdin.drain =  AsyncMock()
     mock_process.stdin.close = MagicMock()
-    
+
     # Mock stdout
     mock_stdout = MagicMock()
     # Simulate output lines
@@ -61,18 +61,61 @@ async def test_gemini_run_success(gemini_backend, sample_project_path):
 
     with patch(target, return_value=mock_process) as mock_exec, \
          patch("shutil.which", return_value="/usr/bin/gemini"):
-        
+
         lines = []
         async for line in gemini_backend.run(sample_project_path, "Test prompt"):
             lines.append(line)
-        
+
         assert len(lines) == 2
         assert lines[0] == "Line 1\n"
         assert lines[1] == "Line 2\n"
-        
+
         # Verify prompt was written to stdin
         mock_process.stdin.write.assert_called_once()
         assert b"Test prompt" in mock_process.stdin.write.call_args[0][0]
+
+        # Verify command did NOT have --verbose
+        if sys.platform == "win32":
+            args = mock_exec.call_args[0][0]
+            assert "--verbose" not in args
+        else:
+            args = mock_exec.call_args[0]
+            assert "--verbose" not in args
+
+
+@pytest.mark.asyncio
+async def test_gemini_run_verbose(gemini_backend, sample_project_path):
+    # Mock process
+    mock_process = MagicMock()
+    mock_process.pid = 12345
+    mock_process.returncode = 0
+    mock_process.stdin = MagicMock()
+    mock_process.stdin.write = MagicMock()
+    mock_process.stdin.drain = AsyncMock()
+    mock_process.stdin.close = MagicMock()
+
+    # Mock stdout
+    mock_stdout = MagicMock()
+    mock_stdout.readline = AsyncMock(side_effect=[b"",]) # Immediate EOF
+    mock_process.stdout = mock_stdout
+    mock_process.wait = AsyncMock()
+
+    # Determine which subprocess creator to mock based on platform
+    target = "asyncio.create_subprocess_shell" if sys.platform == "win32" else "asyncio.create_subprocess_exec"
+
+    with patch(target, return_value=mock_process) as mock_exec, \
+         patch("shutil.which", return_value="/usr/bin/gemini"):
+
+        async for _ in gemini_backend.run(sample_project_path, "Test prompt", verbose=True):
+            pass
+
+        # Verify command DID have --verbose
+        if sys.platform == "win32":
+            args = mock_exec.call_args[0][0]
+            assert "--verbose" in args
+        else:
+            args = mock_exec.call_args[0]
+            assert "--verbose" in args
 
 
 @pytest.mark.asyncio
@@ -93,9 +136,3 @@ async def test_opencode_backend_placeholder():
     with pytest.raises(NotImplementedError):
         async for _ in backend.run(Path("."), "prompt"):
             pass
-
-
-# Helper for async mocks
-class AsyncMock(MagicMock):
-    async def __call__(self, *args, **kwargs):
-        return super(AsyncMock, self).__call__(*args, **kwargs)

@@ -6,7 +6,6 @@ from textual.widgets import Static
 
 from agent_pump.models.project import Project, ProjectStatus
 
-
 STATUS_COLORS = {
     ProjectStatus.IDLE: "white",
     ProjectStatus.PLANNING: "yellow",

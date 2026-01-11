@@ -1,9 +1,9 @@
 """Abstract base class for AI coding agent backends."""
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import AsyncIterator
 
 
 @dataclass
@@ -14,6 +14,11 @@ class AgentResult:
     output: str
     exit_code: int
     duration_seconds: float
+
+
+class BackendError(Exception):
+    """Base exception for backend errors."""
+    pass
 
 
 class AgentBackend(ABC):
@@ -42,6 +47,7 @@ class AgentBackend(ABC):
         project_path: Path,
         prompt: str,
         timeout: int = 600,
+        verbose: bool = False,
     ) -> AsyncIterator[str]:
         """
         Execute the agent with the given prompt, yielding output lines.
@@ -50,6 +56,7 @@ class AgentBackend(ABC):
             project_path: The project directory to run in
             prompt: The prompt to send to the agent
             timeout: Maximum time in seconds before terminating
+            verbose: whether to run the agent in verbose mode
 
         Yields:
             Lines of output from the agent

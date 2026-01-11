@@ -1,21 +1,19 @@
 """Tests for the workflow state machine."""
 
 import asyncio
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from agent_pump.backends.gemini import GeminiBackend
 from agent_pump.models.project import Project
-from agent_pump.orchestrator.workflow import ProjectWorkflow
 from agent_pump.orchestrator.prompts import (
-    build_brainstorming_prompt,
     build_committing_prompt,
     build_implementing_prompt,
     build_planning_prompt,
     build_verifying_prompt,
 )
+from agent_pump.orchestrator.workflow import ProjectWorkflow
 
 
 class TestProjectWorkflow:
@@ -85,18 +83,21 @@ class TestProjectWorkflow:
         workflow.start()
         workflow.plan_failed()
         assert workflow.state == "error"
-        
+
         workflow.reset()
         assert workflow.state == "idle"
 
-    def test_pause_from_any_state(self, workflow):
-        """Test that pause works from any state."""
+    @pytest.mark.asyncio
+    async def test_cancel_preserves_state(self, workflow):
+        """Test that cancel stops execution but preserves state."""
         workflow.start()
         workflow.plan_complete()
         assert workflow.state == "implementing"
-        
-        workflow.pause()
-        assert workflow.state == "idle"
+
+        # We can't easily test the "stopping" of the loop here without running it,
+        # but we can verify that cancel() doesn't reset the state
+        workflow.cancel()
+        assert workflow.state == "implementing"
 
     def test_state_persistence(self, project):
         """Test that state is saved and loaded correctly."""
@@ -105,7 +106,7 @@ class TestProjectWorkflow:
         workflow.start()
         workflow.plan_complete()
         assert workflow.state == "implementing"
-        
+
         # Create second workflow instance for same project
         workflow2 = ProjectWorkflow(project=project)
         # Should auto-load the state
@@ -119,7 +120,7 @@ class TestProjectWorkflow:
             project=project,
             on_state_change=callback,
         )
-        
+
         workflow.start()
         callback.assert_called_with("idle", "planning")
 
@@ -128,26 +129,26 @@ class TestProjectWorkflow:
         """Test that run loop executes phases including verifying."""
         # Mock run_phase to return True (success)
         workflow.run_phase = AsyncMock(return_value=True)
-        
+
         # Set up a side effect to stop the loop after one full cycle
         # We can't easily stop the loop from inside run_phase without cancelling
         # So we'll let it run a bit and then cancel
-        
+
         task = asyncio.create_task(workflow.run(max_iterations=1))
-        
+
         # Give it enough time to run through one cycle (all phases mocked)
         await asyncio.sleep(0.1)
-        
+
         workflow.cancel()
         try:
             await task
         except asyncio.CancelledError:
             pass
-            
+
         # Verify calls
         calls = workflow.run_phase.call_args_list
         phase_names = [c.args[1] for c in calls]
-        
+
         assert "planning" in phase_names
         assert "implementing" in phase_names
         assert "verifying" in phase_names
