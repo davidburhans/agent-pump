@@ -1,0 +1,198 @@
+"""Integration tests for verification executor."""
+
+
+import pytest
+
+from agent_pump.models.verification_config import VerificationConfig
+from agent_pump.orchestrator.verification_executor import VerificationExecutor
+
+
+class TestVerificationExecutor:
+    """Tests for VerificationExecutor class."""
+
+    def test_initialization(self, tmp_path):
+        """Test initialization of VerificationExecutor."""
+        config = VerificationConfig(
+            build_cmd="echo build",
+            lint_cmd="echo lint",
+            test_cmd="echo test",
+            skip_verification=False
+        )
+
+        executor = VerificationExecutor(tmp_path, config)
+        assert executor.project_path == tmp_path
+        assert executor.config == config
+
+    def test_initialization_with_none_config(self, tmp_path):
+        """Test initialization with None config."""
+        executor = VerificationExecutor(tmp_path, None)
+        assert executor.project_path == tmp_path
+        assert executor.config == VerificationConfig()
+
+    @pytest.mark.asyncio
+    async def test_run_command_success(self, tmp_path):
+        """Test running a successful command."""
+        executor = VerificationExecutor(tmp_path)
+
+        # Use a simple echo command that should succeed
+        result = await executor.run_command("echo hello", timeout=10)
+
+        assert result.success is True
+        assert result.command == "echo hello"
+        assert "hello" in result.stdout
+        assert result.stderr == ""
+        assert result.exit_code == 0
+        assert result.duration > 0
+
+    @pytest.mark.asyncio
+    async def test_run_command_failure(self, tmp_path):
+        """Test running a command that fails."""
+        executor = VerificationExecutor(tmp_path)
+
+        # Use a command that will fail
+        result = await executor.run_command("false", timeout=10)
+
+        assert result.success is False
+        assert result.command == "false"
+        assert result.exit_code != 0
+        assert result.duration > 0
+
+    @pytest.mark.asyncio
+    async def test_run_command_timeout(self, tmp_path):
+        """Test running a command that times out."""
+        executor = VerificationExecutor(tmp_path)
+
+        # Use a command that sleeps longer than timeout
+        result = await executor.run_command("sleep 5", timeout=1)
+
+        assert result.success is False
+        assert result.command == "sleep 5"
+        assert result.exit_code is None  # Process was terminated
+        assert "timed out" in result.stderr.lower()
+        assert result.duration > 0
+
+    @pytest.mark.asyncio
+    async def test_run_command_not_found(self, tmp_path):
+        """Test running a command that doesn't exist."""
+        executor = VerificationExecutor(tmp_path)
+
+        # Use a command that doesn't exist
+        result = await executor.run_command("nonexistentcommand12345", timeout=10)
+
+        assert result.success is False
+        assert result.command == "nonexistentcommand12345"
+        assert result.exit_code is None
+        assert "not found" in result.stderr.lower() or "No such file" in result.stderr
+
+    @pytest.mark.asyncio
+    async def test_run_empty_command(self, tmp_path):
+        """Test running an empty command."""
+        executor = VerificationExecutor(tmp_path)
+
+        result = await executor.run_command("", timeout=10)
+
+        assert result.success is True
+        assert result.command == ""
+        assert result.stdout == ""
+        assert result.stderr == ""
+        assert result.exit_code == 0
+        assert result.duration == 0.0
+
+    @pytest.mark.asyncio
+    async def test_run_build_method(self, tmp_path):
+        """Test the run_build method."""
+        config = VerificationConfig(build_cmd="echo building")
+        executor = VerificationExecutor(tmp_path, config)
+
+        result = await executor.run_build(timeout=10)
+
+        assert result.success is True
+        assert result.command == "echo building"
+        assert "building" in result.stdout
+
+    @pytest.mark.asyncio
+    async def test_run_build_method_no_command(self, tmp_path):
+        """Test the run_build method when no command is set."""
+        config = VerificationConfig(build_cmd=None)
+        executor = VerificationExecutor(tmp_path, config)
+
+        result = await executor.run_build(timeout=10)
+
+        assert result.success is True
+        assert result.command == ""
+        assert "No build command configured" in result.stdout
+
+    @pytest.mark.asyncio
+    async def test_run_lint_method(self, tmp_path):
+        """Test the run_lint method."""
+        config = VerificationConfig(lint_cmd="echo linting")
+        executor = VerificationExecutor(tmp_path, config)
+
+        result = await executor.run_lint(timeout=10)
+
+        assert result.success is True
+        assert result.command == "echo linting"
+        assert "linting" in result.stdout
+
+    @pytest.mark.asyncio
+    async def test_run_test_method(self, tmp_path):
+        """Test the run_test method."""
+        config = VerificationConfig(test_cmd="echo testing")
+        executor = VerificationExecutor(tmp_path, config)
+
+        result = await executor.run_test(timeout=10)
+
+        assert result.success is True
+        assert result.command == "echo testing"
+        assert "testing" in result.stdout
+
+    @pytest.mark.asyncio
+    async def test_run_all_methods_skip_verification(self, tmp_path):
+        """Test the run_all method when skip_verification is True."""
+        config = VerificationConfig(skip_verification=True)
+        executor = VerificationExecutor(tmp_path, config)
+
+        results = await executor.run_all(timeout_per_command=10)
+
+        # All results should indicate success due to skip
+        for cmd_type, result in results.items():
+            assert result.success is True
+            assert "Verification skipped as configured" in result.stdout
+
+    @pytest.mark.asyncio
+    async def test_run_all_methods_success(self, tmp_path):
+        """Test the run_all method when all commands succeed."""
+        config = VerificationConfig(
+            build_cmd="echo build_success",
+            lint_cmd="echo lint_success",
+            test_cmd="echo test_success"
+        )
+        executor = VerificationExecutor(tmp_path, config)
+
+        results = await executor.run_all(timeout_per_command=10)
+
+        # All results should succeed
+        assert len(results) == 3
+        assert all(result.success for result in results.values())
+        assert "build_success" in results['build'].stdout
+        assert "lint_success" in results['lint'].stdout
+        assert "test_success" in results['test'].stdout
+
+    @pytest.mark.asyncio
+    async def test_run_all_methods_build_failure(self, tmp_path):
+        """Test the run_all method when build command fails."""
+        config = VerificationConfig(
+            build_cmd="false",  # This will fail
+            lint_cmd="echo lint_should_not_run",
+            test_cmd="echo test_should_not_run"
+        )
+        executor = VerificationExecutor(tmp_path, config)
+
+        results = await executor.run_all(timeout_per_command=10)
+
+        # Build should fail, lint and test should be skipped
+        assert results['build'].success is False
+        assert results['lint'].success is False
+        assert results['test'].success is False
+        assert "Build failed, skipping lint" in results['lint'].stdout
+        assert "Build failed, skipping test" in results['test'].stdout

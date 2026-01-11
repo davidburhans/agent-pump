@@ -333,6 +333,41 @@ config_path = "~/.config/agent-pump/config.yml"
 - **Command Validation**: When allowing users to specify custom commands, implement validation to prevent dangerous patterns like command chaining (`||`, `&&`), semicolons (`;`), and command substitution (`$()`, `` `cmd` ``).
 - **Async Subprocess Management**: When executing subprocesses asynchronously, implement proper timeout handling and process termination to prevent hanging processes.
 - **Error Reporting**: Provide clear error messages and status reports for verification command execution to help users understand what succeeded or failed.
+- **Workflow Integration**: When integrating new features into the workflow, ensure that the state machine properly handles all success and failure cases. Verification commands should be run after AI verification succeeds, and the workflow should transition appropriately based on the results.
+- **Verification Executor Design**: Separate concerns by having a dedicated VerificationExecutor class that handles command execution, while the workflow orchestrates when to run these commands. This promotes testability and reusability.
+- **Config File Format**: Support both programmatic configuration (via CLI/TUI) and file-based configuration (`.agent-pump.yml`) to accommodate different user preferences and automation scenarios.
+
+### 2026-01-11: Verification Commands - End-to-End Implementation Insights
+- **Comprehensive Testing Strategy**: When implementing complex features like verification commands, ensure you have unit tests for individual components (models, executor), integration tests for workflow integration, and end-to-end tests to verify the complete functionality works together.
+- **Security-First Command Handling**: Always validate user-provided commands to prevent injection attacks. The validation should happen both at the model level (using Pydantic validators) and potentially at runtime to catch any bypass attempts.
+- **Graceful Degradation**: When verification commands fail, the system should provide clear feedback to users and handle the failure gracefully. The workflow should transition to an appropriate state (e.g., error state) when verification commands fail.
+- **Config Inheritance and Precedence**: When supporting both project-level and workspace-level configuration, establish clear precedence rules and document them. Users should understand which settings override others.
+- **User Experience Consistency**: Maintain consistent UX across CLI, TUI, and file-based configuration. The same functionality should be accessible through all interfaces with similar naming and behavior.
+- **Performance Considerations**: Verification commands can take time to execute. Provide appropriate timeouts and feedback to users about the progress of these operations.
+- **Cross-Platform Compatibility**: Commands that work on one platform may not work on another. Consider platform-specific command variations and provide appropriate defaults for common project types.
+
+### 2026-01-11: Verification Commands - Implementation Reflection
+- **Pydantic Validation Power**: Using Pydantic field validators for command validation ensures that dangerous patterns are caught at the model level during deserialization, providing early validation before commands are executed.
+- **Sequential Command Execution**: Running verification commands in sequence (build → lint → test) with early failure is a robust approach that prevents wasting time on later stages when earlier ones fail.
+- **UI Status Indicators**: Adding visual indicators to the project card to show verification configuration status helps users quickly identify which projects have verification commands configured.
+- **Auto-Detection Value**: Providing automatic detection for common project types (npm, cargo, go, etc.) with appropriate default commands significantly improves the user experience by reducing setup friction.
+- **Configuration Flexibility**: Supporting both file-based (`.agent-pump.yml`) and UI-based configuration gives users multiple ways to manage their verification commands based on their preferences.
+- **Security Validation**: The validation against dangerous patterns (`||`, `&&`, `;`, `$()`, backticks) prevents command injection attacks while still allowing legitimate command compositions.
+- **Timeout Management**: Having different timeout values for different types of commands (shorter for build/lint, longer for tests) reflects real-world usage patterns where tests typically take more time to execute.
+
+### 2026-01-11: Custom Verification Commands - Complete Implementation
+- **Complete Feature Set**: The Custom Verification Commands feature is now fully implemented with all required functionality:
+  - Pydantic models for verification configuration with security validation
+  - VerificationExecutor class for running commands with proper timeout handling
+  - Auto-detection logic for common project types (npm, cargo, go, uv, etc.)
+  - TUI modal for configuration with proper validation
+  - CLI commands for managing verification settings
+  - Integration with the workflow after AI verification succeeds
+  - Visual indicators in the project card
+  - Configuration persistence via `.agent-pump.yml`
+- **Security-First Approach**: All user-provided commands are validated against dangerous patterns to prevent command injection attacks.
+- **Comprehensive Testing**: The feature includes unit tests for models, executor, and modal, integration tests for workflow integration, and configuration loading tests.
+- **User Experience**: The implementation provides multiple ways to configure verification commands (TUI, CLI, file-based) for different user preferences.
 
 ## Verification Checklist
 

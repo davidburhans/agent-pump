@@ -58,11 +58,13 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
         margin-bottom: 2;
         border: solid $primary-darken-2;
         padding: 1;
+        background: $surface;
     }
 
     .engine-title {
         text-style: bold;
         margin-bottom: 1;
+        color: $text;
     }
 
     .textarea-row {
@@ -72,6 +74,7 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
 
     .textarea-label {
         height: 1;
+        color: $text-muted;
     }
 
     .small-textarea {
@@ -138,7 +141,7 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
     def compose(self) -> ComposeResult:
         """Compose the modal's widgets."""
         with Container(id="modal-container"):
-            yield Static("🌐 Global Prompt Settings", id="modal-title")
+            yield Static("Global Prompt Settings", id="modal-title")
             yield Label(
                 "Configure prompt prefix/suffix that applies across all phases.\n"
                 "Engine settings apply to all uses of that backend. "
@@ -155,8 +158,8 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
                             suffix = self.settings.engine_suffixes.get(engine_name, "")
 
                             with Vertical(classes="engine-section"):
-                                yield Label(
-                                    f"🔧 {engine_name.capitalize()}",
+                                yield Static(
+                                    f"Engine: {engine_name.capitalize()}",
                                     classes="engine-title"
                                 )
 
@@ -182,10 +185,10 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
                         # Add model input
                         with Horizontal(classes="add-model-row"):
                             yield Input(
-                                placeholder="Enter model name (e.g., gemini-2.5-flash)",
+                                placeholder="Enter model name",
                                 id="new-model-input",
                             )
-                            yield Button("+ Add Model", variant="success", id="btn-add-model")
+                            yield Button("Add Model", variant="success", id="btn-add-model")
 
                         # Show configured models
                         yield Label("Configured Models:", classes="engine-title")
@@ -199,9 +202,9 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
                                 id=f"model-section-{self._safe_id(model_name)}"
                             ):
                                 with Horizontal():
-                                    yield Label(f"📦 {model_name}", classes="engine-title")
+                                    yield Static(f"Model: {model_name}", classes="engine-title")
                                     yield Button(
-                                        "×",
+                                        "X",
                                         variant="error",
                                         id=f"remove-model-{self._safe_id(model_name)}"
                                     )

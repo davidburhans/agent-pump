@@ -14,7 +14,12 @@ from agent_pump.backends.base import AgentBackend
 from agent_pump.backends.gemini import GeminiBackend
 from agent_pump.models.project import Project, ProjectStatus
 from agent_pump.models.state import WorkflowState
-from agent_pump.models.workspace import PhaseBackends, PromptCustomization
+from agent_pump.backends import create_fallback_runner_from_config, get_backend
+from agent_pump.backends.base import AgentBackend
+from agent_pump.backends.gemini import GeminiBackend
+from agent_pump.models.project import Project, ProjectStatus
+from agent_pump.models.state import WorkflowState
+from agent_pump.models.workspace import PhaseBackends, ProjectConfig, PromptCustomization
 from agent_pump.orchestrator.prompts import (
     build_brainstorming_prompt,
     build_committing_prompt,
@@ -78,7 +83,8 @@ class ProjectWorkflow:
         self,
         project: Project,
         backend: AgentBackend | None = None,
-        config: Any | None = None,  # Avoid circular import, typed as Any but expects Config
+        config: Any | None = None,  # Legacy file-based config
+        project_config: ProjectConfig | None = None, # New workspace config
         phase_backends: PhaseBackends | None = None,
         prompt_customization: PromptCustomization | None = None,
         idea_queue: list[str] | None = None,
@@ -92,8 +98,9 @@ class ProjectWorkflow:
         Args:
             project: The project to manage
             backend: The AI agent backend to use (defaults to GeminiBackend)
-            config: The full application configuration
-            phase_backends: Optional phase-specific backend configuration
+            config: The legacy application configuration
+            project_config: The project configuration (includes timeout, phase_backends, etc.)
+            phase_backends: Optional phase-specific backend configuration (overrides project_config if passed)
             prompt_customization: Optional per-phase prompt prefix/suffix overrides
             idea_queue: Optional list of ideas to include in brainstorming
             on_output: Callback for agent output lines
@@ -103,8 +110,9 @@ class ProjectWorkflow:
         self.project = project
         self.backend = backend or GeminiBackend()
         self.config = config
-        self.phase_backends = phase_backends
-        self.prompt_customization = prompt_customization or PromptCustomization()
+        self.project_config = project_config
+        self.phase_backends = phase_backends or (project_config.phase_backends if project_config else None)
+        self.prompt_customization = prompt_customization or (project_config.prompt_customization if project_config else PromptCustomization())
         self.idea_queue = idea_queue or []
         self.on_output = on_output
         self.on_state_change = on_state_change
@@ -133,6 +141,22 @@ class ProjectWorkflow:
             after_state_change=self._after_state_change,
         )
 
+        # Sync initial state from TASK_NAME or persisted state
+        self._check_task_name_file()
+        if not self.project.current_feature and self.workflow_state.current_feature:
+            self.project.current_feature = self.workflow_state.current_feature
+        
+        # Sync project status from loaded state
+        try:
+            self.project.status = ProjectStatus(self.workflow_state.current_state)
+        except ValueError:
+            logger.warning(f"Invalid state in workflow state: {self.workflow_state.current_state}")
+            self.project.status = ProjectStatus.IDLE
+
+        # Sync feature history
+        self.project.completed_features = self.workflow_state.completed_features.copy()
+        self.project.failed_features = self.workflow_state.failed_features.copy()
+
     def _after_state_change(self, *args: Any, **kwargs: Any) -> None:
         """Called after each state change."""
         old_state = self.workflow_state.current_state
@@ -140,6 +164,9 @@ class ProjectWorkflow:
 
         # Update workflow state
         self.workflow_state.current_state = new_state
+        self.workflow_state.current_feature = self.project.current_feature
+        self.workflow_state.completed_features = self.project.completed_features
+        self.workflow_state.failed_features = self.project.failed_features
         self.workflow_state.last_updated = datetime.now()
 
         # Update project status
@@ -156,6 +183,20 @@ class ProjectWorkflow:
             self.on_state_change(old_state, new_state)
 
         logger.info(f"State changed: {old_state} -> {new_state}")
+
+    def _check_task_name_file(self) -> None:
+        """Check TASK_NAME file and update project state."""
+        try:
+            task_file = self.project.path / "TASK_NAME"
+            if task_file.exists():
+                content = task_file.read_text(encoding="utf-8").strip()
+                if content:
+                    self.project.current_feature = content
+            elif self.state == "brainstorming" or self.state == "completed":
+                # If file is gone and we are in a phase where it should be gone, clear it
+                self.project.current_feature = None
+        except Exception as e:
+            logger.warning(f"Error reading TASK_NAME: {e}")
 
     def _emit_output(self, line: str) -> None:
         """Emit output line to callback."""
@@ -176,8 +217,13 @@ class ProjectWorkflow:
             return self.backend
 
         phase_config = getattr(self.phase_backends, phase, None)
-        if phase_config is None or len(phase_config.backends) == 0:
-            return self.backend
+        
+        # If no specific config for this phase, or empty list of backends, try defaults
+        if (phase_config is None or len(phase_config.backends) == 0):
+            if self.phase_backends.defaults and self.phase_backends.defaults.backends:
+                phase_config = self.phase_backends.defaults
+            else:
+                return self.backend
 
         # Single backend - no fallback needed, but still use from_config for args
         if len(phase_config.backends) == 1:
@@ -198,7 +244,22 @@ class ProjectWorkflow:
             return create_fallback_runner_from_config(phase_config.backends)
         except ValueError as e:
             logger.warning(f"Failed to create fallback runner: {e}, using default")
+            logger.warning(f"Failed to create fallback runner: {e}, using default")
             return self.backend
+
+    def _extract_model_from_args(self, args: list[str] | None) -> str | None:
+        """Extract model name from command line arguments."""
+        if not args:
+            return None
+        try:
+            # Look for --model <name>
+            if "--model" in args:
+                idx = args.index("--model")
+                if idx + 1 < len(args):
+                    return args[idx + 1]
+        except ValueError:
+            pass
+        return None
 
     async def run_phase(self, prompt: str, phase_name: str) -> bool:
         """
@@ -222,12 +283,29 @@ class ProjectWorkflow:
 
         # Get the backend for this phase
         backend = self._get_backend_for_phase(phase_name)
+        
+        # Initialize metrics
+        metrics_backend_name = str(backend.name) # Use str() in case it's a proxy
+        metrics_model_name = None
+        
+        # If it's a single backend (not fallback runner), try to get model from attached args
+        if hasattr(backend, "_extra_args"):
+            metrics_model_name = self._extract_model_from_args(getattr(backend, "_extra_args"))
+        
+        # If it's a fallback runner, we'll rely on parsing the logs, 
+        # but defaulting to "Fallback Runner" as backend name is fine initially.
+        if "FallbackBackendRunner" in str(type(backend)):
+             metrics_backend_name = "Fallback Runner (Pending)"
 
         # Determine timeout:
-        # 1. Start with global default (1800s / 30m)
+        # 1. Start with project configuration default (default 1800s / 30m)
         timeout = 1800
-        if self.config and hasattr(self.config, "workflow"):
-            timeout = self.config.workflow.timeout
+        if self.project_config:
+            timeout = self.project_config.default_timeout
+        
+        # Checking old config.workflow location just in case legacy
+        if self.config and hasattr(self.config, "workflow") and hasattr(self.config.workflow, "timeout"):
+             timeout = self.config.workflow.timeout
 
         # 2. Check for step-specific override in PhaseBackends
         if self.phase_backends:
@@ -258,6 +336,32 @@ class ProjectWorkflow:
 
                 output_lines.append(line)
                 self._emit_output(line)
+                
+                # Parse [BACKEND] line from FallbackBackendRunner
+                # Format: [BACKEND] Using Gemini CLI (args: ['--model', 'gemini-1.5-pro'])
+                if line.startswith("[BACKEND] Using"):
+                    try:
+                        # naive parse
+                        parts = line.split("Using ", 1)
+                        if len(parts) > 1:
+                            details = parts[1].strip()
+                            if "(args:" in details:
+                                name_part, args_part = details.split("(args:", 1)
+                                metrics_backend_name = name_part.strip()
+                                # Clean up args string to list-like
+                                args_clean = args_part.rstrip(")").strip()
+                                # It's a string representation of a list, e.g. "['--model', 'foo']"
+                                # We can't safely eval it, but we can regex or simple check
+                                if "'--model'" in args_clean or '"--model"' in args_clean:
+                                    # Simple extraction for now
+                                    import re
+                                    match = re.search(r"['\"]--model['\"],\s*['\"]([^'\"]+)['\"]", args_clean)
+                                    if match:
+                                        metrics_model_name = match.group(1)
+                            else:
+                                metrics_backend_name = details
+                    except Exception as e:
+                        logger.warning(f"Failed to parse backend info log: {e}")
 
         except Exception as e:
             logger.exception(f"Error in {phase_name} phase")
@@ -280,7 +384,13 @@ class ProjectWorkflow:
 
         # Log phase completion
         summary = "".join(output_lines[-10:]) if output_lines else None
-        self.workflow_state.log_phase_complete(success, summary)
+        self.workflow_state.log_phase_complete(
+            success=success, 
+            summary=summary,
+            backend=metrics_backend_name,
+            model=metrics_model_name,
+            duration_seconds=duration
+        )
         self.workflow_state.save()
 
         return success
@@ -318,6 +428,7 @@ class ProjectWorkflow:
                     if self._cancelled:
                         break
                     if success:
+                        self._check_task_name_file()
                         self.plan_complete()  # type: ignore
                     else:
                         self.plan_failed()  # type: ignore
@@ -381,6 +492,10 @@ class ProjectWorkflow:
                         self.on_ideas_processed(self.project.path)
 
                     self.idea_queue = []
+                    
+                    if success:
+                        self._check_task_name_file()
+
                     if self._cancelled:
                         break
                     self.brainstorm_complete()  # type: ignore
@@ -392,17 +507,22 @@ class ProjectWorkflow:
                     if self._cancelled:
                         break
 
-                    # Check if there are more features
-                    # For now, always continue; the brainstorm phase will indicate if done
-                    self.workflow_state.iteration_count += 1
-                    self.project.iteration_count = self.workflow_state.iteration_count
-                    iteration += 1
+                    if success:
+                        if self.project.current_feature:
+                            self.project.completed_features.append(self.project.current_feature)
+                            # We don't clear current_feature here, it will be updated/cleared in next planning/brainstorming check
+                            # But technically it is "done".
 
-                    if iteration >= max_iterations:
-                        self._emit_output(f"\n[INFO] Max iterations ({max_iterations}) reached\n")
-                        self.no_more_features()  # type: ignore
-                    else:
-                        self.commit_complete()  # type: ignore
+                        # Check if there are more features
+                        self.workflow_state.iteration_count += 1
+                        self.project.iteration_count = self.workflow_state.iteration_count
+                        iteration += 1
+
+                        if iteration >= max_iterations:
+                            self._emit_output(f"\n[INFO] Max iterations ({max_iterations}) reached\n")
+                            self.no_more_features()  # type: ignore
+                        else:
+                            self.commit_complete()  # type: ignore
 
                 elif current_state == "error":
                     self._emit_output("\n[ERROR] Workflow is in error state. Resetting...\n")

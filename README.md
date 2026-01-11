@@ -104,7 +104,9 @@ uv run agent-pump ./my-project ./another-project
 
 ### Verification Commands
 
-Configure custom build, lint, and test commands for your projects:
+Configure custom build, lint, and test commands for your projects to ensure code quality:
+
+#### CLI Configuration
 
 ```bash
 # Set build command for a project
@@ -126,6 +128,8 @@ uv run agent-pump verification show ./my-project
 uv run agent-pump verification detect ./my-project
 ```
 
+#### File-Based Configuration
+
 You can also configure verification commands in your `.agent-pump.yml` file:
 
 ```yaml
@@ -135,6 +139,46 @@ verification:
   test_cmd: "npm test"
   skip_verification: false
 ```
+
+#### Example Configurations
+
+**JavaScript/TypeScript Project:**
+```yaml
+verification:
+  build_cmd: "npm run build"
+  lint_cmd: "npm run lint"
+  test_cmd: "npm run test:unit"
+  skip_verification: false
+```
+
+**Python Project:**
+```yaml
+verification:
+  build_cmd: "python -m build"
+  lint_cmd: "ruff check . && mypy src/"
+  test_cmd: "pytest tests/ -v"
+  skip_verification: false
+```
+
+**Rust Project:**
+```yaml
+verification:
+  build_cmd: "cargo build"
+  lint_cmd: "cargo clippy --all-targets --all-features"
+  test_cmd: "cargo test --all-targets --all-features"
+  skip_verification: false
+```
+
+**Go Project:**
+```yaml
+verification:
+  build_cmd: "go build ./..."
+  lint_cmd: "golangci-lint run ./..."
+  test_cmd: "go test ./... -v"
+  skip_verification: false
+```
+
+Verification commands run in sequence (build → lint → test) after the AI verification phase. If any command fails, the workflow enters an error state and the AI agent will attempt to fix the issue.
 
 ### 3. Orchestrate
 

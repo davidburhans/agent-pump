@@ -39,6 +39,10 @@ class BackendFallback(BaseModel):
 class PhaseBackends(BaseModel):
     """Configure which backends to use for each workflow phase."""
 
+    defaults: BackendFallback = Field(
+        default_factory=BackendFallback,
+        description="Default fallback chain used when phase-specific chain is empty"
+    )
     planning: BackendFallback = Field(default_factory=BackendFallback)
     implementing: BackendFallback = Field(default_factory=BackendFallback)
     verifying: BackendFallback = Field(default_factory=BackendFallback)
@@ -174,6 +178,10 @@ class ProjectConfig(BaseModel):
     min_execution_time_seconds: int = Field(
         default=10,
         description="Minimum execution time for a backend call to be considered successful",
+    )
+    default_timeout: int = Field(
+        default=1800,
+        description="Default timeout in seconds for backend execution (default 30m)",
     )
     workflow_name: str = Field(
         default="default",

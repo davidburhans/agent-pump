@@ -105,7 +105,15 @@ class ProjectCard(Static):
         icon = STATUS_ICONS.get(self.project.status, "•")
         color = STATUS_COLORS.get(self.project.status, "white")
         status_text = self.project.status.value.capitalize()
-        return f"[{color}]{icon} {status_text}[/{color}]"
+
+        # Add verification indicator if verification commands are configured
+        verification_indicator = ""
+        if (self.project.config.build_cmd or
+            self.project.config.lint_cmd or
+            self.project.config.test_cmd):
+            verification_indicator = " 🔧"  # Gear icon indicates verification is configured
+
+        return f"[{color}]{icon} {status_text}{verification_indicator}[/{color}]"
 
     def _format_feature(self) -> str:
         """Format the current feature line."""
@@ -119,13 +127,30 @@ class ProjectCard(Static):
         failed = len(self.project.failed_features)
         total = completed + failed + (1 if self.project.current_feature else 0)
 
+        # Build verification status indicator
+        verification_parts = []
+        if self.project.config.skip_verification:
+            verification_parts.append("verification: skipped")
+        else:
+            verification_parts.append("verification: enabled")
+
+        if self.project.config.build_cmd:
+            verification_parts.append(f"build: {self.project.config.build_cmd}")
+        if self.project.config.lint_cmd:
+            verification_parts.append(f"lint: {self.project.config.lint_cmd}")
+        if self.project.config.test_cmd:
+            verification_parts.append(f"test: {self.project.config.test_cmd}")
+
+        verification_info = ", ".join(verification_parts) if verification_parts else "verification: none"
+
         if total == 0:
-            return "No features processed yet"
+            return f"No features processed yet | {verification_info}"
 
         return (
             f"✓ {completed} completed | "
             f"✗ {failed} failed | "
-            f"🔄 {self.project.iteration_count} iterations"
+            f"🔄 {self.project.iteration_count} iterations | "
+            f"{verification_info}"
         )
 
     def refresh_content(self) -> None:

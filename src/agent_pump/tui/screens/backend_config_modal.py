@@ -160,6 +160,10 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
         self._phase_backends_lists: dict[str, list[BackendInstance]] = {}
         # Counter to ensure unique IDs across rebuilds
         self._rebuild_counter = 0
+        
+        # Initialize defaults list
+        self._phase_backends_lists["defaults"] = list(self.phase_backends.defaults.backends)
+        
         for phase in PHASES:
             phase_config = getattr(self.phase_backends, phase)
             self._phase_backends_lists[phase] = list(phase_config.backends)
@@ -178,6 +182,33 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
             )
 
             with TabbedContent():
+                # General Settings Tab (mapped to 'defaults' phase key for backend list)
+                with TabPane("⚙️ General", id="tab-defaults"):
+                    with VerticalScroll(classes="phase-config"):
+                        yield Label("Global Default Timeout (seconds):", classes="section-label")
+                        yield Input(
+                            str(getattr(self.project_config, "default_timeout", 1800)),
+                            placeholder="1800",
+                            id="default-timeout-input",
+                            type="integer",
+                        )
+                        yield Label(
+                            "This timeout applies to all phases unless overridden below.",
+                            classes="help-text"
+                        )
+                        
+                        yield Label("Default Backend Chain:", classes="section-label")
+                        yield Label(
+                            "Used if a phase has no backends configured.",
+                            classes="help-text"
+                        )
+                        
+                        with VerticalScroll(classes="backend-list", id="defaults-backend-list"):
+                            for idx, backend in enumerate(self._phase_backends_lists["defaults"]):
+                                yield self._create_backend_row(
+                                    "defaults", idx, backend, available_backends
+                                )
+
                 for phase in PHASES:
                     phase_icon = {
                         "planning": "📋",
@@ -410,6 +441,21 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
 
     def _save_config(self) -> None:
         """Save the configuration and dismiss."""
+        # Save default timeout
+        try:
+            timeout_input = self.query_one("#default-timeout-input", Input)
+            val = timeout_input.value.strip()
+            if val:
+                self.project_config.default_timeout = int(val)
+        except Exception:
+            pass # Ignore if input not found or invalid
+
+        # Save defaults backend list
+        self._sync_phase_from_ui("defaults")
+        self.phase_backends.defaults = BackendFallback(
+            backends=self._phase_backends_lists["defaults"]
+        )
+
         for phase in PHASES:
             self._sync_phase_from_ui(phase)
             backends = self._phase_backends_lists[phase]

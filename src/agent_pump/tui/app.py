@@ -205,6 +205,7 @@ class AgentPumpApp(App):
                 project=project,
                 backend=backend,
                 config=config,
+                project_config=project_config,
                 phase_backends=phase_backends,
                 prompt_customization=prompt_customization,
                 idea_queue=idea_queue,
@@ -266,7 +267,8 @@ class AgentPumpApp(App):
             card.refresh_content()
         except Exception:
             # Card might not exist anymore
-            pass
+            # Card might not exist anymore, or ID mismatch
+            self._log(f"[ERROR] Failed to update card for {path}: {e}", project_path=path)
 
         # Update workflow panel if selected
         if self.selected_project == path:
