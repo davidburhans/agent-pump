@@ -35,6 +35,7 @@ class GeminiBackend(AgentBackend):
         prompt: str,
         timeout: int = 600,
         verbose: bool = False,
+        extra_args: list[str] | None = None,
     ) -> AsyncIterator[str]:
         """
         Execute gemini-cli with the given prompt.
@@ -60,7 +61,10 @@ class GeminiBackend(AgentBackend):
         if verbose:
             cmd.append("--verbose")
 
-        logger.info(f"Starting Gemini CLI in {project_path}")
+        # Apply extra args (e.g., --model gemini-2.5-flash)
+        if extra_args:
+            cmd.extend(extra_args)
+            logger.debug(f"Applied extra args: {extra_args}")
         logger.debug(f"Command: {cmd[0]} --yolo (prompt via stdin)")
 
         start_time = time.time()

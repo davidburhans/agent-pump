@@ -48,6 +48,7 @@ class AgentBackend(ABC):
         prompt: str,
         timeout: int = 600,
         verbose: bool = False,
+        extra_args: list[str] | None = None,
     ) -> AsyncIterator[str]:
         """
         Execute the agent with the given prompt, yielding output lines.
@@ -57,6 +58,7 @@ class AgentBackend(ABC):
             prompt: The prompt to send to the agent
             timeout: Maximum time in seconds before terminating
             verbose: whether to run the agent in verbose mode
+            extra_args: Additional command-line arguments for the backend
 
         Yields:
             Lines of output from the agent

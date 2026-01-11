@@ -95,9 +95,24 @@ Do NOT proceed to the next phase until all verification steps pass successfully.
 """
 
 
-def build_brainstorming_prompt() -> str:
-    """Build the prompt for the brainstorming phase."""
-    return """
+def build_brainstorming_prompt(queued_ideas: list[str] | None = None) -> str:
+    """
+    Build the prompt for the brainstorming phase.
+
+    Args:
+        queued_ideas: Optional list of user-submitted ideas to consider
+    """
+    ideas_section = ""
+    if queued_ideas:
+        ideas_section = "\n\n## USER-SUBMITTED IDEAS TO CONSIDER\n"
+        ideas_section += "The user has submitted the following ideas. Please evaluate each one and add any valuable ideas to the roadmap:\n\n"
+        for i, idea in enumerate(queued_ideas, 1):
+            ideas_section += f"{i}. {idea}\n"
+        ideas_section += "\nFor each submitted idea:\n"
+        ideas_section += "- If valuable: Add to 'Future Enhancements' with acceptance criteria\n"
+        ideas_section += "- If not suitable: You may skip it (the user understands not all ideas make it)\n"
+
+    return f"""
 You are in the BRAINSTORMING phase.
 
 Your task:
@@ -112,7 +127,7 @@ Your task:
    - Move it from "Future Enhancements" to "Current Sprint" (mark as 🔴 Not Started)
    This ensures the roadmap always has ready-to-implement items.
 5. Delete ENGINEERING_PLAN.md (it's no longer needed)
-
+{ideas_section}
 Focus on practical, valuable improvements that align with the project's goals.
 """
 

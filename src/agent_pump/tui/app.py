@@ -8,12 +8,14 @@ from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import Button, Footer, Header, Static
 
+from agent_pump.backends import get_backend
 from agent_pump.backends.gemini import GeminiBackend
 from agent_pump.config import Config
 from agent_pump.models.app_state import AppState
 from agent_pump.models.project import Project
+from agent_pump.models.workspace import PhaseBackends, PromptCustomization, Workspace
 from agent_pump.orchestrator.workflow import ProjectWorkflow
-from agent_pump.tui.screens import AddProjectModal
+from agent_pump.tui.screens import AddProjectModal, BackendConfigModal, PromptConfigModal
 from agent_pump.tui.widgets.log_panel import LogPanel
 from agent_pump.tui.widgets.project_card import ProjectCard
 from agent_pump.tui.widgets.workflow_panel import WorkflowPanel
@@ -38,6 +40,9 @@ class AgentPumpApp(App):
         Binding("k", "skip_feature", "Skip Feature"),
         Binding("d", "toggle_dark", "Toggle Dark"),
         Binding("w", "show_workflow", "Show Workflow"),
+        Binding("i", "add_idea", "Add Idea"),
+        Binding("b", "config_backends", "Backends"),
+        Binding("p", "config_prompts", "Prompts"),
     ]
 
     def __init__(self, project_paths: list[Path] | None = None):
@@ -55,6 +60,8 @@ class AgentPumpApp(App):
         self.workflow_panel: WorkflowPanel | None = None
         self.selected_project: Path | None = None
         self.app_state = AppState.load()
+        # Load workspace for backend configuration
+        self.workspace = Workspace.load(self.app_state.current_workspace)
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -121,11 +128,32 @@ class AgentPumpApp(App):
             project.branch = config.workflow.branch
             project.backend = config.backend
 
+            # Get phase backends from workspace if available
+            project_config = self.workspace.get_project_config(path)
+            phase_backends = project_config.phase_backends if project_config else None
+            prompt_customization = project_config.prompt_customization if project_config else None
+
+            # Get queued ideas for brainstorming
+            idea_queue = self.workspace.peek_ideas()
+
+            # Determine primary backend
+            if project_config and project_config.phase_backends.implementing.backends:
+                backend_instance = project_config.phase_backends.implementing.backends[0]
+                try:
+                    backend = get_backend(backend_instance.name)
+                except ValueError:
+                    backend = GeminiBackend()
+            else:
+                backend = GeminiBackend()
+
             workflow = ProjectWorkflow(
                 project=project,
-                backend=GeminiBackend(),
-                on_output=lambda msg: self._log(msg, project_path=path),
-                on_state_change=lambda old, new: self._on_workflow_state_change(path, old, new),
+                backend=backend,
+                phase_backends=phase_backends,
+                prompt_customization=prompt_customization,
+                idea_queue=idea_queue,
+                on_output=lambda msg, p=path: self._log(msg, project_path=p),
+                on_state_change=lambda old, new, p=path: self._on_workflow_state_change(p, old, new),
             )
             self.workflows[path] = workflow
 
@@ -147,6 +175,10 @@ class AgentPumpApp(App):
             # Persist to global state
             if self.app_state.add_project(path):
                 self.app_state.save()
+
+            # Add to workspace and save
+            self.workspace.add_project(path)
+            self.workspace.save()
 
             if not project.has_roadmap():
                 self._log(f"  ⚠ Warning: No ROADMAP.md found in {path}")
@@ -191,6 +223,10 @@ class AgentPumpApp(App):
         # Persist removal
         if self.app_state.remove_project(path):
             self.app_state.save()
+        
+        # Remove from workspace
+        if self.workspace.remove_project(path):
+            self.workspace.save()
 
         # Clear workflow panel if this was selected
         if self.selected_project == path:
@@ -309,6 +345,111 @@ class AgentPumpApp(App):
         if self.workflow_panel and self.selected_project:
             workflow = self.workflows.get(self.selected_project)
             self.workflow_panel.set_workflow(workflow)
+
+    async def action_add_idea(self) -> None:
+        """Add an idea to the brainstorming queue."""
+        from textual.widgets import Input
+        from textual.screen import ModalScreen
+        from textual.containers import Vertical
+        from textual.widgets import Button, Label
+
+        class IdeaInputModal(ModalScreen[str | None]):
+            """Modal for entering a new idea."""
+
+            CSS = """
+            IdeaInputModal {
+                align: center middle;
+            }
+            IdeaInputModal > Vertical {
+                width: 60;
+                height: auto;
+                border: thick $primary;
+                background: $surface;
+                padding: 1 2;
+            }
+            """
+
+            def compose(self) -> ComposeResult:
+                yield Vertical(
+                    Label("Enter your idea for the brainstormer:"),
+                    Input(placeholder="e.g., Add dark mode support", id="idea-input"),
+                    Horizontal(
+                        Button("Add", id="btn-add-idea", variant="success"),
+                        Button("Cancel", id="btn-cancel", variant="default"),
+                        classes="button-row",
+                    ),
+                )
+
+            def on_button_pressed(self, event: Button.Pressed) -> None:
+                if event.button.id == "btn-add-idea":
+                    input_widget = self.query_one("#idea-input", Input)
+                    self.dismiss(input_widget.value)
+                else:
+                    self.dismiss(None)
+
+            def on_input_submitted(self, event: Input.Submitted) -> None:
+                self.dismiss(event.value)
+
+        def handle_idea(idea: str | None) -> None:
+            if idea and idea.strip():
+                self.workspace.add_idea(idea.strip())
+                self.workspace.save()
+                self._log(f"Added idea to queue: {idea.strip()}")
+                self._log(f"Total ideas in queue: {len(self.workspace.idea_queue)}")
+            else:
+                self._log("No idea added")
+
+        self.push_screen(IdeaInputModal(), handle_idea)
+
+    def action_config_backends(self) -> None:
+        """Configure backend settings for the selected project."""
+        if not self.selected_project:
+            self._log("No project selected. Select a project first with click/arrow keys.")
+            return
+
+        project_config = self.workspace.get_project_config(self.selected_project)
+        if not project_config:
+            self._log("Project not found in workspace config.")
+            return
+
+        def handle_result(phase_backends: PhaseBackends | None) -> None:
+            if phase_backends is not None and project_config is not None:
+                project_config.phase_backends = phase_backends
+                self.workspace.save()
+                self._log(f"Backend configuration saved for {project_config.name}")
+                # Update the workflow if it exists
+                workflow = self.workflows.get(self.selected_project)  # type: ignore
+                if workflow:
+                    workflow.phase_backends = phase_backends
+            else:
+                self._log("Backend configuration cancelled")
+
+        self.push_screen(BackendConfigModal(project_config), handle_result)
+
+    def action_config_prompts(self) -> None:
+        """Configure prompt customizations for the selected project."""
+        if not self.selected_project:
+            self._log("No project selected. Select a project first with click/arrow keys.")
+            return
+
+        project_config = self.workspace.get_project_config(self.selected_project)
+        if not project_config:
+            self._log("Project not found in workspace config.")
+            return
+
+        def handle_result(prompt_customization: PromptCustomization | None) -> None:
+            if prompt_customization is not None and project_config is not None:
+                project_config.prompt_customization = prompt_customization
+                self.workspace.save()
+                self._log(f"Prompt customization saved for {project_config.name}")
+                # Update the workflow if it exists
+                workflow = self.workflows.get(self.selected_project)  # type: ignore
+                if workflow:
+                    workflow.prompt_customization = prompt_customization
+            else:
+                self._log("Prompt customization cancelled")
+
+        self.push_screen(PromptConfigModal(project_config), handle_result)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""

@@ -2,16 +2,19 @@
 
 import asyncio
 import logging
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from datetime import datetime
-from typing import Any
+from pathlib import Path
+from typing import Any, Protocol
 
 from transitions import Machine
 
+from agent_pump.backends import create_fallback_runner_from_config, get_backend
 from agent_pump.backends.base import AgentBackend
 from agent_pump.backends.gemini import GeminiBackend
 from agent_pump.models.project import Project, ProjectStatus
 from agent_pump.models.state import WorkflowState
+from agent_pump.models.workspace import PhaseBackends, PromptCustomization
 from agent_pump.orchestrator.prompts import (
     build_brainstorming_prompt,
     build_committing_prompt,
@@ -21,6 +24,19 @@ from agent_pump.orchestrator.prompts import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class BackendRunner(Protocol):
+    """Protocol for something that can run agent prompts."""
+
+    async def run(
+        self,
+        project_path: Path,
+        prompt: str,
+        timeout: int = 600,
+        verbose: bool = False,
+        extra_args: list[str] | None = None,
+    ) -> AsyncIterator[str]: ...
 
 
 class ProjectWorkflow:
@@ -61,6 +77,9 @@ class ProjectWorkflow:
         self,
         project: Project,
         backend: AgentBackend | None = None,
+        phase_backends: PhaseBackends | None = None,
+        prompt_customization: PromptCustomization | None = None,
+        idea_queue: list[str] | None = None,
         on_output: Callable[[str], None] | None = None,
         on_state_change: Callable[[str, str], None] | None = None,
     ):
@@ -70,11 +89,17 @@ class ProjectWorkflow:
         Args:
             project: The project to manage
             backend: The AI agent backend to use (defaults to GeminiBackend)
+            phase_backends: Optional phase-specific backend configuration
+            prompt_customization: Optional per-phase prompt prefix/suffix overrides
+            idea_queue: Optional list of ideas to include in brainstorming
             on_output: Callback for agent output lines
             on_state_change: Callback for state changes (old_state, new_state)
         """
         self.project = project
         self.backend = backend or GeminiBackend()
+        self.phase_backends = phase_backends
+        self.prompt_customization = prompt_customization or PromptCustomization()
+        self.idea_queue = idea_queue or []
         self.on_output = on_output
         self.on_state_change = on_state_change
         self._running = False
@@ -124,6 +149,44 @@ class ProjectWorkflow:
         if self.on_output:
             self.on_output(line)
 
+    def _get_backend_for_phase(self, phase: str) -> BackendRunner:
+        """
+        Get the backend(s) to use for a specific phase.
+
+        Args:
+            phase: Phase name (planning, implementing, verifying, brainstorming, committing)
+
+        Returns:
+            AgentBackend or FallbackBackendRunner for the phase
+        """
+        if self.phase_backends is None:
+            return self.backend
+
+        phase_config = getattr(self.phase_backends, phase, None)
+        if phase_config is None or len(phase_config.backends) == 0:
+            return self.backend
+
+        # Single backend - no fallback needed, but still use from_config for args
+        if len(phase_config.backends) == 1:
+            instance = phase_config.backends[0]
+            try:
+                backend = get_backend(instance.name)
+                # If there are args, wrap in a simple way to pass them
+                if instance.args:
+                    # Store args to pass through during run
+                    backend._extra_args = instance.args  # type: ignore
+                return backend
+            except ValueError:
+                logger.warning(f"Unknown backend '{instance.name}', using default")
+                return self.backend
+
+        # Multiple backends - create fallback runner with args
+        try:
+            return create_fallback_runner_from_config(phase_config.backends)
+        except ValueError as e:
+            logger.warning(f"Failed to create fallback runner: {e}, using default")
+            return self.backend
+
     async def run_phase(self, prompt: str, phase_name: str) -> bool:
         """
         Run a single phase by invoking the agent.
@@ -144,8 +207,11 @@ class ProjectWorkflow:
         output_lines: list[str] = []
         success = True
 
+        # Get the backend for this phase
+        backend = self._get_backend_for_phase(phase_name)
+
         try:
-            async for line in self.backend.run(
+            async for line in backend.run(
                 project_path=self.project.path,
                 prompt=prompt,
                 timeout=600,
@@ -216,7 +282,8 @@ class ProjectWorkflow:
                     continue
 
                 if current_state == "planning":
-                    prompt = build_planning_prompt(self.project.branch)
+                    base_prompt = build_planning_prompt(self.project.branch)
+                    prompt = self.prompt_customization.apply_to_prompt("planning", base_prompt)
                     success = await self.run_phase(prompt, "planning")
                     if self._cancelled:
                         break
@@ -226,7 +293,8 @@ class ProjectWorkflow:
                         self.plan_failed()  # type: ignore
 
                 elif current_state == "implementing":
-                    prompt = build_implementing_prompt(self.project.branch)
+                    base_prompt = build_implementing_prompt(self.project.branch)
+                    prompt = self.prompt_customization.apply_to_prompt("implementing", base_prompt)
                     success = await self.run_phase(prompt, "implementing")
                     if self._cancelled:
                         break
@@ -236,7 +304,8 @@ class ProjectWorkflow:
                         self.implement_failed()  # type: ignore
 
                 elif current_state == "verifying":
-                    prompt = build_verifying_prompt(self.project.branch)
+                    base_prompt = build_verifying_prompt(self.project.branch)
+                    prompt = self.prompt_customization.apply_to_prompt("verifying", base_prompt)
                     success = await self.run_phase(prompt, "verifying")
                     if self._cancelled:
                         break
@@ -246,14 +315,19 @@ class ProjectWorkflow:
                         self.verify_failed()  # type: ignore
 
                 elif current_state == "brainstorming":
-                    prompt = build_brainstorming_prompt()
+                    # Include any queued ideas in the brainstorming prompt
+                    base_prompt = build_brainstorming_prompt(self.idea_queue if self.idea_queue else None)
+                    prompt = self.prompt_customization.apply_to_prompt("brainstorming", base_prompt)
                     success = await self.run_phase(prompt, "brainstorming")
+                    # Clear ideas after they've been processed
+                    self.idea_queue = []
                     if self._cancelled:
                         break
                     self.brainstorm_complete()  # type: ignore
 
                 elif current_state == "committing":
-                    prompt = build_committing_prompt(self.project.branch)
+                    base_prompt = build_committing_prompt(self.project.branch)
+                    prompt = self.prompt_customization.apply_to_prompt("committing", base_prompt)
                     success = await self.run_phase(prompt, "committing")
                     if self._cancelled:
                         break

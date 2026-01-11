@@ -31,6 +31,7 @@ class OpenCodeBackend(AgentBackend):
         prompt: str,
         timeout: int = 600,
         verbose: bool = False,
+        extra_args: list[str] | None = None,
     ) -> AsyncIterator[str]:
         """Not implemented yet."""
         raise NotImplementedError("OpenCode backend is not yet implemented")

@@ -289,6 +289,19 @@ config_path = "~/.config/agent-pump/config.yml"
 - **Dual State Management**: When an app has both CLI and TUI components, ensure both respect the same source of truth (e.g., a persistent JSON file). Load state on startup and save on every mutation.
 - **TUI State Injection**: Inject persistent state managers (like `AppState`) into the TUI application constructor rather than re-loading inside the TUI. This makes testing easier and ensures consistency if the CLI modifies state before launching the TUI.
 
+### 2026-01-11: Fallback Backends & Workspace Configuration
+- **Protocol for Duck Typing**: Use Python's `Protocol` (from `typing`) to define interfaces when multiple classes need to be used interchangeably (e.g., `AgentBackend` and `FallbackBackendRunner` both have a `run()` method).
+- **Quota Detection**: When implementing fallback logic, check output for quota/rate limit indicators as strings (e.g., "quota exceeded", "429", "rate limit"). These messages vary by provider, so use multiple indicators.
+- **Workspace vs AppState**: Keep `AppState` minimal (just project paths and current workspace name). Store detailed configuration in `Workspace` objects, which are saved separately per workspace.
+- **Idea Queue Priority**: When implementing priority queues, sort on insertion (`add_idea`) rather than on retrieval. This keeps `peek_ideas` and `pop_ideas` simple and fast.
+- **Lambda Closure Bug**: When creating callbacks in a loop, capture the loop variable explicitly: `lambda msg, p=path: self._log(msg, p)` instead of `lambda msg: self._log(msg, path)`. The latter captures the variable by reference, not value.
+
+### 2026-01-11: Backend Args & Prompt Customization
+- **Config Models vs Instances**: Use `BackendInstance(name="gemini", args=["--model", "gemini-2.5-flash"])` to keep config (name + args) separate from runtime instances. Factory functions like `from_config()` bridge the gap.
+- **Prompt Composition Pattern**: Use prefix/suffix pattern for prompt customization: `prefix + base_prompt + suffix`. This is more flexible than just overrides and allows users to extend without replacing.
+- **Extra Args Propagation**: When adding optional parameters like `extra_args` to method signatures, add them with `| None = None` default throughout the call chain (base class → implementation → runner → workflow).
+- **Accessing Nested Config Safely**: When accessing `project_config.phase_backends.implementing.backends[0].name`, ensure all intermediate objects exist. Guard with `if project_config and project_config.phase_backends.implementing.backends:`.
+
 
 ---
 
