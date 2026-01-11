@@ -72,6 +72,27 @@ Work through the entire task list systematically. Do not skip any tasks.
 """
 
 
+def build_verifying_prompt(branch: str | None = None) -> str:
+    """Build the prompt for the verifying phase."""
+    branch_instructions = get_branch_instructions(branch)
+    return f"""{branch_instructions}
+You are in the VERIFYING phase.
+
+Your task is to ensure the codebase is healthy and meets standards before proceeding.
+
+1. Read BEST_PRACTICES.md to find the "Verification Checklist" section.
+2. Run each verification command listed (e.g., tests, linting, type checking).
+3. If ANY command fails:
+   - Analyze the error output.
+   - Fix the issue in the code.
+   - Re-run the verification command to confirm the fix.
+   - Repeat until ALL checks pass.
+4. Ensure no new files were created that violate .gitignore or project standards.
+
+Do NOT proceed to the next phase until all verification steps pass successfully.
+"""
+
+
 def build_brainstorming_prompt() -> str:
     """Build the prompt for the brainstorming phase."""
     return """

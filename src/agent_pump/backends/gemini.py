@@ -34,6 +34,7 @@ class GeminiBackend(AgentBackend):
         project_path: Path,
         prompt: str,
         timeout: int = 600,
+        verbose: bool = False,
     ) -> AsyncIterator[str]:
         """
         Execute gemini-cli with the given prompt.
@@ -53,6 +54,9 @@ class GeminiBackend(AgentBackend):
             "--yolo",
         ]
 
+        if verbose:
+            cmd.append("--verbose")
+
         logger.info(f"Starting Gemini CLI in {project_path}")
         logger.debug(f"Command: {cmd[0]} --yolo (prompt via stdin)")
 
@@ -63,21 +67,38 @@ class GeminiBackend(AgentBackend):
         import subprocess
 
         # Build the full command string for logging
-        cmd_str = " ".join(subprocess.list2cmdline([arg]) for arg in cmd)
+        # Note: subprocess.list2cmdline handles quoting for Windows
+        cmd_str = subprocess.list2cmdline(cmd)
         
         # Log full command to file for debugging
         log_file = project_path / ".agent-pump" / "gemini_cmd.log"
         log_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(log_file, "a", encoding="utf-8") as f:
-            from datetime import datetime
-            f.write(f"\n[{datetime.now().isoformat()}]\n")
-            f.write(f"Command: {cmd_str}\n")
-            f.write(f"Prompt length: {len(prompt)} chars\n")
-            f.write(f"Working directory: {project_path}\n")
-            # Write preview of prompt
-            f.write(f"Prompt preview:\n{prompt[:200]}...\n")
+        try:
+            with open(log_file, "a", encoding="utf-8") as f:
+                from datetime import datetime
+                f.write(f"\n[{datetime.now().isoformat()}]\n")
+                f.write(f"Command: {cmd_str}\n")
+                f.write(f"Prompt length: {len(prompt)} chars\n")
+                f.write(f"Working directory: {project_path}\n")
+                # Write preview of prompt
+                f.write(f"Prompt preview:\n{prompt[:200]}...\n")
+            logger.info(f"Full command logged to {log_file}")
+        except Exception as e:
+            logger.error(f"Failed to log command: {e}")
+
+        import os
+
+        # Prepare environment
+        env = os.environ.copy()
+        env["PWD"] = str(project_path)  # Help some tools detect the correct cwd
+
+        # Strip IDE-related variables to prevent "Directory mismatch" errors
+        # This effectively forces Gemini CLI into "standalone" mode for external projects
+        keys_to_remove = [k for k in env if k.startswith(("GEMINI_CLI_", "VSCODE_"))]
+        for k in keys_to_remove:
+            del env[k]
         
-        logger.info(f"Full command logged to {log_file}")
+        logger.debug(f"cleaned env vars: {keys_to_remove}")
 
         if sys.platform == "win32":
             # On Windows, we use the shell to properly execute .CMD/.BAT files
@@ -88,6 +109,7 @@ class GeminiBackend(AgentBackend):
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
+                env=env,
             )
         else:
             process = await asyncio.create_subprocess_exec(
@@ -96,6 +118,7 @@ class GeminiBackend(AgentBackend):
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
+                env=env,
             )
 
         logger.debug(f"Process started with PID: {process.pid}")
@@ -139,7 +162,14 @@ class GeminiBackend(AgentBackend):
                     decoded = line.decode("utf-8", errors="replace")
                     if line_count <= 5 or line_count % 50 == 0:
                         logger.debug(f"Line {line_count}: {decoded[:80].strip()}...")
-                    yield decoded
+                    
+                    # Check for directory mismatch error and provide hint
+                    if "Directory mismatch" in decoded and "IDEClient" in decoded:
+                        yield decoded
+                        yield f"\n[HINT] The Gemini backend requires the project ({project_path}) to be open in your IDE.\n"
+                        yield f"       Please open this folder in your IDE workspace and try again.\n"
+                    else:
+                        yield decoded
 
                 except asyncio.TimeoutError:
                     # No output for 1 second, check if process is still running

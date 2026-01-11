@@ -12,35 +12,6 @@ This document tracks feature development for Agent Pump. Items are processed in 
 
 ## Current Sprint
 
-### 🔴 Extensible Agent Backend System
-**Priority: Critical**
-
-Create the abstract base class for agent backends and implement the Gemini CLI backend. Design for easy addition of Claude Code, OpenCode, and other agents.
-
-**Acceptance Criteria:**
-- Abstract `AgentBackend` base class with clear interface
-- `GeminiBackend` implementation with `--yolo`, `--checkpointing`, `--prompt` flags
-- [ ] Add `--verbose` flag for improved debug output
-- Async streaming of agent output
-- Backend availability detection
-- Placeholder files for future backends (Claude, OpenCode)
-
----
-
-### 🔴 Workflow State Machine
-**Priority: Critical**
-
-Implement the 5-phase workflow (Plan → Implement → Verify → Brainstorm → Commit) with proper state transitions and persistence.
-
-**Acceptance Criteria:**
-- State persists across restarts
-- Transitions validate preconditions
-- Error states allow recovery
-- Provides hooks for TUI updates
-- Brainstorm phase happens BEFORE commit
-
----
-
 ### 🔴 Basic TUI Dashboard
 **Priority: High**
 
@@ -289,6 +260,35 @@ Remember previously loaded projects and automatically load them on startup.
 ## Completed
 
 *Features that have been implemented and verified.*
+
+### 🟢 Workflow State Machine
+**Priority: Critical**
+
+Implement the 5-phase workflow (Plan → Implement → Verify → Brainstorm → Commit) with proper state transitions and persistence.
+
+**Acceptance Criteria:**
+- State persists across restarts
+- Transitions validate preconditions
+- Error states allow recovery
+- Provides hooks for TUI updates
+- Brainstorm phase happens BEFORE commit
+
+---
+
+### 🟢 Extensible Agent Backend System
+**Priority: Critical**
+
+Create the abstract base class for agent backends and implement the Gemini CLI backend. Design for easy addition of Claude Code, OpenCode, and other agents.
+
+**Acceptance Criteria:**
+- Abstract `AgentBackend` base class with clear interface
+- `GeminiBackend` implementation with `--yolo`, `--checkpointing`, `--prompt` flags
+- [x] Add `--verbose` flag for improved debug output
+- Async streaming of agent output
+- Backend availability detection
+- Placeholder files for future backends (Claude, OpenCode)
+
+---
 
 ### 🟢 Core Infrastructure
 **Priority: Critical**

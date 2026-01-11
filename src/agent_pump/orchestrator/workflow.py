@@ -17,6 +17,7 @@ from agent_pump.orchestrator.prompts import (
     build_committing_prompt,
     build_implementing_prompt,
     build_planning_prompt,
+    build_verifying_prompt,
 )
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,7 @@ class ProjectWorkflow:
         "idle",
         "planning",
         "implementing",
+        "verifying",
         "brainstorming",
         "committing",
         "error",
@@ -45,8 +47,10 @@ class ProjectWorkflow:
         {"trigger": "start", "source": "idle", "dest": "planning"},
         {"trigger": "plan_complete", "source": "planning", "dest": "implementing"},
         {"trigger": "plan_failed", "source": "planning", "dest": "error"},
-        {"trigger": "implement_complete", "source": "implementing", "dest": "brainstorming"},
+        {"trigger": "implement_complete", "source": "implementing", "dest": "verifying"},
         {"trigger": "implement_failed", "source": "implementing", "dest": "error"},
+        {"trigger": "verify_complete", "source": "verifying", "dest": "brainstorming"},
+        {"trigger": "verify_failed", "source": "verifying", "dest": "error"},
         {"trigger": "brainstorm_complete", "source": "brainstorming", "dest": "committing"},
         {"trigger": "commit_complete", "source": "committing", "dest": "planning"},
         {"trigger": "no_more_features", "source": "committing", "dest": "completed"},
@@ -212,6 +216,14 @@ class ProjectWorkflow:
                         self.implement_complete()  # type: ignore
                     else:
                         self.implement_failed()  # type: ignore
+
+                elif current_state == "verifying":
+                    prompt = build_verifying_prompt(self.project.branch)
+                    success = await self.run_phase(prompt, "verifying")
+                    if success:
+                        self.verify_complete()  # type: ignore
+                    else:
+                        self.verify_failed()  # type: ignore
 
                 elif current_state == "brainstorming":
                     prompt = build_brainstorming_prompt()

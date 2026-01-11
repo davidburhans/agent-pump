@@ -252,14 +252,23 @@ config_path = "~/.config/agent-pump/config.yml"
 
 ### 2026-01-10: Gemini CLI Arguments
 - **Check CLI Help Regularly**: Gemini CLI flags change between versions. `--prompt` is deprecated (use positional arg), `--checkpointing` doesn't exist.
-- **Correct Syntax**: `gemini --yolo "your prompt here"` - the prompt is positional, not a flag value.
-- **Monitor Stdin**: `gemini-cli` requires input via stdin or the `--prompt` argument (deprecated) to detect one-shot mode correctly on some platforms.
-- **Pass Prompt to Stdin**: For robust execution on Windows, pipe the prompt to the subprocess `stdin` instead of using command-line arguments. This avoids shell quoting issues and length limits with `cmd.exe`.
+- **Correct Syntax**: `gemini --yolo` - pass the prompt via **stdin** for reliable operation.
+- **Stdin is Mandatory**: You **MUST** provide the input via `stdin` for `gemini-cli` to work correctly in this integration. Passing prompts as command-line arguments interacts poorly with shell quoting and length limits, especially on Windows.
 - **Log Commands For Debugging**: When subprocess output is corrupted, log the full command line to a file for post-mortem debugging.
+
+### 2026-01-10: Backend Verification
+- Verified `GeminiBackend` implementation against unit tests.
+- Confirmed strict adherence to async reading loop best practices (catching `TimeoutError` inside the loop).
+- Confirmed prompt passing via stdin to avoid shell limitations.
 
 ### 2026-01-10: Core Infrastructure Setup
 - **Pytest and Text Files**: `pytest` may attempt to collect/parse files starting with `test_` even if they have `.txt` extension if they are in the root directory. Keep the root clean or explicitly configure `testpaths`.
 - **Click Command Naming**: Always explicitly set `name="app-name"` in `@click.command()` to ensure help text and `CliRunner` tests display the correct program name instead of the function name (e.g., `Usage: agent-pump` vs `Usage: main`).
+
+### 2026-01-10: State Machine & Async Testing
+- **State Logic Sync**: When using a state machine library, ensure your execution loop (e.g., `while` loop) explicitly handles every state defined in the transitions. Missing a state in the loop leads to "stuck" workflows.
+- **Async Test Mocking**: Testing infinite async loops requires careful mocking. Use `side_effect` to throw `CancelledError` or break the loop after a set number of iterations to prevent test hangs.
+- **State Persistence**: Pydantic models are excellent for persisting state machine context. Ensure you save state *after* every transition to recover from crashes.
 
 ---
 

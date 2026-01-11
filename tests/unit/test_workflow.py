@@ -1,5 +1,6 @@
 """Tests for the workflow state machine."""
 
+import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -13,6 +14,7 @@ from agent_pump.orchestrator.prompts import (
     build_committing_prompt,
     build_implementing_prompt,
     build_planning_prompt,
+    build_verifying_prompt,
 )
 
 
@@ -44,11 +46,19 @@ class TestProjectWorkflow:
         workflow.plan_complete()
         assert workflow.state == "implementing"
 
-    def test_implementing_to_brainstorming(self, workflow):
-        """Test transitioning from implementing to brainstorming."""
+    def test_implementing_to_verifying(self, workflow):
+        """Test transitioning from implementing to verifying."""
         workflow.start()
         workflow.plan_complete()
         workflow.implement_complete()
+        assert workflow.state == "verifying"
+
+    def test_verifying_to_brainstorming(self, workflow):
+        """Test transitioning from verifying to brainstorming."""
+        workflow.start()
+        workflow.plan_complete()
+        workflow.implement_complete()
+        workflow.verify_complete()
         assert workflow.state == "brainstorming"
 
     def test_brainstorming_to_committing(self, workflow):
@@ -56,6 +66,7 @@ class TestProjectWorkflow:
         workflow.start()
         workflow.plan_complete()
         workflow.implement_complete()
+        workflow.verify_complete()
         workflow.brainstorm_complete()
         assert workflow.state == "committing"
 
@@ -64,6 +75,7 @@ class TestProjectWorkflow:
         workflow.start()
         workflow.plan_complete()
         workflow.implement_complete()
+        workflow.verify_complete()
         workflow.brainstorm_complete()
         workflow.commit_complete()
         assert workflow.state == "planning"
@@ -86,6 +98,20 @@ class TestProjectWorkflow:
         workflow.pause()
         assert workflow.state == "idle"
 
+    def test_state_persistence(self, project):
+        """Test that state is saved and loaded correctly."""
+        # Create first workflow and advance state
+        workflow = ProjectWorkflow(project=project)
+        workflow.start()
+        workflow.plan_complete()
+        assert workflow.state == "implementing"
+        
+        # Create second workflow instance for same project
+        workflow2 = ProjectWorkflow(project=project)
+        # Should auto-load the state
+        assert workflow2.state == "implementing"
+        assert workflow2.workflow_state.current_state == "implementing"
+
     def test_state_change_callback(self, project):
         """Test that state change callback is called."""
         callback = MagicMock()
@@ -96,6 +122,37 @@ class TestProjectWorkflow:
         
         workflow.start()
         callback.assert_called_with("idle", "planning")
+
+    @pytest.mark.asyncio
+    async def test_run_loop_execution(self, workflow):
+        """Test that run loop executes phases including verifying."""
+        # Mock run_phase to return True (success)
+        workflow.run_phase = AsyncMock(return_value=True)
+        
+        # Set up a side effect to stop the loop after one full cycle
+        # We can't easily stop the loop from inside run_phase without cancelling
+        # So we'll let it run a bit and then cancel
+        
+        task = asyncio.create_task(workflow.run(max_iterations=1))
+        
+        # Give it enough time to run through one cycle (all phases mocked)
+        await asyncio.sleep(0.1)
+        
+        workflow.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+            
+        # Verify calls
+        calls = workflow.run_phase.call_args_list
+        phase_names = [c.args[1] for c in calls]
+        
+        assert "planning" in phase_names
+        assert "implementing" in phase_names
+        assert "verifying" in phase_names
+        assert "brainstorming" in phase_names
+        assert "committing" in phase_names
 
     def test_get_ascii_diagram(self, workflow):
         """Test ASCII diagram generation."""
@@ -133,6 +190,13 @@ class TestPrompts:
         prompt = build_implementing_prompt()
         assert "ENGINEERING_PLAN.md" in prompt
         assert "BEST_PRACTICES.md" in prompt
+
+    def test_verifying_prompt(self):
+        """Test verifying prompt includes key instructions."""
+        prompt = build_verifying_prompt()
+        assert "VERIFYING phase" in prompt
+        assert "Verification Checklist" in prompt
+        assert "Do NOT proceed" in prompt
 
     def test_committing_prompt_no_git_add_all(self):
         """Test committing prompt forbids git add ."""

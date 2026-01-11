@@ -34,7 +34,7 @@ class WorkflowState(BaseModel):
             state_dir = self.project_path / ".agent-pump"
         state_dir.mkdir(exist_ok=True)
         state_file = state_dir / "state.json"
-        state_file.write_text(self.model_dump_json(indent=2))
+        state_file.write_text(self.model_dump_json(indent=2), encoding="utf-8")
 
     @classmethod
     def load(cls, project_path: Path) -> "WorkflowState | None":
