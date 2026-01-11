@@ -39,7 +39,9 @@ class Project(BaseModel):
     @classmethod
     def from_path(cls, path: Path, **kwargs: Any) -> "Project":
         """Create a project from a path, inferring name from directory."""
-        return cls(path=path.resolve(), name=path.name, **kwargs)
+        path = path.resolve()
+        name = path.name or str(path)
+        return cls(path=path, name=name, **kwargs)
 
     def has_roadmap(self) -> bool:
         """Check if the project has a ROADMAP.md file."""

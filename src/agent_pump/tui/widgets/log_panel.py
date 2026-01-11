@@ -3,10 +3,10 @@
 from datetime import datetime
 
 from rich.text import Text
-from textual.widgets import RichLog
+from textual.widgets import TextArea
 
 
-class LogPanel(RichLog):
+class LogPanel(TextArea):
     """A scrolling log panel for displaying agent output."""
 
     DEFAULT_CSS = """
@@ -20,37 +20,30 @@ class LogPanel(RichLog):
     def __init__(self, **kwargs):
         """Initialize the log panel."""
         super().__init__(
-            highlight=True,
-            markup=True,
-            wrap=True,
+            language="markdown",
+            read_only=True,
             **kwargs,
         )
 
-    def write(self, message: str) -> None:
+    def write(self, content: str | Text, **kwargs) -> None:
         """
         Write a message to the log.
-
-        Args:
-            message: The message to log
         """
+        message = str(content)
         timestamp = datetime.now().strftime("%H:%M:%S")
+        
+        # Simple formatting for key message types
+        prefix = ""
+        suffix = "\n"
 
-        # Color code based on content
-        if "[ERROR]" in message or "error" in message.lower():
-            style = "red bold"
-        elif "[WARNING]" in message or "⚠" in message:
-            style = "yellow"
-        elif "[INFO]" in message or "[DONE]" in message:
-            style = "green"
-        elif "→" in message:  # State change
-            style = "cyan"
-        elif message.startswith("="):  # Separator
-            style = "dim"
-        else:
-            style = ""
+        if "[ERROR]" in message:
+            prefix = "**"
+            suffix = "**\n"
+        elif "Starting" in message and "phase" in message:
+            prefix = "### "
 
-        text = Text()
-        text.append(f"[{timestamp}] ", style="dim")
-        text.append(message.rstrip(), style=style)
-
-        self.write_log(text)
+        formatted_line = f"[{timestamp}] {prefix}{message.strip()}{suffix}"
+        
+        # Append to text area
+        self.text += formatted_line
+        self.scroll_end()

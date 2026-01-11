@@ -52,4 +52,6 @@ typeCheckingMode = "basic"
 dev = [
     "pytest>=9.0.2",
     "pytest-asyncio>=1.3.0",
+    "ruff>=0.1.0",
+    "pyright>=1.1.0",
 ]

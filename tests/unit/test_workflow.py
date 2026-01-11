@@ -100,7 +100,7 @@ class TestProjectWorkflow:
     def test_get_ascii_diagram(self, workflow):
         """Test ASCII diagram generation."""
         diagram = workflow.get_ascii_diagram()
-        assert "WORKFLOW" in diagram
+        assert "Current:" in diagram  # Header shows current state
         assert "IDLE" in diagram
         assert "PLANNING" in diagram
 

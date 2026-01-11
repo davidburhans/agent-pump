@@ -150,12 +150,22 @@ class ProjectWorkflow:
                     self._emit_output("\n[CANCELLED] Workflow cancelled by user\n")
                     success = False
                     break
+                
+                # Check for explicit error markers
+                if "[ERROR]" in line or "[TIMEOUT]" in line:
+                    success = False
+                    
                 output_lines.append(line)
                 self._emit_output(line)
 
         except Exception as e:
             logger.exception(f"Error in {phase_name} phase")
             self._emit_output(f"\n[ERROR] {e}\n")
+            success = False
+
+        # Fail if no output received
+        if not output_lines and success:
+            self._emit_output(f"\n[ERROR] No output received from backend\n")
             success = False
 
         # Log phase completion
@@ -288,45 +298,23 @@ class ProjectWorkflow:
             ASCII diagram string
         """
         current = self.state  # type: ignore
+        
         diagram = """
-╔════════════════════════════════════════════════════════════╗
-║                    AGENT PUMP WORKFLOW                      ║
-╠════════════════════════════════════════════════════════════╣
-║                                                              ║
-║   ┌──────┐   start    ┌──────────┐   complete   ┌────────┐  ║
-║   │ IDLE │ ─────────> │ PLANNING │ ──────────> │ IMPL.  │  ║
-║   └──────┘            └──────────┘              └────────┘  ║
-║       ^                    │ failed                  │      ║
-║       │                    v                         │      ║
-║       │               ┌─────────┐                    │      ║
-║       │               │  ERROR  │                    │      ║
-║       │  reset        └─────────┘                    │      ║
-║       └───────────────────┘                          │      ║
-║                                                      │      ║
-║   ┌───────────┐   complete   ┌─────────────┐         │      ║
-║   │ COMMITTING│ <─────────── │ BRAINSTORM  │ <───────┘      ║
-║   └───────────┘              └─────────────┘                ║
-║        │                                                     ║
-║        │ complete (loop) or no_more_features                ║
-║        v                                                     ║
-║   ┌───────────┐                                              ║
-║   │ COMPLETED │                                              ║
-║   └───────────┘                                              ║
-╚════════════════════════════════════════════════════════════╝
+  IDLE ──> PLANNING ──> IMPLEMENTING
+    ^          │              │
+    │       (fail)            │
+    │          v              v
+    └───── ERROR        BRAINSTORMING
+                              │
+                              v
+           COMMITTING <───────┘
+               │
+               v
+           COMPLETED
 """
-        # Mark current state
-        state_markers = {
-            "idle": "IDLE",
-            "planning": "PLANNING",
-            "implementing": "IMPL.",
-            "brainstorming": "BRAINSTORM",
-            "committing": "COMMITTING",
-            "completed": "COMPLETED",
-            "error": "ERROR",
-        }
-
-        if current in state_markers:
-            marker = state_markers[current]
-            diagram = diagram.replace(marker, f"[{marker}]")
-
-        return diagram
+        
+        # Add current state indicator
+        state_display = current.upper() if current else "UNKNOWN"
+        header = f"═══ Current: [{state_display}] ═══\n"
+        
+        return header + diagram

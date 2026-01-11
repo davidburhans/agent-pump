@@ -26,7 +26,7 @@ A test feature to implement.
 ## Completed
 
 *None yet*
-""")
+""", encoding="utf-8")
 
     # Create BEST_PRACTICES.md
     best_practices = project_path / "BEST_PRACTICES.md"
@@ -34,6 +34,6 @@ A test feature to implement.
 
 - Write clean code
 - Test everything
-""")
+""", encoding="utf-8")
 
     return project_path

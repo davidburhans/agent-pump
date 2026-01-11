@@ -11,7 +11,7 @@ class WorkflowConfig(BaseModel):
     """Workflow configuration options."""
 
     max_iterations: int = Field(default=10, description="Maximum workflow iterations")
-    timeout: int = Field(default=600, description="Timeout per agent invocation in seconds")
+    timeout: int = Field(default=1200, description="Timeout per agent invocation in seconds")
     branch: str | None = Field(default=None, description="Optional branch to isolate work")
 
 

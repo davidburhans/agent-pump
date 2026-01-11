@@ -70,6 +70,16 @@ Header {
     background: $primary;
 }
 
+#right-sidebar {
+    width: 80;
+    min-width: 70;
+    max-width: 100;
+    height: 100%;
+    background: $surface;
+    border-left: solid $primary-background;
+    padding: 1;
+}
+
 Footer {
     background: $surface;
 }

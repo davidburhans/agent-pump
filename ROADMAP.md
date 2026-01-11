@@ -201,6 +201,91 @@ Automatically run verifications (lint, test) on pre-commit.
 
 ---
 
+### 🔴 Workflow Overview Dashboard
+**Priority: Medium**
+
+Overview all workflows in a single view.
+
+**Acceptance Criteria:**
+- Dashboard view showing all active workflows
+- Summary status for each
+- Quick navigation to details
+
+---
+
+### 🔴 Stop After Feature Option
+**Priority: Medium**
+
+Option to stop execution automatically after the current feature is completed.
+
+**Acceptance Criteria:**
+- Toggle in TUI or CLI flag
+- Graceful shutdown after current feature verification
+- No new tasks started from roadmap
+
+---
+
+### 🔴 Activity Log Preferences
+**Priority: Low**
+
+User preference to have new items added to the top of the activity log.
+
+**Acceptance Criteria:**
+- Configurable log order (ascending/descending)
+- Persisted user preference
+- TUI toggle or config file setting
+
+---
+
+### 🔴 Real-time State Visibility
+**Priority: High**
+
+Ability to see the current state of the machine while the machine is executing.
+
+**Acceptance Criteria:**
+- Live status indicator in TUI
+- Shows current state (e.g., Planning, Implementing)
+- Shows active substep or tool call if possible
+
+---
+
+### 🔴 Per-Project Activity Logs
+**Priority: Medium**
+
+Each project should have its own dedicated activity log.
+
+**Acceptance Criteria:**
+- Separate log storage per project
+- TUI view switches logs based on selected project
+- Global log vs Project log usage
+
+---
+
+### 🔴 Task Completion History
+**Priority: Medium**
+
+Save and display the history of completed tasks for each project.
+
+**Acceptance Criteria:**
+- Persistent record of completed tasks
+- Date/time of completion
+- View history in TUI
+
+---
+
+### 🔴 Project Persistence & Autoload
+**Priority: Medium**
+
+Remember previously loaded projects and automatically load them on startup.
+
+**Acceptance Criteria:**
+- Store list of active projects in config/state file
+- Automatically load these projects when Agent Pump starts
+- Handle missing paths gracefully
+- Option to disable autoload
+
+---
+
 ## Completed
 
 *Features that have been implemented and verified.*
