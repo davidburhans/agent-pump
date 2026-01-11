@@ -94,6 +94,18 @@ uv run agent-pump
     *   **Verifies** the build.
     *   **Commits** the changes to git.
 
+### Key Bindings
+
+| Key | Action |
+| :--- | :--- |
+| `a` | **Add** a new project |
+| `r` | **Remove** the selected project |
+| `p` | **Pause/Resume** all workflows |
+| `s` | **Start** workflows (or Resume specific) |
+| `k` | **Skip** current feature (mark as failed) |
+| `q` | **Quit** the application |
+
+
 ## How It Works
 
 Agent Pump implements a state machine that models the software engineering lifecycle:

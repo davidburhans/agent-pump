@@ -214,7 +214,56 @@ class TestGeminiBackend:
         backend = GeminiBackend()
         assert backend.name == "Gemini CLI"
 
-    def test_command(self):
+    def test_command(self, backend=None):
         """Test backend command."""
         backend = GeminiBackend()
         assert backend.command == "gemini"
+
+
+class TestMinimumExecutionTime:
+    """Tests for minimum execution time enforcement."""
+
+    @pytest.fixture
+    def project(self, tmp_path):
+        """Create a test project."""
+        project_dir = tmp_path / "test_project"
+        project_dir.mkdir()
+        return Project.from_path(project_dir)
+
+    @pytest.mark.asyncio
+    async def test_run_phase_fails_if_too_fast(self, project):
+        """Test that run_phase fails if backend returns too quickly."""
+        project.min_execution_time_seconds = 1.0
+        workflow = ProjectWorkflow(project=project)
+        
+        # Mock backend that returns immediately
+        mock_backend = MagicMock()
+        mock_backend.run = MagicMock()
+        
+        async def fast_output(*args, **kwargs):
+            yield "Some output"
+            
+        mock_backend.run.return_value = fast_output()
+        workflow.backend = mock_backend
+        
+        success = await workflow.run_phase("prompt", "test_phase")
+        assert not success
+
+    @pytest.mark.asyncio
+    async def test_run_phase_succeeds_if_min_time_is_zero(self, project):
+        """Test that run_phase succeeds if min_execution_time_seconds is 0."""
+        project.min_execution_time_seconds = 0
+        workflow = ProjectWorkflow(project=project)
+        
+        # Mock backend that returns immediately
+        mock_backend = MagicMock()
+        mock_backend.run = MagicMock()
+        
+        async def fast_output(*args, **kwargs):
+            yield "Some output"
+            
+        mock_backend.run.return_value = fast_output()
+        workflow.backend = mock_backend
+        
+        success = await workflow.run_phase("prompt", "test_phase")
+        assert success

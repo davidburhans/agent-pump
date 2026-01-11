@@ -77,8 +77,9 @@ class ProjectCard(Static):
     class Selected(Message):
         """Message emitted when card is selected."""
 
-        def __init__(self, project: Project) -> None:
+        def __init__(self, project: Project, card: "ProjectCard") -> None:
             self.project = project
+            self.card = card
             super().__init__()
 
     def __init__(self, project: Project, **kwargs):
@@ -139,12 +140,4 @@ class ProjectCard(Static):
 
     def on_click(self) -> None:
         """Handle click events."""
-        self.post_message(self.Selected(self.project))
-
-    def on_focus(self) -> None:
-        """Handle focus events."""
-        self.add_class("selected")
-
-    def on_blur(self) -> None:
-        """Handle blur events."""
-        self.remove_class("selected")
+        self.post_message(self.Selected(self.project, self))

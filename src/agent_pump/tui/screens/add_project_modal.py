@@ -108,7 +108,7 @@ class AddProjectModal(ModalScreen[Path | None]):
     def _handle_parent_directory(self) -> None:
         """Navigate the directory tree to the parent directory."""
         tree = self.query_one("#dir-tree", DirectoryTree)
-        current_path = Path(tree.path)
+        current_path = Path(tree.path).resolve()
         parent_path = current_path.parent
         # Prevent going beyond root if needed, but Path.parent handles root correctly (returns root)
         if parent_path != current_path:

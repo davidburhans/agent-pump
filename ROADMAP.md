@@ -12,20 +12,6 @@ This document tracks feature development for Agent Pump. Items are processed in 
 
 ## Current Sprint
 
-### 🔴 Basic TUI Dashboard
-**Priority: High**
-
-Create the initial Textual application with project status display, log viewer, and keyboard controls.
-
-**Acceptance Criteria:**
-- Display project cards with status
-- Show real-time logs from agent
-- Support add/remove project (a/r keys)
-- Support pause/resume/skip commands
-- Responsive layout for different terminal sizes
-
----
-
 ### 🔴 Dynamic Project Management
 **Priority: High**
 
@@ -251,6 +237,20 @@ Remember previously loaded projects and automatically load them on startup.
 ## Completed
 
 *Features that have been implemented and verified.*
+
+### 🟢 Basic TUI Dashboard
+**Priority: High**
+
+Create the initial Textual application with project status display, log viewer, and keyboard controls.
+
+**Acceptance Criteria:**
+- Display project cards with status
+- Show real-time logs from agent
+- Support add/remove project (a/r keys)
+- Support pause/resume/skip commands
+- Responsive layout for different terminal sizes
+
+---
 
 ### 🟢 Workflow State Machine
 **Priority: Critical**

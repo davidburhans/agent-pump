@@ -291,6 +291,13 @@ class AgentPumpApp(App):
 
     def on_project_card_selected(self, event: ProjectCard.Selected) -> None:
         """Handle project card selection."""
+        # Update UI selection state
+        project_list = self.query_one("#project-list", Container)
+        for card in project_list.query(ProjectCard):
+            card.remove_class("selected")
+        
+        event.card.add_class("selected")
+        
         self.selected_project = event.project.path
         self._log(f"Selected project: {event.project.name}")
 

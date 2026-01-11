@@ -140,6 +140,7 @@ class ProjectWorkflow:
         self._emit_output(f"Starting {phase_name} phase...\n")
         self._emit_output(f"{'='*60}\n\n")
 
+        start_time = datetime.now()
         output_lines: list[str] = []
         success = True
 
@@ -166,6 +167,15 @@ class ProjectWorkflow:
             logger.exception(f"Error in {phase_name} phase")
             self._emit_output(f"\n[ERROR] {e}\n")
             success = False
+
+        # Calculate duration
+        duration = (datetime.now() - start_time).total_seconds()
+        
+        # specific check for min execution time
+        if success and not self._cancelled:
+            if duration < self.project.min_execution_time_seconds:
+                self._emit_output(f"\n[ERROR] Backend execution too short ({duration:.1f}s < {self.project.min_execution_time_seconds}s). Assuming failure.\n")
+                success = False
 
         # Fail if no output received and not cancelled
         if not output_lines and success and not self._cancelled:
@@ -200,6 +210,10 @@ class ProjectWorkflow:
             iteration = 0
             while iteration < max_iterations and not self._cancelled:
                 current_state = self.state  # type: ignore
+
+                if current_state == "idle":
+                    self.start()  # type: ignore
+                    continue
 
                 if current_state == "planning":
                     prompt = build_planning_prompt(self.project.branch)

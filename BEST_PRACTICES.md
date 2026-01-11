@@ -277,6 +277,12 @@ config_path = "~/.config/agent-pump/config.yml"
   - **Pausing**: "Pause" should stop the loop *without* resetting variables or transitioning state. Avoid resetting to `IDLE` or `ERROR` on pause, as this forces a restart from `PLANNING` and loses iteration progress.
 - **Graceful Cancellation**: In `asyncio` loops, check for cancellation flags (e.g., `self._cancelled`) frequently. To "pause", break the loop cleanly without throwing exceptions or marking the run as a failure.
 
+### 2026-01-11: TUI Development
+- **Visual State Management**: Separating "focus" (keyboard interaction) from "selection" (active application state) is crucial in TUIs. Use dedicated CSS classes (e.g., `.selected`) for application state rather than relying on `:focus` pseudo-classes.
+- **Message Passing**: When using `post_message` with custom messages, pass the widget instance (`self`) if the receiver needs to call methods on the sender.
+- **Testing TUIs**: While full interaction testing requires a `Pilot`, unit testing widget logic (like formatting methods) is effective for quick validation.
+
+
 ---
 
 ## Verification Checklist
