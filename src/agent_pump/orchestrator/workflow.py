@@ -14,11 +14,6 @@ from agent_pump.backends.base import AgentBackend
 from agent_pump.backends.gemini import GeminiBackend
 from agent_pump.models.project import Project, ProjectStatus
 from agent_pump.models.state import WorkflowState
-from agent_pump.backends import create_fallback_runner_from_config, get_backend
-from agent_pump.backends.base import AgentBackend
-from agent_pump.backends.gemini import GeminiBackend
-from agent_pump.models.project import Project, ProjectStatus
-from agent_pump.models.state import WorkflowState
 from agent_pump.models.workspace import PhaseBackends, ProjectConfig, PromptCustomization
 from agent_pump.orchestrator.prompts import (
     build_brainstorming_prompt,
@@ -77,6 +72,7 @@ class ProjectWorkflow:
         {"trigger": "commit_complete", "source": "committing", "dest": "planning"},
         {"trigger": "no_more_features", "source": "committing", "dest": "completed"},
         {"trigger": "reset", "source": "error", "dest": "idle"},
+        {"trigger": "restart", "source": "completed", "dest": "planning"},
     ]
 
     def __init__(
@@ -88,7 +84,7 @@ class ProjectWorkflow:
         phase_backends: PhaseBackends | None = None,
         prompt_customization: PromptCustomization | None = None,
         idea_queue: list[str] | None = None,
-        on_output: Callable[[str], None] | None = None,
+        on_output: Callable[[str, str, str | None], None] | None = None,
         on_state_change: Callable[[str, str], None] | None = None,
         on_ideas_processed: Callable[[Path], None] | None = None,
     ):
@@ -156,6 +152,9 @@ class ProjectWorkflow:
         # Sync feature history
         self.project.completed_features = self.workflow_state.completed_features.copy()
         self.project.failed_features = self.workflow_state.failed_features.copy()
+        
+        # Workspace reference (optional)
+        self.workspace = None
 
     def _after_state_change(self, *args: Any, **kwargs: Any) -> None:
         """Called after each state change."""
@@ -201,7 +200,12 @@ class ProjectWorkflow:
     def _emit_output(self, line: str) -> None:
         """Emit output line to callback."""
         if self.on_output:
-            self.on_output(line)
+            # Pass current state and current feature as metadata
+            self.on_output(
+                line, 
+                self.workflow_state.current_state, 
+                self.project.current_feature
+            )
 
     def _get_backend_for_phase(self, phase: str) -> BackendRunner:
         """
@@ -213,37 +217,55 @@ class ProjectWorkflow:
         Returns:
             AgentBackend or FallbackBackendRunner for the phase
         """
-        if self.phase_backends is None:
-            return self.backend
+        # Try to get phase-specific config
+        phase_config = None
+        if self.phase_backends:
+            phase_config = getattr(self.phase_backends, phase, None)
 
-        phase_config = getattr(self.phase_backends, phase, None)
+        # Determine which backend list to use
+        backends_to_use = []
         
-        # If no specific config for this phase, or empty list of backends, try defaults
-        if (phase_config is None or len(phase_config.backends) == 0):
-            if self.phase_backends.defaults and self.phase_backends.defaults.backends:
-                phase_config = self.phase_backends.defaults
-            else:
-                return self.backend
+        # 1. Use phase-specific backends if they exist and are not empty
+        if phase_config and phase_config.backends:
+            # Check if it's just a "use default" placeholder or actual config
+            # (Assuming empty backends list means "use default", but it initiates with 1 default)
+            # Actually, standard init is [BackendInstance()].
+            # We need a way to know if user EXPLICITLY wants project default.
+            # For now, let's assume if the phase backends are valid, we use them.
+            # But the user request says "can be overridden at the per step level".
+            # This implies the project default is the BASE, and steps override it.
+            # So if step config exists, it wins.
+            backends_to_use = phase_config.backends
+        
+        # 2. Fallback to project-level default chain
+        # Try to get project config if not already available
+        project_config = self.project_config
+        if not project_config and self.workspace:
+             project_config = self.workspace.get_project_config(self.project.path)
 
-        # Single backend - no fallback needed, but still use from_config for args
-        if len(phase_config.backends) == 1:
-            instance = phase_config.backends[0]
+        if not backends_to_use and project_config and project_config.default_chain:
+             backends_to_use = project_config.default_chain.backends
+
+        # 3. Fallback to app-level/hardcoded default (Gemini)
+        if not backends_to_use:
+             return self.backend
+
+        # Single backend logic
+        if len(backends_to_use) == 1:
+            instance = backends_to_use[0]
             try:
                 backend = get_backend(instance.name)
-                # If there are args, wrap in a simple way to pass them
                 if instance.args:
-                    # Store args to pass through during run
                     backend._extra_args = instance.args  # type: ignore
                 return backend
             except ValueError:
                 logger.warning(f"Unknown backend '{instance.name}', using default")
                 return self.backend
 
-        # Multiple backends - create fallback runner with args
+        # Multiple backends logic
         try:
-            return create_fallback_runner_from_config(phase_config.backends)
+            return create_fallback_runner_from_config(backends_to_use)
         except ValueError as e:
-            logger.warning(f"Failed to create fallback runner: {e}, using default")
             logger.warning(f"Failed to create fallback runner: {e}, using default")
             return self.backend
 
@@ -530,8 +552,12 @@ class ProjectWorkflow:
                     self.reset()  # type: ignore
 
                 elif current_state == "completed":
-                    self._emit_output("\n[DONE] Workflow completed!\n")
-                    break
+                    self._emit_output("\n[DONE] Workflow completed! Restarting...\n")
+                    # Restart to planning phase
+                    self.restart()  # type: ignore
+                    # Reset iteration count for the new cycle
+                    iteration = 0
+                    continue
 
                 else:
                     self._emit_output(f"\n[UNKNOWN] Unknown state: {current_state}\n")
@@ -600,7 +626,10 @@ class ProjectWorkflow:
            COMMITTING <───────┘
                │
                v
-           COMPLETED
+           COMPLETED ───────┘
+               │
+               v
+           PLANNING (Loop)
 """
 
         # Add current state indicator

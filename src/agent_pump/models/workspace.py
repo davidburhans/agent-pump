@@ -187,6 +187,10 @@ class ProjectConfig(BaseModel):
         default="default",
         description="Name of workflow definition to use (default = built-in 5-phase)",
     )
+    default_chain: BackendFallback | None = Field(
+        default=None,
+        description="Default backend chain for phases that don't specify one",
+    )
     idea_queue: list[IdeaQueueItem] = Field(
         default_factory=list,
         description="Ideas to feed to the brainstormer for this project",

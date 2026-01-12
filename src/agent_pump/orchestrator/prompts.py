@@ -119,16 +119,24 @@ You are in the BRAINSTORMING phase.
 Your task:
 1. Review the feature you just implemented
 2. Update ROADMAP.md:
-   - Mark the completed feature as 🟢 Complete
-   - Move it to the "Completed" section
-3. Brainstorm and add NEW feature ideas to "Future Enhancements"
-4. For EACH new idea you add, also promote ONE existing "Future Enhancement":
+   - Remove the completed feature from the list (do not just mark it as complete, remove it entirely to keep the roadmap focused)
+   - Ensure the "current Sprint" pointers match the new top priority
+3. Documentation:
+   - Check if FEATURES.md exists. If not, create it.
+   - FEATURES.md should contain a list of features with:
+     - Feature Name
+     - Description (what it does)
+     - How to use it (commands, UI interactions, keybindings)
+     - When to use it (use cases)
+   - Add the feature you just completed to FEATURES.md
+4. Brainstorm and add NEW feature ideas to "Future Enhancements" in ROADMAP.md
+5. For EACH new idea you add, also promote ONE existing "Future Enhancement":
    - Select an existing future item that would be valuable
    - Flesh it out with detailed acceptance criteria
    - Move it from "Future Enhancements" to "Current Sprint" (mark as 🔴 Not Started)
    This ensures the roadmap always has ready-to-implement items.
-5. Delete ENGINEERING_PLAN.md (it's no longer needed)
-6. Delete TASK_NAME (it's no longer needed)
+6. Delete ENGINEERING_PLAN.md (it's no longer needed)
+7. Delete TASK_NAME (it's no longer needed)
 {ideas_section}
 Focus on practical, valuable improvements that align with the project's goals.
 """

@@ -267,6 +267,19 @@ Remember previously loaded projects and automatically load them on startup.
 
 ---
 
+### 🔴 Web UI Interface
+**Priority: Medium**
+
+Host a web UI with a similar UX to the TUI when running the app. It should be a single page app and provide the same or similar functionality as the TUI.
+
+**Acceptance Criteria:**
+- Single Page Application (SPA) architecture
+- UX consistent with Terminal UI
+- Full functionality parity (monitoring, configuration, control)
+- Hosted by the application during runtime
+
+---
+
 ## Completed
 
 *Features that have been implemented and verified.*

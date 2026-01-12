@@ -8,6 +8,8 @@ from textual.widgets import Button, Input, Label, Static, TabbedContent, TabPane
 
 from agent_pump.backends import BACKEND_REGISTRY
 from agent_pump.models.workspace import GlobalPromptSettings
+from agent_pump.tui.screens.confirm_modal import ConfirmModal
+
 
 # Well-known models for each engine
 KNOWN_MODELS = {
@@ -82,7 +84,7 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
     }
 
     .model-list {
-        height: auto;
+        height: 1fr;
         max-height: 100%;
         overflow-y: auto;
     }
@@ -116,10 +118,12 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
 
     TabPane {
         padding: 1;
+        height: 1fr;
     }
 
     ScrollableContainer {
         height: 1fr;
+        scrollbar-size: 1 1;
     }
     """
 
@@ -141,11 +145,10 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
     def compose(self) -> ComposeResult:
         """Compose the modal's widgets."""
         with Container(id="modal-container"):
-            yield Static("Global Prompt Settings", id="modal-title")
+            yield Static("🌐 Global Prompt Settings", id="modal-title")
             yield Label(
                 "Configure prompt prefix/suffix that applies across all phases.\n"
-                "Engine settings apply to all uses of that backend. "
-                "Model settings are more specific.",
+                "Engine settings apply to all uses of that backend. Model settings are more specific.",
                 classes="help-text",
             )
 
@@ -158,8 +161,8 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
                             suffix = self.settings.engine_suffixes.get(engine_name, "")
 
                             with Vertical(classes="engine-section"):
-                                yield Static(
-                                    f"Engine: {engine_name.capitalize()}",
+                                yield Label(
+                                    f"🔧 {engine_name.capitalize()}",
                                     classes="engine-title"
                                 )
 
@@ -185,10 +188,10 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
                         # Add model input
                         with Horizontal(classes="add-model-row"):
                             yield Input(
-                                placeholder="Enter model name",
+                                placeholder="Enter model name (e.g., gemini-2.5-flash)",
                                 id="new-model-input",
                             )
-                            yield Button("Add Model", variant="success", id="btn-add-model")
+                            yield Button("+ Add Model", variant="success", id="btn-add-model")
 
                         # Show configured models
                         yield Label("Configured Models:", classes="engine-title")
@@ -202,9 +205,9 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
                                 id=f"model-section-{self._safe_id(model_name)}"
                             ):
                                 with Horizontal():
-                                    yield Static(f"Model: {model_name}", classes="engine-title")
+                                    yield Label(f"📦 {model_name}", classes="engine-title")
                                     yield Button(
-                                        "X",
+                                        "×",
                                         variant="error",
                                         id=f"remove-model-{self._safe_id(model_name)}"
                                     )
@@ -242,7 +245,7 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
         elif button_id == "btn-save":
             self.action_save()
         elif button_id == "btn-clear":
-            self._clear_all()
+            self._confirm_clear_all()
         elif button_id == "btn-add-model":
             self._add_model()
         elif button_id and button_id.startswith("remove-model-"):
@@ -292,6 +295,20 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
     def action_save(self) -> None:
         """Save the configuration and dismiss."""
         self._save_config()
+
+    def _confirm_clear_all(self) -> None:
+        """Ask for confirmation before clearing."""
+        def on_confirm(result: bool) -> None:
+            if result:
+                self._clear_all()
+        
+        self.app.push_screen(
+            ConfirmModal(
+                question="Are you sure you want to clear ALL global prompt settings?",
+                confirm_label="Clear All",
+            ),
+            on_confirm,
+        )
 
     def _clear_all(self) -> None:
         """Clear all global prompt settings."""

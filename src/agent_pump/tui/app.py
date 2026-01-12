@@ -27,6 +27,7 @@ from agent_pump.tui.screens import (
     GlobalPromptModal,
     PromptConfigModal,
 )
+from agent_pump.tui.screens.log_filter_modal import LogFilterModal
 from agent_pump.tui.widgets.log_panel import LogPanel
 from agent_pump.tui.widgets.project_card import ProjectCard
 from agent_pump.tui.widgets.workflow_panel import WorkflowPanel
@@ -46,7 +47,10 @@ class AgentPumpApp(App):
         Binding("a", "add_project", "Add"),
         Binding("d", "toggle_dark", "Dark"),
         Binding("i", "add_idea", "Idea"),
+        Binding("i", "add_idea", "Idea"),
         Binding("P", "global_prompts", "Global"),
+        Binding("f", "filter_logs", "Filter"),
+        Binding("o", "toggle_sort", "Order"),
     ]
 
     def __init__(self, project_paths: list[Path] | None = None):
@@ -104,18 +108,30 @@ class AgentPumpApp(App):
     def on_mount(self) -> None:
         """Called when app is mounted."""
         self.log_panel = self.query_one("#log-panel", LogPanel)
+        
+        # Apply persisted sort order
+        if self.log_panel:
+            self.log_panel.set_sort_order(self.app_state.log_sort_order)
+            
         self.workflow_panel = self.query_one("#workflow-panel", WorkflowPanel)
         self._log("Agent Pump started")
         self._log("Press 'a' to add a project, 'q' to quit")
+        self._log(f"Log sort order: {self.app_state.log_sort_order.upper()}")
 
         # Load initial projects
         for path in self.project_paths:
             self._add_project(path)
 
-    def _log(self, message: str, project_path: Path | None = None) -> None:
+    def _log(
+        self, 
+        message: str, 
+        project_path: Path | None = None,
+        state: str = "unknown",
+        task: str | None = None
+    ) -> None:
         """Log a message to the log panel."""
         if self.log_panel:
-            self.log_panel.write(message, project_path=project_path)
+            self.log_panel.write(message, project_path=project_path, state=state, task=task)
 
     def _update_activity_log_title(self) -> None:
         """Update the Activity Log title to show the selected project."""
@@ -209,7 +225,7 @@ class AgentPumpApp(App):
                 phase_backends=phase_backends,
                 prompt_customization=prompt_customization,
                 idea_queue=idea_queue,
-                on_output=lambda msg, p=path: self._log(msg, project_path=p),
+                on_output=lambda msg, s, t, p=path: self._log(msg, project_path=p, state=s, task=t),
                 on_state_change=lambda old, new, p=path: self._on_workflow_state_change(p, old, new),
                 on_ideas_processed=lambda p=path: self._on_ideas_processed(p),
             )
@@ -541,6 +557,64 @@ class AgentPumpApp(App):
                 self._log("Global prompt settings cancelled")
 
         self.push_screen(GlobalPromptModal(self.workspace.global_prompt_settings), handle_result)
+
+    def action_filter_logs(self) -> None:
+        """Configure activity log filters."""
+        if not self.log_panel:
+            return
+
+        current_states = self.log_panel.filter_states
+        current_task = self.log_panel.filter_task
+
+        def handle_result(result: tuple[list[str], str | None] | None) -> None:
+            if result is not None:
+                states, task = result
+                # Preserve project path filter from panel
+                current_project_path = self.log_panel.filter_path
+                # Pass explicit None for empty list if that's what we want, 
+                # but set_filter expects list | None. 
+                # Logic in LogPanel: if states is not None, it filters.
+                # So if user cleared filters (empty list), we should pass None or empty list?
+                # LogPanel logic: "if self.filter_states is not None: if entry.state not in self.filter_states"
+                # So if we pass [], it will show NOTHING (unless state is in []).
+                # Wait, if user unchecks all, they probably want to see ALL? 
+                # Or do they want to see nothing? Usually "Clear Filters" implies see all.
+                # My Clear button returns ([], None).
+                
+                # Let's adjust logic: If user selected states, use them. If empty, assume NO filter on state?
+                # The modal returns [] if nothing selected.
+                # If the user explicitly selects nothing, maybe they mean nothing.
+                # But the "Clear" button is distinct.
+                
+                # Let's assume sending None means "no filter".
+                final_states = states if states else None 
+                
+                self.log_panel.set_filter(
+                    project_path=current_project_path,
+                    states=final_states,
+                    task=task
+                )
+                
+                filter_desc = []
+                if final_states:
+                    filter_desc.append(f"states={final_states}")
+                if task:
+                    filter_desc.append(f"task='{task}'")
+                
+                if filter_desc:
+                    self._log(f"[UI] Log filter active: {', '.join(filter_desc)}")
+                else:
+                    self._log("[UI] Log filters cleared")
+
+        self.push_screen(LogFilterModal(current_states, current_task), handle_result)
+
+    def action_toggle_sort(self) -> None:
+        """Toggle log sort order."""
+        if self.log_panel:
+            new_order = self.log_panel.toggle_sort()
+            self.app_state.log_sort_order = new_order
+            self.app_state.save()
+            self._log(f"[UI] Log sort order: {new_order.upper()}")
 
 
     def on_button_pressed(self, event: Button.Pressed) -> None:

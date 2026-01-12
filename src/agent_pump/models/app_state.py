@@ -13,6 +13,7 @@ class AppState(BaseModel):
 
     projects: list[Path] = Field(default_factory=list, description="List of managed project paths")
     current_workspace: str = Field(default="default", description="Name of the current workspace")
+    log_sort_order: str = Field(default="desc", description="Log sort order: 'asc' or 'desc'")
 
     model_config = {"arbitrary_types_allowed": True}
 

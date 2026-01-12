@@ -168,6 +168,17 @@ class TestProjectWorkflow:
         assert "digraph" in dot
         assert "idle" in dot
         assert "planning" in dot
+    def test_completion_goes_to_completed_state(self, workflow):
+        """Test that completing all features goes to completed state (before restart)."""
+        workflow.state = "committing"
+        workflow.no_more_features()
+        assert workflow.state == "completed"
+
+    def test_restart_from_completed(self, workflow):
+        """Test restart transition from completed to planning."""
+        workflow.state = "completed"
+        workflow.restart()
+        assert workflow.state == "planning"
 
 
 class TestPrompts:
@@ -267,3 +278,5 @@ class TestMinimumExecutionTime:
 
         success = await workflow.run_phase("prompt", "test_phase")
         assert success
+
+

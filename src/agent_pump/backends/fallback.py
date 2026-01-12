@@ -47,6 +47,9 @@ QUOTA_ERROR_INDICATORS = [
     # Google/Gemini-specific
     "quota_exceeded",
     "rateLimitExceeded",
+    "RESOURCE_EXHAUSTED",
+    "context_length_exceeded",
+    "context window is full",
 ]
 
 
