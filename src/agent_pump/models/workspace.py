@@ -19,7 +19,9 @@ class BackendInstance(BaseModel):
         default_factory=list,
         description="Extra command-line args (e.g., ['--model', 'gemini-2.5-flash'])",
     )
-    timeout: int | None = Field(default=None, description="Timeout in seconds (None = use global default)")
+    timeout: int | None = Field(
+        default=None, description="Timeout in seconds (None = use global default)"
+    )
 
 
 class BackendFallback(BaseModel):
@@ -41,7 +43,7 @@ class PhaseBackends(BaseModel):
 
     defaults: BackendFallback = Field(
         default_factory=BackendFallback,
-        description="Default fallback chain used when phase-specific chain is empty"
+        description="Default fallback chain used when phase-specific chain is empty",
     )
     planning: BackendFallback = Field(default_factory=BackendFallback)
     implementing: BackendFallback = Field(default_factory=BackendFallback)
@@ -74,11 +76,21 @@ class PromptCustomization(BaseModel):
     committing_suffix: str = Field(default="", description="Added after committing prompt")
 
     # Base prompt overrides (empty = use default from base_prompts.py)
-    planning_base: str = Field(default="", description="Custom base prompt for planning (empty = default)")
-    implementing_base: str = Field(default="", description="Custom base prompt for implementing (empty = default)")
-    verifying_base: str = Field(default="", description="Custom base prompt for verifying (empty = default)")
-    brainstorming_base: str = Field(default="", description="Custom base prompt for brainstorming (empty = default)")
-    committing_base: str = Field(default="", description="Custom base prompt for committing (empty = default)")
+    planning_base: str = Field(
+        default="", description="Custom base prompt for planning (empty = default)"
+    )
+    implementing_base: str = Field(
+        default="", description="Custom base prompt for implementing (empty = default)"
+    )
+    verifying_base: str = Field(
+        default="", description="Custom base prompt for verifying (empty = default)"
+    )
+    brainstorming_base: str = Field(
+        default="", description="Custom base prompt for brainstorming (empty = default)"
+    )
+    committing_base: str = Field(
+        default="", description="Custom base prompt for committing (empty = default)"
+    )
 
     def get_base_override(self, phase: str) -> str:
         """Get the base prompt override for a phase (empty = use default)."""
@@ -108,7 +120,7 @@ class IdeaQueueItem(BaseModel):
 
 class GlobalPromptSettings(BaseModel):
     """Global prompt settings applied across all phases.
-    
+
     These settings are applied in addition to (not replacing) phase-specific
     prompt customizations. Order of application:
     1. Global engine prefix (if backend engine matches)
@@ -141,10 +153,10 @@ class GlobalPromptSettings(BaseModel):
 
     def get_engine_additions(self, engine_name: str) -> tuple[str, str]:
         """Get prefix and suffix for an engine.
-        
+
         Args:
             engine_name: Backend engine name (e.g., "gemini")
-            
+
         Returns:
             Tuple of (prefix, suffix) for the engine.
         """
@@ -154,10 +166,10 @@ class GlobalPromptSettings(BaseModel):
 
     def get_model_additions(self, model_name: str) -> tuple[str, str]:
         """Get prefix and suffix for a model.
-        
+
         Args:
             model_name: Model name (e.g., "gemini-2.5-flash")
-            
+
         Returns:
             Tuple of (prefix, suffix) for the model.
         """
@@ -173,7 +185,9 @@ class ProjectConfig(BaseModel):
     name: str = Field(default="", description="Display name for the project")
     phase_backends: PhaseBackends = Field(default_factory=PhaseBackends)
     prompt_customization: PromptCustomization = Field(default_factory=PromptCustomization)
-    verification: VerificationConfig = Field(default_factory=VerificationConfig, description="Verification command configuration")
+    verification: VerificationConfig = Field(
+        default_factory=VerificationConfig, description="Verification command configuration"
+    )
     branch: str | None = Field(default=None, description="Optional branch to isolate work")
     min_execution_time_seconds: int = Field(
         default=10,
@@ -290,7 +304,9 @@ class Workspace(BaseModel):
             return False
 
         if config is None:
-            config = ProjectConfig(path=path.resolve(), phase_backends=self.default_phase_backends.model_copy())
+            config = ProjectConfig(
+                path=path.resolve(), phase_backends=self.default_phase_backends.model_copy()
+            )
 
         self.projects[key] = config
         return True

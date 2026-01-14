@@ -38,6 +38,13 @@ class ProjectCard(Static):
     show_time_remaining: bool = False
     # Default timeout in seconds (30 minutes)
     DEFAULT_TIMEOUT: int = 1800
+    # States where project is stopped/inactive (timer should not run)
+    STOPPED_STATES: set = {
+        ProjectStatus.IDLE,
+        ProjectStatus.PAUSED,
+        ProjectStatus.COMPLETED,
+        ProjectStatus.ERROR,
+    }
 
     DEFAULT_CSS = """
     ProjectCard {
@@ -110,14 +117,32 @@ class ProjectCard(Static):
         yield Static(self._format_feature(), classes="project-feature")
         yield Static(self._format_progress(), classes="project-progress")
 
+    def _is_active_state(self) -> bool:
+        """Check if project is in an active working state (timer should run)."""
+        return self.project.status not in self.STOPPED_STATES
+
     def on_mount(self) -> None:
-        """Start periodic timer refresh when mounted."""
-        # Refresh the timer display every second
-        self._timer_handle = self.set_interval(1.0, self._refresh_timer)
+        """Start periodic timer refresh when mounted (only if in active state)."""
+        # Only start timer if project is in an active working state
+        if self._is_active_state():
+            self._timer_handle = self.set_interval(1.0, self._refresh_timer)
 
     def on_unmount(self) -> None:
         """Clean up timer when card is removed."""
         if self._timer_handle:
+            self._timer_handle.stop()
+            self._timer_handle = None
+
+    def _update_timer_state(self) -> None:
+        """Start or stop the timer based on project state."""
+        should_run = self._is_active_state()
+        timer_running = self._timer_handle is not None
+
+        if should_run and not timer_running:
+            # Start timer
+            self._timer_handle = self.set_interval(1.0, self._refresh_timer)
+        elif not should_run and timer_running:
+            # Stop timer
             self._timer_handle.stop()
             self._timer_handle = None
 
@@ -129,9 +154,11 @@ class ProjectCard(Static):
 
         # Add verification indicator if verification commands are configured
         verification_indicator = ""
-        if (self.project.config.build_cmd or
-            self.project.config.lint_cmd or
-            self.project.config.test_cmd):
+        if (
+            self.project.config.build_cmd
+            or self.project.config.lint_cmd
+            or self.project.config.test_cmd
+        ):
             verification_indicator = " 🔧"  # Gear icon indicates verification is configured
 
         # Add elapsed time in current state
@@ -144,13 +171,23 @@ class ProjectCard(Static):
         """Format the elapsed time since state changed or time remaining."""
         if not self.project.state_changed_at:
             return ""
-        
+
+        # Only show timer for active working states, not stopped states
+        stopped_states = {
+            ProjectStatus.IDLE,
+            ProjectStatus.PAUSED,
+            ProjectStatus.COMPLETED,
+            ProjectStatus.ERROR,
+        }
+        if self.project.status in stopped_states:
+            return ""
+
         elapsed = datetime.now() - self.project.state_changed_at
         total_seconds = int(elapsed.total_seconds())
-        
+
         if total_seconds < 0:
             return ""
-        
+
         if ProjectCard.show_time_remaining:
             # Show time remaining until timeout
             remaining = self.timeout - total_seconds
@@ -165,7 +202,7 @@ class ProjectCard(Static):
         """Format a time value in human-readable format."""
         hours, remainder = divmod(total_seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
-        
+
         if hours > 0:
             return f"{prefix}{hours}h {minutes}m"
         elif minutes > 0:
@@ -204,7 +241,9 @@ class ProjectCard(Static):
         if self.project.config.test_cmd:
             verification_parts.append(f"test: {self.project.config.test_cmd}")
 
-        verification_info = ", ".join(verification_parts) if verification_parts else "verification: none"
+        verification_info = (
+            ", ".join(verification_parts) if verification_parts else "verification: none"
+        )
 
         if total == 0:
             return f"No features processed yet | {verification_info}"
@@ -218,6 +257,9 @@ class ProjectCard(Static):
 
     def refresh_content(self) -> None:
         """Refresh the card content."""
+        # Update timer state based on project status
+        self._update_timer_state()
+
         # Update status
         status_widget = self.query_one(".project-status", Static)
         status_widget.update(self._format_status())

@@ -51,7 +51,7 @@ import shutil
 import subprocess
 import sys
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from datetime import datetime
 from pathlib import Path
 
@@ -117,7 +117,7 @@ class QwenBackend(AgentBackend):
         timeout: int = 600,
         verbose: bool = False,
         extra_args: list[str] | None = None,
-    ) -> AsyncIterator[str]:
+    ) -> AsyncGenerator[str, None]:
         """
         Execute Qwen Code CLI with the given prompt.
 
@@ -166,6 +166,7 @@ class QwenBackend(AgentBackend):
         env["PWD"] = str(project_path)
 
         if sys.platform == "win32":
+            # CREATE_NO_WINDOW prevents console popups and ensures output goes through pipes
             logger.debug(f"Windows shell command: {cmd_str}")
             process = await asyncio.create_subprocess_shell(
                 cmd_str,
@@ -174,6 +175,7 @@ class QwenBackend(AgentBackend):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
                 env=env,
+                creationflags=subprocess.CREATE_NO_WINDOW,
             )
         else:
             process = await asyncio.create_subprocess_exec(
@@ -219,8 +221,7 @@ class QwenBackend(AgentBackend):
 
                     if not line:
                         logger.debug(
-                            f"EOF reached after {line_count} lines, "
-                            f"elapsed: {elapsed:.1f}s"
+                            f"EOF reached after {line_count} lines, elapsed: {elapsed:.1f}s"
                         )
                         break
 
@@ -239,8 +240,7 @@ class QwenBackend(AgentBackend):
                         )
                         break
                     logger.debug(
-                        f"Waiting for output... ({elapsed:.1f}s elapsed, "
-                        f"{line_count} lines so far)"
+                        f"Waiting for output... ({elapsed:.1f}s elapsed, {line_count} lines so far)"
                     )
                     continue
 

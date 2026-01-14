@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 def _get_backend_registry() -> dict[str, type["AgentBackend"]]:
     """Lazy import to avoid circular dependency."""
     from agent_pump.backends import BACKEND_REGISTRY
+
     return BACKEND_REGISTRY
 
 
@@ -101,9 +102,7 @@ class BackendAvailability:
 
             return self._status.copy()
 
-    async def _check_backend(
-        self, name: str, backend_cls: type["AgentBackend"]
-    ) -> BackendStatus:
+    async def _check_backend(self, name: str, backend_cls: type["AgentBackend"]) -> BackendStatus:
         """Check availability for a single backend."""
         try:
             backend = backend_cls()

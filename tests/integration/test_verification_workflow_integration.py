@@ -1,6 +1,5 @@
 """Integration tests for verification workflow integration with the main workflow."""
 
-
 import tempfile
 from pathlib import Path
 
@@ -29,7 +28,7 @@ class TestVerificationWorkflowIntegration:
                 build_cmd="echo build_success",
                 lint_cmd="echo lint_success",
                 test_cmd="echo test_success",
-                skip_verification=False
+                skip_verification=False,
             )
 
             workflow = ProjectWorkflow(project=project)
@@ -67,8 +66,7 @@ class TestVerificationWorkflowIntegration:
 
             # Run just the verifying phase
             base_prompt = workflow.prompt_customization.apply_to_prompt(
-                "verifying",
-                "Mock verifying prompt"
+                "verifying", "Mock verifying prompt"
             )
             success = await workflow.run_phase(base_prompt, "verifying")
 
@@ -78,7 +76,10 @@ class TestVerificationWorkflowIntegration:
                 workflow.verify_complete()  # verifying -> brainstorming
 
             # Verify state transition happened
-            assert workflow.state in ["brainstorming", "verifying"]  # Could be brainstorming if successful
+            assert workflow.state in [
+                "brainstorming",
+                "verifying",
+            ]  # Could be brainstorming if successful
 
     @pytest.mark.asyncio
     async def test_workflow_skips_verification_when_configured(self):
@@ -95,7 +96,7 @@ class TestVerificationWorkflowIntegration:
                 build_cmd="echo should_not_run",
                 lint_cmd="echo should_not_run",
                 test_cmd="echo should_not_run",
-                skip_verification=True
+                skip_verification=True,
             )
 
             workflow = ProjectWorkflow(project=project)
@@ -113,15 +114,14 @@ class TestVerificationWorkflowIntegration:
 
             # Run just the verifying phase
             base_prompt = workflow.prompt_customization.apply_to_prompt(
-                "verifying",
-                "Mock verifying prompt"
+                "verifying", "Mock verifying prompt"
             )
             success = await workflow.run_phase(base_prompt, "verifying")
 
             if success:
                 workflow.verify_complete()  # verifying -> brainstorming
 
-            # Verify state transition happened (should go to brainstorming since verification is skipped)
+            # Verify state transition happened (should go to brainstorming since verification is skipped)  # noqa: E501
             assert workflow.state in ["brainstorming", "verifying"]
 
     @pytest.mark.asyncio
@@ -139,7 +139,7 @@ class TestVerificationWorkflowIntegration:
                 build_cmd="false",  # This will fail
                 lint_cmd="echo lint_wont_run",
                 test_cmd="echo test_wont_run",
-                skip_verification=False
+                skip_verification=False,
             )
 
             workflow = ProjectWorkflow(project=project)
@@ -162,8 +162,7 @@ class TestVerificationWorkflowIntegration:
 
             # Run just the verifying phase
             base_prompt = workflow.prompt_customization.apply_to_prompt(
-                "verifying",
-                "Mock verifying prompt"
+                "verifying", "Mock verifying prompt"
             )
             success = await workflow.run_phase(base_prompt, "verifying")
 

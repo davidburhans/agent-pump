@@ -4,7 +4,7 @@ import asyncio
 import logging
 import shutil
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from pathlib import Path
 
 from agent_pump.backends.base import AgentBackend
@@ -36,7 +36,7 @@ class GeminiBackend(AgentBackend):
         timeout: int = 600,
         verbose: bool = False,
         extra_args: list[str] | None = None,
-    ) -> AsyncIterator[str]:
+    ) -> AsyncGenerator[str, None]:
         """
         Execute gemini-cli with the given prompt.
 
@@ -83,6 +83,7 @@ class GeminiBackend(AgentBackend):
         try:
             with open(log_file, "a", encoding="utf-8") as f:
                 from datetime import datetime
+
                 f.write(f"\n[{datetime.now().isoformat()}]\n")
                 f.write(f"Command: {cmd_str}\n")
                 f.write(f"Prompt length: {len(prompt)} chars\n")
@@ -109,6 +110,7 @@ class GeminiBackend(AgentBackend):
 
         if sys.platform == "win32":
             # On Windows, we use the shell to properly execute .CMD/.BAT files
+            # CREATE_NO_WINDOW prevents console popups and ensures output goes through pipes
             logger.debug(f"Windows shell command: {cmd_str}")
             process = await asyncio.create_subprocess_shell(
                 cmd_str,
@@ -117,6 +119,7 @@ class GeminiBackend(AgentBackend):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
                 env=env,
+                creationflags=subprocess.CREATE_NO_WINDOW,
             )
         else:
             process = await asyncio.create_subprocess_exec(
@@ -163,8 +166,7 @@ class GeminiBackend(AgentBackend):
                     if not line:
                         # Empty line means EOF - process has finished
                         logger.debug(
-                            f"EOF reached after {line_count} lines, "
-                            f"elapsed: {elapsed:.1f}s"
+                            f"EOF reached after {line_count} lines, elapsed: {elapsed:.1f}s"
                         )
                         break
 
@@ -181,8 +183,7 @@ class GeminiBackend(AgentBackend):
                             "to be open in your IDE.\n"
                         )
                         yield (
-                            "       Please open this folder in your IDE "
-                            "workspace and try again.\n"
+                            "       Please open this folder in your IDE workspace and try again.\n"
                         )
                     else:
                         yield decoded
@@ -197,8 +198,7 @@ class GeminiBackend(AgentBackend):
                         break
                     # Process still running, continue waiting for output
                     logger.debug(
-                        f"Waiting for output... ({elapsed:.1f}s elapsed, "
-                        f"{line_count} lines so far)"
+                        f"Waiting for output... ({elapsed:.1f}s elapsed, {line_count} lines so far)"
                     )
                     continue
 
@@ -221,11 +221,10 @@ class GeminiBackend(AgentBackend):
                         logger.warning(f"RuntimeError during process cleanup: {e}")
                         try:
                             process.kill()
-                        except:
+                        except Exception:
                             pass
             except Exception as e:
                 logger.error(f"Error during process cleanup: {e}")
-
 
             elapsed = time.time() - start_time
             logger.info(

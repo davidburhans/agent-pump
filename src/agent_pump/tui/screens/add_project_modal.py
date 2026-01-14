@@ -86,9 +86,7 @@ class AddProjectModal(ModalScreen[Path | None]):
         """Focus the input field on mount."""
         self.query_one("#path-input").focus()
 
-    def on_directory_tree_directory_selected(
-        self, event: DirectoryTree.DirectorySelected
-    ) -> None:
+    def on_directory_tree_directory_selected(self, event: DirectoryTree.DirectorySelected) -> None:
         """Update the input field when a directory is selected."""
         self.query_one("#path-input", Input).value = str(event.path)
 

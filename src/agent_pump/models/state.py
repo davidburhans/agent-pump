@@ -56,7 +56,7 @@ class WorkflowState(BaseModel):
         """Log the start of a phase."""
         self.phase_logs.append(PhaseLog(phase=phase, started_at=datetime.now()))
         self.last_updated = datetime.now()
-        
+
         # Trim old entries to prevent unbounded growth
         if len(self.phase_logs) > self.MAX_PHASE_LOGS:
             trim_count = self.MAX_PHASE_LOGS // 10

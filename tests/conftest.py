@@ -11,7 +11,8 @@ def sample_project_path(tmp_path):
 
     # Create ROADMAP.md
     roadmap = project_path / "ROADMAP.md"
-    roadmap.write_text("""# Test Project Roadmap
+    roadmap.write_text(
+        """# Test Project Roadmap
 
 ## Current Sprint
 
@@ -26,14 +27,19 @@ A test feature to implement.
 ## Completed
 
 *None yet*
-""", encoding="utf-8")
+""",
+        encoding="utf-8",
+    )
 
     # Create BEST_PRACTICES.md
     best_practices = project_path / "BEST_PRACTICES.md"
-    best_practices.write_text("""# Best Practices
+    best_practices.write_text(
+        """# Best Practices
 
 - Write clean code
 - Test everything
-""", encoding="utf-8")
+""",
+        encoding="utf-8",
+    )
 
     return project_path

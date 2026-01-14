@@ -100,3 +100,8 @@ Run Agent Pump without the TUI, perfect for CI/CD or background workers.
 ### State Persistence
 - **Auto-Save**: The agent saves its state after every phase. If you crash or quit, it resumes exactly where it left off.
 - **Context Awareness**: It remembers completed features and failed attempts to avoid repeating mistakes.
+- **Project Autoloading**: When you restart Agent Pump, it automatically loads all projects from your last active workspace.
+  - **Disable Autoload**: Use the `--no-autoload` flag to start with a clean slate (projects remain on disk).
+    ```bash
+    uv run agent-pump --no-autoload
+    ```

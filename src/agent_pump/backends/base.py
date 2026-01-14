@@ -1,7 +1,7 @@
 """Abstract base class for AI coding agent backends."""
 
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -18,6 +18,7 @@ class AgentResult:
 
 class BackendError(Exception):
     """Base exception for backend errors."""
+
     pass
 
 
@@ -49,7 +50,7 @@ class AgentBackend(ABC):
         timeout: int = 600,
         verbose: bool = False,
         extra_args: list[str] | None = None,
-    ) -> AsyncIterator[str]:
+    ) -> AsyncGenerator[str, None]:
         """
         Execute the agent with the given prompt, yielding output lines.
 

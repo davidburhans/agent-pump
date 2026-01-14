@@ -1,62 +1,41 @@
-"""Base prompt templates and management for workflow phases.
-
-This module provides configurable base prompts that can be viewed/edited in the TUI.
-The BasePromptManager bridges between default prompts and custom overrides.
-"""
-
+"""Base prompt templates for different workflow phases."""
 
 from pydantic import BaseModel, Field
 
 
 class BasePromptTemplate(BaseModel):
-    """A configurable base prompt template."""
+    """Base template for workflow phase prompts."""
 
-    name: str = Field(description="Phase name, e.g., 'planning', 'implementing'")
-    description: str = Field(description="Human-readable description of this phase")
-    default_content: str = Field(description="The default prompt content")
-    icon: str = Field(default="", description="Emoji icon for this phase")
-    editable: bool = Field(default=True, description="Whether users can override this prompt")
+    name: str = Field(..., description="Name of the phase")
+    description: str = Field(..., description="Description of the phase")
+    icon: str = Field(..., description="Icon for the phase")
+    template: str = Field(..., description="Prompt template")
 
 
-# Default base prompts for each phase
-# These are the raw templates without branch instructions
-BASE_PROMPT_TEMPLATES: dict[str, BasePromptTemplate] = {
+BASE_PROMPTS = {
     "planning": BasePromptTemplate(
         name="planning",
         description="Creates ENGINEERING_PLAN.md from ROADMAP.md",
         icon="📋",
-        default_content="""You are starting the PLANNING phase for this project.
+        template="""Create a detailed engineering plan to implement the requested feature.
 
-FIRST, check if ROADMAP.md and BEST_PRACTICES.md exist. If either is missing, create it:
+Context:
+- Current ROADMAP.md: {roadmap_content}
+- Current ENGINEERING_PLAN.md: {engineering_plan_content}
 
-**If ROADMAP.md is missing**, analyze the project and create one with:
-- Status legend (🔴 Not Started, 🟡 In Progress, 🟢 Complete)
-- "Current Sprint" section with 2-3 actionable features
-- "Future Enhancements" section with ideas for later
-- "Completed" section (empty initially)
-- Each item should have: title, priority, description, acceptance criteria
+Feature Request:
+{feature_request}
 
-**If BEST_PRACTICES.md is missing**, analyze the project and create one with:
-- Project philosophy and goals
-- Tech stack with rationale for each choice
-- Code style guidelines (naming, formatting, patterns)
-- Testing standards (what to test, coverage expectations)
-- Error handling patterns
-- Logging conventions
-- Git practices (commit message format, branching)
-- Verification checklist (commands to run before committing)
-- "Lessons Learned" section (updated during development)
-
-THEN, proceed with planning:
-1. Read ROADMAP.md and identify the first uncompleted item (marked with 🔴 or "Not Started")
-2. Read BEST_PRACTICES.md to understand the project's coding standards
-3. Create a detailed ENGINEERING_PLAN.md with:
+Requirements:
+1. Format as ENGINEERING_PLAN.md with:
    - Feature description and goals
    - Detailed task list with checkboxes
    - Each task should be small and actionable
    - Include tasks for: implementation, testing, documentation
-   - THE FINAL TASK MUST BE: "Reflect on the work done and update BEST_PRACTICES.md with any lessons learned, \
-      and check if README.md needs updates as a result"
+   - THE FINAL TASK MUST BE: (
+      "Reflect on the work done and update BEST_PRACTICES.md with any "
+      "lessons learned, and check if README.md needs updates as a result"
+   )
 6. Create a TASK_NAME file containing ONLY the exact title of the feature you are working on.
 
 
@@ -66,180 +45,108 @@ Be thorough but concise. The task list will guide the implementation phase.""",
         name="implementing",
         description="Executes tasks from ENGINEERING_PLAN.md",
         icon="🔨",
-        default_content="""You are in the IMPLEMENTING phase.
+        template="""Implement the tasks in ENGINEERING_PLAN.md.
 
-Your task:
-1. Read ENGINEERING_PLAN.md to understand the tasks
-2. Execute each task in the checklist, marking them complete as you go
-3. For each code change:
-   - Follow BEST_PRACTICES.md guidelines
-   - Ensure the code builds without errors
-   - Ensure linting passes
-   - Ensure tests pass (run the test command)
-4. Complete ALL tasks including the final reflection task to update BEST_PRACTICES.md 
-   and check README.md
+Context:
+- Current ROADMAP.md: {roadmap_content}
+- Current ENGINEERING_PLAN.md: {engineering_plan_content}
+- Current TASK_NAME: {task_name_content}
 
-Work through the entire task list systematically. Do not skip any tasks.""",
+Requirements:
+1. Follow the task list exactly
+2. Update code, tests, documentation as needed
+3. Maintain code quality and best practices
+4. Keep changes focused on the current task
+5. Update BEST_PRACTICES.md with any lessons learned during implementation
+""",
     ),
     "verifying": BasePromptTemplate(
         name="verifying",
-        description="Runs verification checklist from BEST_PRACTICES.md",
+        description="Runs verification commands and fixes issues",
         icon="✅",
-        default_content="""You are in the VERIFYING phase.
+        template="""Verify the implementation by running verification commands and
+fixing any issues.
 
-Your task is to ensure the codebase is healthy and meets standards before proceeding.
+Context:
+- Current ROADMAP.md: {roadmap_content}
+- Current ENGINEERING_PLAN.md: {engineering_plan_content}
+- Current TASK_NAME: {task_name_content}
 
-1. Read BEST_PRACTICES.md to find the "Verification Checklist" section.
-2. Run each verification command listed (e.g., tests, linting, type checking).
-3. If ANY command fails:
-   - Analyze the error output.
-   - Fix the issue in the code.
-   - Re-run the verification command to confirm the fix.
-   - Repeat until ALL checks pass.
-4. Ensure no new files were created that violate .gitignore or project standards.
-
-Do NOT proceed to the next phase until all verification steps pass successfully.""",
+Requirements:
+1. Run build, lint, and test commands as configured for this project
+2. Fix any issues that arise
+3. Ensure all verification commands pass
+4. Update BEST_PRACTICES.md with any lessons learned during verification
+""",
     ),
     "brainstorming": BasePromptTemplate(
         name="brainstorming",
-        description="Updates ROADMAP.md with new ideas",
+        description="Updates ROADMAP.md with next features",
         icon="💡",
-        default_content="""You are in the BRAINSTORMING phase.
+        template="""Brainstorm the next feature to work on based on current state.
 
-Your task:
-1. Review the feature you just implemented
-2. Update ROADMAP.md:
-   - Mark the completed feature as 🟢 Complete
-   - Move it to the "Completed" section
-3. Brainstorm and add NEW feature ideas to "Future Enhancements"
-4. For EACH new idea you add, also promote ONE existing "Future Enhancement":
-   - Select an existing future item that would be valuable
-   - Flesh it out with detailed acceptance criteria
-   - Move it from "Future Enhancements" to "Current Sprint" (mark as 🔴 Not Started)
-   This ensures the roadmap always has ready-to-implement items.
-5. Delete ENGINEERING_PLAN.md (it's no longer needed)
-6. Delete TASK_NAME (it's no longer needed)
+Context:
+- Current ROADMAP.md: {roadmap_content}
+- Current ENGINEERING_PLAN.md: {engineering_plan_content}
+- Current TASK_NAME: {task_name_content}
 
-
-Focus on practical, valuable improvements that align with the project's goals.""",
+Requirements:
+1. Review what was just implemented
+2. Identify logical next steps or improvements
+3. Add new features to ROADMAP.md in the "Future Enhancements" section
+4. Prioritize features appropriately
+5. Update BEST_PRACTICES.md with any lessons learned during brainstorming
+""",
     ),
     "committing": BasePromptTemplate(
         name="committing",
-        description="Commits changes to git",
-        icon="📝",
-        default_content="""You are in the COMMITTING phase.
+        description="Commits changes with appropriate messages",
+        icon="📦",
+        template="""Commit the changes with appropriate git commit messages.
 
-Your task:
-1. Use `git status` to see what files have changed
-2. Add ONLY the files you modified using `git add <specific-file>` for each file
-   - NEVER use `git add .` or `git add -A`
-   - Do NOT add any files in the .gemini/ directory
-   - Do NOT add any files in __pycache__/ or .pytest_cache/
-3. Write a clear, conventional commit message describing the feature
-   - Format: type(scope): description
-   - Example: feat(auth): add user login functionality
-4. Commit the changes with `git commit`
-5. Push to the remote repository
+Context:
+- Current ROADMAP.md: {roadmap_content}
+- Current ENGINEERING_PLAN.md: {engineering_plan_content}
+- Current TASK_NAME: {task_name_content}
 
-Verify each step succeeded before moving to the next.""",
+Requirements:
+1. Create a meaningful commit message based on the changes
+2. Include reference to the feature being implemented
+3. Follow conventional commit format
+4. Update BEST_PRACTICES.md with any lessons learned during committing
+""",
     ),
 }
 
 
 class BasePromptManager:
-    """Manages base prompt templates with override support.
-    
-    This class provides a clean interface for retrieving prompts, supporting
-    both default templates and custom overrides (stored per-project).
-    """
-
-    def __init__(self) -> None:
-        """Initialize the manager with default templates."""
-        self._templates = BASE_PROMPT_TEMPLATES.copy()
+    """Manager for accessing base prompt templates."""
 
     def get_default(self, phase: str) -> str:
-        """Get the default prompt content for a phase.
-        
+        """Get the default base prompt template for a phase.
+
         Args:
-            phase: Phase name (planning, implementing, verifying, brainstorming, committing)
-            
+            phase: The workflow phase name (e.g., "planning", "implementing")
+
         Returns:
-            The default prompt content.
-            
-        Raises:
-            KeyError: If phase is not found.
+            The template string for the phase, or empty string if not found.
         """
-        template = self._templates.get(phase)
-        if template is None:
-            raise KeyError(f"Unknown phase: {phase}")
-        return template.default_content
+        if phase in BASE_PROMPTS:
+            return BASE_PROMPTS[phase].template
+        return ""
 
-    def get_prompt(self, phase: str, custom_override: str | None = None) -> str:
-        """Get the prompt for a phase, with optional override.
-        
-        Args:
-            phase: Phase name
-            custom_override: If provided and non-empty, use this instead of default
-            
-        Returns:
-            The prompt content (custom override if provided, else default).
-        """
-        if custom_override and custom_override.strip():
-            return custom_override.strip()
-        return self.get_default(phase)
-
-    def get_template(self, phase: str) -> BasePromptTemplate | None:
-        """Get the full template for a phase.
-        
-        Args:
-            phase: Phase name
-            
-        Returns:
-            The template, or None if not found.
-        """
-        return self._templates.get(phase)
-
-    def list_phases(self) -> list[str]:
-        """List all available phase names.
-        
-        Returns:
-            List of phase names in workflow order.
-        """
-        # Return in workflow order
-        return ["planning", "implementing", "verifying", "brainstorming", "committing"]
-
-    def get_all_templates(self) -> dict[str, BasePromptTemplate]:
-        """Get all templates.
-        
-        Returns:
-            Dictionary of phase name to template.
-        """
-        return self._templates.copy()
+    def get_all_phases(self) -> list[str]:
+        """Get all available phase names."""
+        return list(BASE_PROMPTS.keys())
 
 
-# Module-level singleton for convenience
-_manager: BasePromptManager | None = None
+# Singleton instance
+_manager_instance: BasePromptManager | None = None
 
 
 def get_base_prompt_manager() -> BasePromptManager:
-    """Get the singleton BasePromptManager instance.
-    
-    Returns:
-        The shared BasePromptManager.
-    """
-    global _manager
-    if _manager is None:
-        _manager = BasePromptManager()
-    return _manager
-
-
-def get_base_prompt(phase: str) -> str:
-    """Convenience function to get the default prompt for a phase.
-    
-    Args:
-        phase: Phase name
-        
-    Returns:
-        The default prompt content.
-    """
-    return get_base_prompt_manager().get_default(phase)
+    """Get the singleton BasePromptManager instance."""
+    global _manager_instance
+    if _manager_instance is None:
+        _manager_instance = BasePromptManager()
+    return _manager_instance

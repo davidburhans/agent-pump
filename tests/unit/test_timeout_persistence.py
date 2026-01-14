@@ -24,10 +24,12 @@ def test_backend_instance_timeout():
     b3 = BackendInstance.model_validate(data)
     assert b3.timeout == 300
 
+
 def test_workflow_config_default_timeout():
     """Test default timeout is updated to 1800."""
     wc = WorkflowConfig()
     assert wc.timeout == 1800
+
 
 def test_project_config_idea_queue():
     """Test ProjectConfig idea queue."""
@@ -45,6 +47,7 @@ def test_project_config_idea_queue():
     pc2 = ProjectConfig.model_validate(data)
     assert len(pc2.idea_queue) == 1
     assert pc2.idea_queue[0].idea == "test idea"
+
 
 @pytest.mark.asyncio
 async def test_workflow_initialization_with_config():

@@ -16,6 +16,7 @@ async def test_app_startup():
     assert app.projects == {}
     assert app.workflows == {}
 
+
 @pytest.mark.asyncio
 async def test_app_compose():
     """Test that compose returns expected widgets."""
@@ -24,3 +25,22 @@ async def test_app_compose():
     # Textual 0.40+ allows testing compose directly if we handle the yield
     # But usually we use the pilot. Let's just rely on the fact it doesn't crash on init.
     pass
+
+
+@pytest.mark.asyncio
+async def test_toggle_workflow_panel():
+    """Test toggling the workflow panel visibility."""
+    app = AgentPumpApp()
+    async with app.run_test() as pilot:
+        # Initially visible (or at least display is True/block by default CSS)
+        right_sidebar = pilot.app.query_one("#right-sidebar")
+        assert right_sidebar.display is True
+
+        # Toggle OFF
+        await pilot.press("W")
+        assert right_sidebar.display is False
+
+        # Toggle ON
+        await pilot.press("W")
+        assert right_sidebar.display is True
+

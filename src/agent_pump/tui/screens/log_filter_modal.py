@@ -5,8 +5,6 @@ from textual.containers import Grid, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, Checkbox, Input, Label
 
-from agent_pump.models.project import ProjectStatus
-
 
 class LogFilterModal(ModalScreen[tuple[list[str], str | None] | None]):
     """Modal for filtering activity logs."""
@@ -29,11 +27,7 @@ class LogFilterModal(ModalScreen[tuple[list[str], str | None] | None]):
     }
     """
 
-    def __init__(
-        self, 
-        current_states: list[str] | None = None, 
-        current_task: str | None = None
-    ):
+    def __init__(self, current_states: list[str] | None = None, current_task: str | None = None):
         """Initialize the modal."""
         super().__init__()
         self.current_states = current_states or []
@@ -44,10 +38,19 @@ class LogFilterModal(ModalScreen[tuple[list[str], str | None] | None]):
             Label("Filter by Workflow State:"),
             Grid(
                 *[
-                    Checkbox(state.title(), value=(state in self.current_states), id=f"check-{state}")
-                    for state in ["planning", "implementing", "verifying", "brainstorming", "committing", "error"]
+                    Checkbox(
+                        state.title(), value=(state in self.current_states), id=f"check-{state}"
+                    )
+                    for state in [
+                        "planning",
+                        "implementing",
+                        "verifying",
+                        "brainstorming",
+                        "committing",
+                        "error",
+                    ]
                 ],
-                id="state-grid"
+                id="state-grid",
             ),
             Label("Filter by Task Name (contains):"),
             Input(value=self.current_task, placeholder="e.g., 'login'", id="task-input"),
@@ -56,25 +59,32 @@ class LogFilterModal(ModalScreen[tuple[list[str], str | None] | None]):
                 Button("Clear Filters", id="btn-clear", variant="warning"),
                 Button("Cancel", id="btn-cancel", variant="default"),
                 classes="button-row",
-                id="action-grid"
-            )
+                id="action-grid",
+            ),
         )
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-apply":
             # Collect checked states
             states = []
-            for state in ["planning", "implementing", "verifying", "brainstorming", "committing", "error"]:
-                 if self.query_one(f"#check-{state}", Checkbox).value:
-                     states.append(state)
-            
+            for state in [
+                "planning",
+                "implementing",
+                "verifying",
+                "brainstorming",
+                "committing",
+                "error",
+            ]:
+                if self.query_one(f"#check-{state}", Checkbox).value:
+                    states.append(state)
+
             task = self.query_one("#task-input", Input).value
             task = task.strip() if task.strip() else None
-            
+
             self.dismiss((states, task))
-            
+
         elif event.button.id == "btn-clear":
             self.dismiss(([], None))
-            
+
         else:
             self.dismiss(None)

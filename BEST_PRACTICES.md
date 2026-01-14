@@ -255,6 +255,7 @@ Never commit: `.gemini/`, `__pycache__/`, `.pytest_cache/`, virtual environments
 - **Atomic Updates**: When resetting state or handling transitions, ensure both the in-memory object (e.g., `ProjectWorkflow`) and the persisted state file (e.g., `state.json`) are updated to prevent desync.
 - **Handling Interruptions**: Design state loading to be robust against partial writes or missing files. Use defaults and fallback to 'idle' or 'error' states if data is corrupt.
 - **Explicit Resets**: Provide a clear mechanism (e.g., `reset_workflow()`) to force a clean slate, rather than relying on manual file deletion.
+- **Context Isolation**: Prefer loading projects from `Workspace` rather than global `AppState` to ensure projects are scoped to their environment. `AppState.projects` can be used for global history, but the active session should rely on `Workspace.projects`.
 
 ---
 

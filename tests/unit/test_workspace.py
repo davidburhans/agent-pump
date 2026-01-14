@@ -47,10 +47,12 @@ class TestBackendFallback:
 
     def test_custom_backends_with_args(self):
         """Test custom backend list with args."""
-        fallback = BackendFallback(backends=[
-            BackendInstance(name="gemini", args=["--model", "gemini-2.5-flash"]),
-            BackendInstance(name="opencode"),
-        ])
+        fallback = BackendFallback(
+            backends=[
+                BackendInstance(name="gemini", args=["--model", "gemini-2.5-flash"]),
+                BackendInstance(name="opencode"),
+            ]
+        )
         assert len(fallback.backends) == 2
         assert fallback.backends[0].args == ["--model", "gemini-2.5-flash"]
 
@@ -108,10 +110,7 @@ class TestPromptCustomization:
 
     def test_apply_to_prompt_with_both(self):
         """Test applying both prefix and suffix."""
-        custom = PromptCustomization(
-            verifying_prefix="Start:",
-            verifying_suffix="End"
-        )
+        custom = PromptCustomization(verifying_prefix="Start:", verifying_suffix="End")
         result = custom.apply_to_prompt("verifying", "Middle")
         assert result == "Start:\n\nMiddle\n\nEnd"
 

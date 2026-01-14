@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 class WorkflowPhase(BaseModel):
     """A single phase in a workflow.
-    
+
     Represents one step in the development workflow, with its prompt
     configuration and transition rules.
     """
@@ -35,7 +35,7 @@ class WorkflowPhase(BaseModel):
 
 class WorkflowDefinition(BaseModel):
     """A complete workflow state machine definition.
-    
+
     Defines all the states, phases, and transitions for a workflow.
     Custom workflows are stored in workspace configuration.
     """
@@ -54,7 +54,7 @@ class WorkflowDefinition(BaseModel):
 
     def get_states(self) -> list[str]:
         """Get all states in this workflow.
-        
+
         Returns:
             List of state names including idle, phases, and terminal states.
         """
@@ -69,7 +69,7 @@ class WorkflowDefinition(BaseModel):
 
     def get_transitions(self) -> list[dict]:
         """Generate pytransitions-compatible transition list.
-        
+
         Returns:
             List of transition dicts for pytransitions Machine.
         """
@@ -77,53 +77,63 @@ class WorkflowDefinition(BaseModel):
 
         # Start transition (idle -> first phase)
         if self.phases:
-            transitions.append({
-                "trigger": "start",
-                "source": self.initial_state,
-                "dest": self.phases[0].name,
-            })
+            transitions.append(
+                {
+                    "trigger": "start",
+                    "source": self.initial_state,
+                    "dest": self.phases[0].name,
+                }
+            )
 
         # Phase transitions
         for phase in self.phases:
             # Success transition
-            transitions.append({
-                "trigger": f"{phase.name.replace('ing', '')}_complete",
-                "source": phase.name,
-                "dest": phase.on_success,
-            })
+            transitions.append(
+                {
+                    "trigger": f"{phase.name.replace('ing', '')}_complete",
+                    "source": phase.name,
+                    "dest": phase.on_success,
+                }
+            )
             # Failure transition
             if phase.on_failure:
-                transitions.append({
-                    "trigger": f"{phase.name.replace('ing', '')}_failed",
-                    "source": phase.name,
-                    "dest": phase.on_failure,
-                })
+                transitions.append(
+                    {
+                        "trigger": f"{phase.name.replace('ing', '')}_failed",
+                        "source": phase.name,
+                        "dest": phase.on_failure,
+                    }
+                )
 
         # Error recovery
         if "error" in self.terminal_states:
-            transitions.append({
-                "trigger": "reset",
-                "source": "error",
-                "dest": self.initial_state,
-            })
+            transitions.append(
+                {
+                    "trigger": "reset",
+                    "source": "error",
+                    "dest": self.initial_state,
+                }
+            )
 
         # Completion transition from last phase (if looping)
         if self.phases and self.phases[-1].on_success == self.phases[0].name:
             # Loop workflow - add no_more_features to break the loop
-            transitions.append({
-                "trigger": "no_more_features",
-                "source": self.phases[-1].name,
-                "dest": "completed",
-            })
+            transitions.append(
+                {
+                    "trigger": "no_more_features",
+                    "source": self.phases[-1].name,
+                    "dest": "completed",
+                }
+            )
 
         return transitions
 
     def get_phase(self, name: str) -> WorkflowPhase | None:
         """Get a phase by name.
-        
+
         Args:
             name: Phase name
-            
+
         Returns:
             The phase, or None if not found.
         """
@@ -134,10 +144,10 @@ class WorkflowDefinition(BaseModel):
 
     def get_phase_icon(self, name: str) -> str:
         """Get the icon for a phase.
-        
+
         Args:
             name: Phase name
-            
+
         Returns:
             Icon string, or empty if not found.
         """
@@ -148,7 +158,7 @@ class WorkflowDefinition(BaseModel):
 # Default 5-phase workflow
 DEFAULT_WORKFLOW = WorkflowDefinition(
     name="default",
-    description="Standard 5-phase development workflow: Plan → Implement → Verify → Brainstorm → Commit",
+    description="Standard 5-phase development workflow: Plan → Implement → Verify → Brainstorm → Commit",  # noqa: E501
     initial_state="idle",
     terminal_states=["completed", "error"],
     phases=[
@@ -198,14 +208,14 @@ DEFAULT_WORKFLOW = WorkflowDefinition(
 
 def get_workflow(name: str, custom_workflows: dict[str, dict] | None = None) -> WorkflowDefinition:
     """Get a workflow by name.
-    
+
     Args:
         name: Workflow name ('default' for built-in, or custom name)
         custom_workflows: Dict of custom workflow definitions from workspace
-        
+
     Returns:
         The workflow definition.
-        
+
     Raises:
         KeyError: If workflow not found.
     """
@@ -220,10 +230,10 @@ def get_workflow(name: str, custom_workflows: dict[str, dict] | None = None) -> 
 
 def list_workflows(custom_workflows: dict[str, dict] | None = None) -> list[str]:
     """List all available workflow names.
-    
+
     Args:
         custom_workflows: Dict of custom workflow definitions from workspace
-        
+
     Returns:
         List of workflow names (default + custom).
     """

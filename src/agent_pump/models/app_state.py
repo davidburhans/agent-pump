@@ -49,7 +49,7 @@ class AppState(BaseModel):
     def add_project(self, path: Path) -> bool:
         """
         Add a project path to the managed list.
-        
+
         Returns:
             True if added, False if already exists.
         """

@@ -1,6 +1,5 @@
 """Tests for loading verification configuration from .agent-pump.yml files."""
 
-
 import pytest
 
 from agent_pump.config import Config
@@ -144,5 +143,6 @@ verification:
 
         # Loading should fail due to validation of dangerous command
         from pydantic_core import ValidationError
+
         with pytest.raises(ValidationError, match="contains potentially dangerous pattern"):
             Config.load(tmp_path)

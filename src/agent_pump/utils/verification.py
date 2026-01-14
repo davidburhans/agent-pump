@@ -13,10 +13,10 @@ logger = logging.getLogger(__name__)
 def load_verification_config(project_path: Path) -> VerificationConfig:
     """
     Load verification configuration from .agent-pump.yml file in the project directory.
-    
+
     Args:
         project_path: Path to the project directory
-        
+
     Returns:
         VerificationConfig with settings loaded from the config file
     """
@@ -31,7 +31,7 @@ def load_verification_config(project_path: Path) -> VerificationConfig:
             config_data = yaml.safe_load(f) or {}
 
         # Extract verification-specific settings from the config
-        verification_data = config_data.get('verification', {})
+        verification_data = config_data.get("verification", {})
 
         # Create and return the VerificationConfig instance
         return VerificationConfig.model_validate(verification_data)
@@ -44,7 +44,7 @@ def load_verification_config(project_path: Path) -> VerificationConfig:
 def save_verification_config(project_path: Path, config: VerificationConfig) -> None:
     """
     Save verification configuration to .agent-pump.yml file in the project directory.
-    
+
     Args:
         project_path: Path to the project directory
         config: VerificationConfig to save
@@ -63,10 +63,10 @@ def save_verification_config(project_path: Path, config: VerificationConfig) -> 
             )
 
     # Update only the verification section
-    existing_config['verification'] = config.model_dump(exclude_defaults=True)
+    existing_config["verification"] = config.model_dump(exclude_defaults=True)
 
     # Write the updated config back to the file
-    with open(config_path, 'w') as f:
+    with open(config_path, "w") as f:
         yaml.safe_dump(existing_config, f, default_flow_style=False, indent=2)
 
     logger.info(f"Saved verification config to {config_path}")

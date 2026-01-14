@@ -39,6 +39,7 @@ It feels less like "chatting with a bot" and more like **pair programming with a
 - **🧠 Pluggable Intelligence**: Currently powered by the **Gemini CLI**, with architecture ready for Claude Code and OpenCode.
 - **✅ Automated Verification**: Runs your tests, linters, and build commands. If they fail, the agent fixes the code automatically.
 - **⚙️ Custom Verification Commands**: Configure project-specific build, lint, and test commands via `.agent-pump.yml` or through the TUI.
+- **📋 Copy Configuration**: Easily copy backend and prompt settings between projects or apply a configuration to your entire workspace.
 - **📝 Living Roadmap**: The agent doesn't just write code; it reads your `ROADMAP.md` to decide what to work on next.
 - **⚡ "YOLO" Mode**: Option to fully automate the process or require manual approval at key checkpoints.
 - **🛡️ Safety First**: All changes are sandboxed in git branches. The agent commits its own work with conventional commit messages.

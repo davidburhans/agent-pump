@@ -168,6 +168,7 @@ class TestProjectWorkflow:
         assert "digraph" in dot
         assert "idle" in dot
         assert "planning" in dot
+
     def test_completion_goes_to_completed_state(self, workflow):
         """Test that completing all features goes to completed state (before restart)."""
         workflow.state = "committing"
@@ -186,16 +187,27 @@ class TestPrompts:
 
     def test_planning_prompt(self):
         """Test planning prompt includes key instructions."""
-        prompt = build_planning_prompt()
-        assert "ROADMAP.md" in prompt
-        assert "ENGINEERING_PLAN.md" in prompt
-        assert "BEST_PRACTICES.md" in prompt
+        prompt = build_planning_prompt(
+            feature_request="Test Feature",
+            roadmap_content="Roadmap Content",
+            engineering_plan_content="Engineering Plan Content",
+            task_name_content="Task Name Content",
+        )
+        assert "Roadmap Content" in prompt
+        assert "Engineering Plan Content" in prompt
+        assert "Test Feature" in prompt
 
     def test_planning_prompt_with_branch(self):
         """Test planning prompt includes branch instructions."""
-        prompt = build_planning_prompt(branch="feature/dev")
+        prompt = build_planning_prompt(
+            feature_request="Test Feature",
+            roadmap_content="Roadmap Content",
+            engineering_plan_content="Engineering Plan Content",
+            task_name_content="Task Name Content",
+            branch="feature/dev",
+        )
         assert "feature/dev" in prompt
-        assert "git checkout" in prompt
+        assert "IMPORTANT: Work on branch 'feature/dev'" in prompt
 
     def test_implementing_prompt(self):
         """Test implementing prompt includes key instructions."""
@@ -205,16 +217,22 @@ class TestPrompts:
 
     def test_verifying_prompt(self):
         """Test verifying prompt includes key instructions."""
-        prompt = build_verifying_prompt()
-        assert "VERIFYING phase" in prompt
-        assert "Verification Checklist" in prompt
-        assert "Do NOT proceed" in prompt
+        prompt_template = build_verifying_prompt()
+        prompt = prompt_template.format(
+            roadmap_content="Roadmap",
+            engineering_plan_content="Plan",
+            task_name_content="Task",
+        )
+        assert "Verify the implementation" in prompt
+        assert "verification commands" in prompt
 
-    def test_committing_prompt_no_git_add_all(self):
-        """Test committing prompt forbids git add ."""
-        prompt = build_committing_prompt()
-        assert "git add ." in prompt  # Mention of what NOT to do
-        assert "NEVER use `git add .`" in prompt
+    def test_committing_prompt_content(self):
+        """Test committing prompt content."""
+        prompt_template = build_committing_prompt()
+        # The prompt should contain instructions about commit messages
+        assert "Commit the changes" in prompt_template
+        assert "meaningful commit message" in prompt_template
+        assert "conventional commit format" in prompt_template
 
 
 class TestGeminiBackend:
@@ -278,5 +296,3 @@ class TestMinimumExecutionTime:
 
         success = await workflow.run_phase("prompt", "test_phase")
         assert success
-
-

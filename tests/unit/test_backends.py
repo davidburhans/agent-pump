@@ -35,6 +35,7 @@ def qwen_backend():
 # Gemini Backend Tests
 # ====================
 
+
 @pytest.mark.asyncio
 async def test_gemini_backend_properties(gemini_backend):
     assert gemini_backend.name == "Gemini CLI"
@@ -61,17 +62,19 @@ async def test_gemini_run_success(gemini_backend, sample_project_path):
     mock_process.returncode = 0
     mock_process.stdin = MagicMock()
     mock_process.stdin.write = MagicMock()
-    mock_process.stdin.drain =  AsyncMock()
+    mock_process.stdin.drain = AsyncMock()
     mock_process.stdin.close = MagicMock()
 
     # Mock stdout
     mock_stdout = MagicMock()
     # Simulate output lines
-    mock_stdout.readline = AsyncMock(side_effect=[
-        b"Line 1\n",
-        b"Line 2\n",
-        b"",  # EOF
-    ])
+    mock_stdout.readline = AsyncMock(
+        side_effect=[
+            b"Line 1\n",
+            b"Line 2\n",
+            b"",  # EOF
+        ]
+    )
     mock_process.stdout = mock_stdout
     mock_process.wait = AsyncMock()
 
@@ -81,9 +84,10 @@ async def test_gemini_run_success(gemini_backend, sample_project_path):
     else:
         target = "asyncio.create_subprocess_exec"
 
-    with patch(target, return_value=mock_process) as mock_exec, \
-         patch("shutil.which", return_value="/usr/bin/gemini"):
-
+    with (
+        patch(target, return_value=mock_process) as mock_exec,
+        patch("shutil.which", return_value="/usr/bin/gemini"),
+    ):
         lines = []
         async for line in gemini_backend.run(sample_project_path, "Test prompt"):
             lines.append(line)
@@ -118,7 +122,11 @@ async def test_gemini_run_verbose(gemini_backend, sample_project_path):
 
     # Mock stdout
     mock_stdout = MagicMock()
-    mock_stdout.readline = AsyncMock(side_effect=[b"",]) # Immediate EOF
+    mock_stdout.readline = AsyncMock(
+        side_effect=[
+            b"",
+        ]
+    )  # Immediate EOF
     mock_process.stdout = mock_stdout
     mock_process.wait = AsyncMock()
 
@@ -128,9 +136,10 @@ async def test_gemini_run_verbose(gemini_backend, sample_project_path):
     else:
         target = "asyncio.create_subprocess_exec"
 
-    with patch(target, return_value=mock_process) as mock_exec, \
-         patch("shutil.which", return_value="/usr/bin/gemini"):
-
+    with (
+        patch(target, return_value=mock_process) as mock_exec,
+        patch("shutil.which", return_value="/usr/bin/gemini"),
+    ):
         async for _ in gemini_backend.run(sample_project_path, "Test prompt", verbose=True):
             pass
 
@@ -146,6 +155,7 @@ async def test_gemini_run_verbose(gemini_backend, sample_project_path):
 # ====================
 # Claude Backend Tests
 # ====================
+
 
 @pytest.mark.asyncio
 async def test_claude_backend_properties(claude_backend):
@@ -191,11 +201,13 @@ async def test_claude_run_success(claude_backend, sample_project_path):
     mock_process.stdin.close = MagicMock()
 
     mock_stdout = MagicMock()
-    mock_stdout.readline = AsyncMock(side_effect=[
-        b"Claude response line 1\n",
-        b"Claude response line 2\n",
-        b"",  # EOF
-    ])
+    mock_stdout.readline = AsyncMock(
+        side_effect=[
+            b"Claude response line 1\n",
+            b"Claude response line 2\n",
+            b"",  # EOF
+        ]
+    )
     mock_process.stdout = mock_stdout
     mock_process.wait = AsyncMock()
 
@@ -204,9 +216,10 @@ async def test_claude_run_success(claude_backend, sample_project_path):
     else:
         target = "asyncio.create_subprocess_exec"
 
-    with patch(target, return_value=mock_process), \
-         patch("shutil.which", return_value="/usr/bin/claude"):
-
+    with (
+        patch(target, return_value=mock_process),
+        patch("shutil.which", return_value="/usr/bin/claude"),
+    ):
         lines = []
         async for line in claude_backend.run(sample_project_path, "Test prompt"):
             lines.append(line)
@@ -218,6 +231,7 @@ async def test_claude_run_success(claude_backend, sample_project_path):
 # =====================
 # OpenCode Backend Tests
 # =====================
+
 
 @pytest.mark.asyncio
 async def test_opencode_backend_properties(opencode_backend):
@@ -259,11 +273,13 @@ async def test_opencode_run_success(opencode_backend, sample_project_path):
     mock_process.returncode = 0
 
     mock_stdout = MagicMock()
-    mock_stdout.readline = AsyncMock(side_effect=[
-        b"OpenCode response line 1\n",
-        b"OpenCode response line 2\n",
-        b"",  # EOF
-    ])
+    mock_stdout.readline = AsyncMock(
+        side_effect=[
+            b"OpenCode response line 1\n",
+            b"OpenCode response line 2\n",
+            b"",  # EOF
+        ]
+    )
     mock_process.stdout = mock_stdout
     mock_process.wait = AsyncMock()
 
@@ -272,9 +288,10 @@ async def test_opencode_run_success(opencode_backend, sample_project_path):
     else:
         target = "asyncio.create_subprocess_exec"
 
-    with patch(target, return_value=mock_process), \
-         patch("shutil.which", return_value="/usr/bin/opencode"):
-
+    with (
+        patch(target, return_value=mock_process),
+        patch("shutil.which", return_value="/usr/bin/opencode"),
+    ):
         lines = []
         async for line in opencode_backend.run(sample_project_path, "Test prompt"):
             lines.append(line)
@@ -286,6 +303,7 @@ async def test_opencode_run_success(opencode_backend, sample_project_path):
 # ===================
 # Qwen Backend Tests
 # ===================
+
 
 @pytest.mark.asyncio
 async def test_qwen_backend_properties(qwen_backend):
@@ -331,18 +349,25 @@ async def test_qwen_run_success(qwen_backend, sample_project_path):
     mock_process.stdin.close = MagicMock()
 
     mock_stdout = MagicMock()
-    mock_stdout.readline = AsyncMock(side_effect=[
-        b"Qwen response line 1\n",
-        b"",  # EOF
-    ])
+    mock_stdout.readline = AsyncMock(
+        side_effect=[
+            b"Qwen response line 1\n",
+            b"",  # EOF
+        ]
+    )
     mock_process.stdout = mock_stdout
     mock_process.wait = AsyncMock()
 
-    target = "asyncio.create_subprocess_shell" if sys.platform == "win32" else "asyncio.create_subprocess_exec"
+    target = (
+        "asyncio.create_subprocess_shell"
+        if sys.platform == "win32"
+        else "asyncio.create_subprocess_exec"
+    )
 
-    with patch(target, return_value=mock_process) as mock_exec, \
-         patch("shutil.which", return_value="/usr/bin/qwen"):
-
+    with (
+        patch(target, return_value=mock_process) as mock_exec,
+        patch("shutil.which", return_value="/usr/bin/qwen"),
+    ):
         lines = []
         async for line in qwen_backend.run(sample_project_path, "Test prompt"):
             lines.append(line)
@@ -356,7 +381,7 @@ async def test_qwen_run_success(qwen_backend, sample_project_path):
 
         # Verify --yolo flag was passed
         if sys.platform == "win32":
-            args =  mock_exec.call_args[0][0]
+            args = mock_exec.call_args[0][0]
             assert "--yolo" in args
         else:
             args = mock_exec.call_args[0]
@@ -366,6 +391,7 @@ async def test_qwen_run_success(qwen_backend, sample_project_path):
 # =====================
 # Backend Registry Tests
 # =====================
+
 
 def test_backend_registry_contains_all():
     """Test that all backends are registered."""
@@ -401,4 +427,3 @@ def test_get_backend_unknown():
 
     with pytest.raises(ValueError, match="Unknown backend"):
         get_backend("unknown_backend")
-

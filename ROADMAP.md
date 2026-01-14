@@ -12,6 +12,31 @@ This document tracks feature development for Agent Pump. Items are processed in 
 
 ## Recently Completed
 
+### 🟢 Custom Verification Commands
+**Completed: 2026-01-11**
+
+Support project-specific build, lint, and test commands via configuration.
+
+**Acceptance Criteria:**
+- Read commands from `.agent-pump.yml`
+- Auto-detect common patterns (npm, cargo, go, uv, etc.)
+- Report verification results clearly
+- Allow skipping verification phases
+
+---
+
+### 🟢 Copy Config Between Projects
+**Completed: 2026-01-13**
+
+Allow copying backend/prompt configuration from one project to another.
+
+**Acceptance Criteria:**
+- "Copy from..." button in config modals
+- Select source project from dropdown
+- Option to copy to all projects (workspace default)
+
+---
+
 ### 🟢 Backend Fallback Chains
 **Completed: 2026-01-11**
 
@@ -47,70 +72,9 @@ Persistent workspace configuration with project settings.
 
 ## Current Sprint
 
-### 🟢 Custom Verification Commands
-**Completed: 2026-01-11**
-
-Support project-specific build, lint, and test commands via configuration.
-
-**Acceptance Criteria:**
-- Read commands from `.agent-pump.yml`
-- Auto-detect common patterns (npm, cargo, go, uv, etc.)
-- Report verification results clearly
-- Allow skipping verification phases
-
 ---
 
 ## Future Enhancements
-
-### 🔴 Copy Config Between Projects
-**Priority: Medium**
-
-Allow copying backend/prompt configuration from one project to another.
-
-**Acceptance Criteria:**
-- "Copy from..." button in config modals
-- Select source project from dropdown
-- Option to copy to all projects (workspace default)
-
----
-
-### 🔴 Claude Code Backend
-**Priority: Medium**
-
-Implement backend for Anthropic's Claude Code CLI.
-
-**Acceptance Criteria:**
-- Detect Claude Code installation
-- Map prompts to Claude Code CLI flags
-- Stream output to TUI
-- Handle authentication
-
----
-
-### 🔴 OpenCode Backend
-**Priority: Medium**
-
-Implement backend for OpenCode CLI.
-
-**Acceptance Criteria:**
-- Detect OpenCode installation
-- Map prompts to OpenCode CLI flags
-- Stream output to TUI
-
----
-
-### 🔴 Progress Persistence & Resume
-**Priority: Medium**
-
-Save workflow state to disk and resume after interruption.
-
-**Acceptance Criteria:**
-- Persist state to `.agent-pump/state.json`
-- Resume from last successful phase
-- Handle stale state gracefully
-- Option to reset state
-
----
 
 ### 🔴 Notification System
 **Priority: Low**
@@ -245,31 +209,6 @@ Ability to see the current state of the machine while the machine is executing.
 ### 🔴 Task Completion History
 **Priority: Medium**
 
-Save and display the history of completed tasks for each project.
-
-**Acceptance Criteria:**
-- Persistent record of completed tasks
-- Date/time of completion
-- View history in TUI
-
----
-
-### 🔴 Project Persistence & Autoload
-**Priority: Medium**
-
-Remember previously loaded projects and automatically load them on startup.
-
-**Acceptance Criteria:**
-- Store list of active projects in config/state file
-- Automatically load these projects when Agent Pump starts
-- Handle missing paths gracefully
-- Option to disable autoload
-
----
-
-### 🔴 Web UI Interface
-**Priority: Medium**
-
 Host a web UI with a similar UX to the TUI when running the app. It should be a single page app and provide the same or similar functionality as the TUI.
 
 **Acceptance Criteria:**
@@ -283,6 +222,57 @@ Host a web UI with a similar UX to the TUI when running the app. It should be a 
 ## Completed
 
 *Features that have been implemented and verified.*
+
+### 🟢 Project Persistence & Autoload
+**Completed: 2026-01-13**
+
+Remember previously loaded projects and automatically load them on startup.
+
+**Acceptance Criteria:**
+- Store list of active projects in config/state file
+- Automatically load these projects when Agent Pump starts
+- Handle missing paths gracefully
+- Option to disable autoload
+
+---
+
+### 🟢 Claude Code Backend
+**Completed: 2026-01-13**
+
+Implement backend for Anthropic's Claude Code CLI.
+
+**Acceptance Criteria:**
+- Detect Claude Code installation
+- Map prompts to Claude Code CLI flags
+- Stream output to TUI
+- Handle authentication
+
+---
+
+### 🟢 Progress Persistence & Resume
+**Completed: 2026-01-13**
+
+Save workflow state to disk and resume after interruption.
+
+**Acceptance Criteria:**
+- Persist state to `.agent-pump/state.json`
+- Resume from last successful phase
+- Handle stale state gracefully
+- Option to reset state
+
+---
+
+### 🟢 OpenCode Backend
+**Completed: 2026-01-13**
+
+Implement backend for OpenCode CLI.
+
+**Acceptance Criteria:**
+- Detect OpenCode installation
+- Map prompts to OpenCode CLI flags
+- Stream output to TUI
+
+---
 
 ### 🟢 Dynamic Project Management
 **Priority: High**
