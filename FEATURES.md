@@ -90,6 +90,14 @@ You can "pair program" with the agent by feeding it ideas while it works.
 - **Feature**: Queue an idea (e.g., "Make sure to handle edge case X") via the TUI.
 - **Result**: When the agent reaches the **Brainstorming** phase, it will read your queued ideas and incorporate them into the `ROADMAP.md` or next steps.
 
+### Roadmap Management & Prioritization
+Take control of what the agent works on next.
+- **Feature**: Press `m` in the TUI to open the Roadmap Prioritization screen.
+- **Usage**:
+    - Select uncompleted features.
+    - Reorder them using `J`/`K` or `Shift+Up`/`Shift+Down`.
+    - The agent will automatically pick the new top item from the roadmap for the next Planning phase if no `TASK_NAME` is set.
+
 ### Headless CLI Mode
 Run Agent Pump without the TUI, perfect for CI/CD or background workers.
 - **Usage**:

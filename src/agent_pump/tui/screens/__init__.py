@@ -5,6 +5,7 @@ from .backend_config_modal import BackendConfigModal
 from .global_prompt_modal import GlobalPromptModal
 from .project_config_modal import ProjectConfigModal
 from .prompt_config_modal import PromptConfigModal
+from .roadmap_modal import RoadmapModal
 
 __all__ = [
     "AddProjectModal",
@@ -12,4 +13,5 @@ __all__ = [
     "GlobalPromptModal",
     "ProjectConfigModal",
     "PromptConfigModal",
+    "RoadmapModal",
 ]

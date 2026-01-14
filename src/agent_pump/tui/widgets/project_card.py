@@ -165,7 +165,9 @@ class ProjectCard(Static):
         elapsed = self._format_elapsed_time()
         elapsed_display = f" ({elapsed})" if elapsed else ""
 
-        status_line = f"[{color}]{icon} {status_text}{verification_indicator}{elapsed_display}[/{color}]"
+        status_line = (
+            f"[{color}]{icon} {status_text}{verification_indicator}{elapsed_display}[/{color}]"
+        )
 
         # Add granular activity if available
         if self.project.current_activity and self._is_active_state():

@@ -1,37 +1,37 @@
-# Engineering Plan: Real-time State Visibility
+# Engineering Plan: Feature Prioritization
 
 ## Goal
-Enhance the user experience by providing real-time feedback on what the agent is currently doing (e.g., "Reading file...", "Running command...", "Thinking..."). This involves parsing the agent's output stream for activity indicators and displaying this granular status in the TUI Project Card.
+Allow users to view and reorder uncompleted roadmap items via the TUI. This ensures the agent works on tasks in the order preferred by the user.
 
-## detailed Tasks
+## Detailed Tasks
 
-### 1. Workflow & State Enhancements
-- [x] Add `current_activity` field to `WorkflowState` model (string, nullable) to persist the last known detailed activity.
-- [x] Add `current_activity` field to `Project` model (string, nullable) for in-memory tracking.
-- [x] Update `ProjectWorkflow` to parse backend output lines for activity indicators.
-    - [x] Identify patterns for tool calls (e.g., "Running tool:", "Calling tool:", "read_file", etc.).
-    - [x] Update `current_activity` when these patterns are matched.
-    - [x] Clear `current_activity` when phase changes or after a timeout/completion.
-- [x] Expose `on_activity_change` callback in `ProjectWorkflow`.
+### 1. Roadmap Parsing & Serialization
+- [x] Create a utility to parse `ROADMAP.md` into a structured list of features.
+    - Identify `🔴 Not Started` items in "Future Enhancements" and "Current Sprint".
+    - Capture description and acceptance criteria.
+- [x] Create a utility to update `ROADMAP.md` with a new order of items.
+    - Preserves formatting, completed items, and status legend.
 
-### 2. TUI Updates
-- [x] Update `ProjectCard` widget to subscribe to activity updates.
-- [x] Add a visual element (e.g., a sub-label) to `ProjectCard` to display `current_activity`.
-- [x] Style the activity text (e.g., dim/italic) to distinguish it from the main status.
-- [x] Ensure activity text is truncated if too long.
+### 2. TUI Components
+- [x] Create `RoadmapScreen` (ModalScreen) to display the list of uncompleted items.
+- [x] Implement `RoadmapItem` widget or use `ListItem` for the list.
+- [x] Add keyboard bindings to `RoadmapScreen`:
+    - `k`/`j` or `up`/`down` to select item.
+    - `K`/`J` or `ctrl+up`/`ctrl+down` to move selected item up/down.
+    - `Enter` to save and exit.
+    - `Esc` to cancel.
+- [x] Add a global binding `m` (for "Manage Roadmap") to `AgentPumpApp` to open the screen.
 
-### 3. Backend Output Parsing Strategy
-- [x] Analyze typical output from Gemini/Claude/OpenCode backends to identify common patterns for tool usage.
-    - Gemini: Often prints `Running tool: ...` or similar.
-    - Claude Code: Prints `> command` or similar.
-    - OpenCode: Similar patterns.
-- [x] Implement a regex-based or string-matching parser in `ProjectWorkflow` (or a helper class) to extract the "verb" and "target" (e.g., "Reading file X").
+### 3. Orchestrator Integration
+- [x] Update `ProjectWorkflow` (or the logic that picks the next task) to respect the order of `ROADMAP.md`.
+    - (Wait, currently the agent is triggered manually or by a task loop. If it's the "Agent Pump" orchestrator, it should pick the first `🔴 Not Started` item).
+- [x] Ensure that when `ROADMAP.md` is updated, any running or pending task selection reflects the new first item.
 
-### 4. Verification & Polish
-- [x] Verify that `current_activity` updates in real-time as the agent runs.
-- [x] Ensure the UI doesn't flicker too much with rapid updates.
-- [x] Verify persistence: `current_activity` doesn't strictly need to be persisted to disk for long-term storage, but `WorkflowState` updates should probably include it if we want it to survive a quick restart, though it's mostly transient. Let's decide to keep it transient in `Project` model for now, as it's only relevant while running.
-- [x] Update tests to ensure parsing logic works.
+### 4. Verification
+- [x] Add unit tests for roadmap parsing and reordering.
+- [x] Verify TUI interaction: items move correctly and state is saved.
+- [x] Verify that the orchestrator picks the new top item after reordering.
 
 ### 5. Finalize
-- [x] Reflect on work and update BEST_PRACTICES.md.
+- [x] Update `ROADMAP.md` status to `🟢 Complete`.
+- [x] Update `BEST_PRACTICES.md` with lessons learned.

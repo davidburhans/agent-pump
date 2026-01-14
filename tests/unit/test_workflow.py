@@ -155,6 +155,57 @@ class TestProjectWorkflow:
         assert "brainstorming" in phase_names
         assert "committing" in phase_names
 
+    @pytest.mark.asyncio
+    async def test_auto_pick_roadmap_item(self, tmp_path):
+        """Test that planning phase auto-picks the first roadmap item if TASK_NAME is missing."""
+        import textwrap
+        project_dir = tmp_path / "test_project_auto_pick"
+        project_dir.mkdir()
+
+        # Create a ROADMAP.md
+        roadmap_path = project_dir / "ROADMAP.md"
+        roadmap_path.write_text(textwrap.dedent("""\
+            # Roadmap
+
+            ## Future Enhancements
+
+            ### 🔴 Next Task
+            Description
+
+            **Acceptance Criteria:**
+            - Done
+        """), encoding="utf-8")
+
+        project = Project.from_path(project_dir)
+        workflow = ProjectWorkflow(project=project)
+        workflow.state = "planning"
+
+        # Mock run_phase to avoid calling real backend
+        workflow.run_phase = AsyncMock(return_value=True)
+        # Mock build_planning_prompt to verify arguments
+        from unittest.mock import patch
+        with patch(
+            "agent_pump.orchestrator.workflow.build_planning_prompt", return_value="Mocked Prompt"
+        ) as mock_build:
+            # Run one iteration of the loop
+            # We'll cancel it immediately after one cycle
+            task = asyncio.create_task(workflow.run(max_iterations=1))
+            await asyncio.sleep(0.1)
+            workflow.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+            # Verify it picked "Next Task"
+            assert workflow.project.current_feature == "Next Task"
+            assert (project_dir / "TASK_NAME").read_text() == "Next Task"
+
+            # Verify build_planning_prompt was called with "Next Task"
+            mock_build.assert_called()
+            args, kwargs = mock_build.call_args
+            assert kwargs.get("feature_request") == "Next Task" or args[0] == "Next Task"
+
     def test_get_ascii_diagram(self, workflow):
         """Test ASCII diagram generation."""
         diagram = workflow.get_ascii_diagram()
@@ -197,11 +248,17 @@ class TestProjectWorkflow:
         assert workflow.project.current_activity == "write_file"
         workflow.on_state_change.assert_called()
 
+        # Test Claude Code pattern
+        workflow.on_state_change.reset_mock()
+        workflow._emit_output("> cat README.md")
+        assert workflow.project.current_activity == "cat README.md"
+        workflow.on_state_change.assert_called()
+
         # Test ignoring normal lines
         workflow.on_state_change.reset_mock()
         workflow._emit_output("Just some log output")
         # Should NOT change activity or trigger callback
-        assert workflow.project.current_activity == "write_file"
+        assert workflow.project.current_activity == "cat README.md"
         workflow.on_state_change.assert_not_called()
 
     def test_activity_cleared_on_state_change(self, workflow):

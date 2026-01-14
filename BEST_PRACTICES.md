@@ -155,6 +155,7 @@ logger.info(f"Gemini CLI completed: {line_count} lines in {elapsed:.1f}s, exit c
 | **@work Decorator** | Methods return `Worker` immediately. Mock with `MagicMock`, not `AsyncMock`. |
 | **ModalScreen** | Use `ModalScreen[ReturnType]` with `self.dismiss(result)`. Add `priority=True` to bindings conflicting with TextArea. |
 | **TabbedContent** | Query widgets by unique IDs like `{phase}-backend`, not tab structure. |
+| **ListView Reordering** | Reordering items in `ListView` requires clearing and rebuilding the list via `clear()` and `append()`, as there is no direct "move" API for child widgets. |
 | **Focus vs Selection** | Use CSS classes (`.selected`) for app state, not `:focus` pseudo-classes. |
 | **Destructive Actions** | Always use `ConfirmModal` for irreversible actions (e.g., delete project, overwrite all configs). |
 | **Testing Apps** | Inline `async with App().run_test() as pilot:` per test case; don't share app fixtures. |
@@ -251,6 +252,15 @@ Closes #42
 
 ### File Handling
 Never commit: `.gemini/`, `__pycache__/`, `.pytest_cache/`, virtual environments, IDE settings
+
+---
+
+## File & Content Manipulation
+
+### Roadmap Parsing & Updates
+- **Partial Updates**: When updating a structured markdown file (like `ROADMAP.md`), parse the entire file into sections (preamble, sections by header). Reconstruct the file by combining preserved sections with updated sections to avoid data loss.
+- **Regex Robustness**: Use non-greedy matchers `.*?` combined with clear delimiters (like `## Header`) to robustly isolate sections.
+- **Preserve Formatting**: When re-writing files based on parsed content, strive to preserve original formatting (spacing, headers) for sections that were not modified.
 
 ---
 

@@ -235,6 +235,9 @@ class ProjectWorkflow:
             activity = line.split("Calling tool:", 1)[1].strip()
         elif "Executing command:" in line:
             activity = line.split("Executing command:", 1)[1].strip()
+        # Claude Code command pattern (e.g. "> cat README.md")
+        elif line_clean.startswith("> "):
+            activity = line_clean[2:].strip()
         # FallbackBackendRunner specific log
         elif "[BACKEND] Using" in line:
             activity = "Switching backend..."
@@ -244,7 +247,9 @@ class ProjectWorkflow:
             self.project.current_activity = activity
             # Trigger UI refresh by notifying state change (even if state is same)
             if self.on_state_change:
-                self.on_state_change(self.workflow_state.current_state, self.workflow_state.current_state)
+                self.on_state_change(
+                    self.workflow_state.current_state, self.workflow_state.current_state
+                )
 
     def _emit_output(self, line: str) -> None:
         """Emit output line to callback."""
@@ -500,8 +505,40 @@ class ProjectWorkflow:
 
                 if current_state == "planning":
                     context = self._get_context_content()
+
+                    feature_request = context["task_name_content"]
+                    # If TASK_NAME is empty, try to pick first item from ROADMAP.md
+                    if not feature_request or feature_request == "(File not found or empty)":
+                        from agent_pump.utils.roadmap import RoadmapParser
+                        roadmap_path = self.project.path / "ROADMAP.md"
+                        if roadmap_path.exists():
+                            parser = RoadmapParser(roadmap_path)
+                            parser.parse()
+                            uncompleted = parser.get_uncompleted_features()
+                            if uncompleted:
+                                feature_request = uncompleted[0].title
+                                self._emit_output(
+                                    f"\n[INFO] Auto-picking next roadmap item: {feature_request}\n"
+                                )
+                                # Create TASK_NAME file to persist this choice
+                                try:
+                                    (self.project.path / "TASK_NAME").write_text(
+                                        feature_request, encoding="utf-8"
+                                    )
+                                    self.project.current_feature = feature_request
+                                except Exception as e:
+                                    logger.warning(f"Failed to create TASK_NAME: {e}")
+                            else:
+                                self._emit_output(
+                                    "\n[WARNING] Roadmap is empty. No tasks to pick.\n"
+                                )
+                        else:
+                            self._emit_output(
+                                "\n[WARNING] No TASK_NAME and no ROADMAP.md found.\n"
+                            )
+
                     base_prompt = build_planning_prompt(
-                        feature_request=context["task_name_content"],
+                        feature_request=feature_request,
                         roadmap_content=context["roadmap_content"],
                         engineering_plan_content=context["engineering_plan_content"],
                         task_name_content=context["task_name_content"],

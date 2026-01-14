@@ -78,18 +78,13 @@ Persistent workspace configuration with project settings.
 
 ### 🔴 Notification System
 **Priority: Low**
+...
+## Completed
 
-Send notifications on feature completion, errors, or when human intervention is needed.
+*Features that have been implemented and verified.*
 
-**Acceptance Criteria:**
-- Desktop notifications (optional)
-- Webhook support for Slack/Discord
-- Configurable notification levels
-
----
-
-### 🔴 Feature Prioritization
-**Priority: Medium**
+### 🟢 Feature Prioritization
+**Completed: 2026-01-13**
 
 Allow users to prioritize which roadmap items are worked on next via the TUI.
 
@@ -100,115 +95,6 @@ Allow users to prioritize which roadmap items are worked on next via the TUI.
 - Orchestrator respects the new order
 
 ---
-
-### 🔴 Analytics Dashboard
-**Priority: Low**
-
-Track metrics like features completed, time per phase, success/failure rates.
-
-**Acceptance Criteria:**
-- Store metrics in local SQLite
-- Display charts in TUI
-- Export to JSON/CSV
-- Identify bottlenecks
-
----
-
-### 🔴 Watch Mode
-**Priority: Low**
-
-Continuously monitor ROADMAP.md for new items and automatically start work.
-
-**Acceptance Criteria:**
-- File watcher on ROADMAP.md
-- Detect new uncompleted items
-- Auto-start workflow on changes
-- Configurable poll interval
-
----
-
-### 🔴 Graphical State Machine Visualization
-**Priority: Low**
-
-Render the workflow state machine as a graphical image (PNG/SVG) using pytransitions' GraphMachine and display in the TUI.
-
-**Acceptance Criteria:**
-- Use `transitions.extensions.GraphMachine` to generate state diagrams
-- Requires Graphviz to be installed on the system
-- Use `textual-image` library for terminal image display
-- Fallback to ASCII diagram if image rendering fails
-- Current state highlighted in the diagram
-- Works across different terminal emulators (Sixel, TGP, Unicode fallback)
-
----
-
-### 🔴 Git Hook Integration
-**Priority: Low**
-
-Automatically run verifications (lint, test) on pre-commit.
-
-**Acceptance Criteria:**
-- Install pre-commit hooks via CLI
-- Run `uv run pytest` and `uv run ruff` before commit
-- Prevent commit if verification fails
-- Option to bypass hooks
-
----
-
-### 🔴 Workflow Overview Dashboard
-**Priority: Medium**
-
-Overview all workflows in a single view.
-
-**Acceptance Criteria:**
-- Dashboard view showing all active workflows
-- Summary status for each
-- Quick navigation to details
-
----
-
-### 🔴 Stop After Feature Option
-**Priority: Medium**
-
-Option to stop execution automatically after the current feature is completed.
-
-**Acceptance Criteria:**
-- Toggle in TUI or CLI flag
-- Graceful shutdown after current feature verification
-- No new tasks started from roadmap
-
----
-
-### 🔴 Activity Log Preferences
-**Priority: Low**
-
-User preference to have new items added to the top of the activity log.
-
-**Acceptance Criteria:**
-- Configurable log order (ascending/descending)
-- Persisted user preference
-- TUI toggle or config file setting
-
----
-
-
-
-### 🔴 Task Completion History
-**Priority: Medium**
-
-Host a web UI with a similar UX to the TUI when running the app. It should be a single page app and provide the same or similar functionality as the TUI.
-
-**Acceptance Criteria:**
-- Single Page Application (SPA) architecture
-- UX consistent with Terminal UI
-- Full functionality parity (monitoring, configuration, control)
-- Hosted by the application during runtime
-
----
-
-## Completed
-
-*Features that have been implemented and verified.*
 
 ### 🟢 Real-time State Visibility
 **Completed: 2026-01-13**

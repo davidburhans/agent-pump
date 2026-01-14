@@ -27,12 +27,14 @@ from agent_pump.tui.screens import (
     GlobalPromptModal,
     ProjectConfigModal,
     PromptConfigModal,
+    RoadmapModal,
 )
 from agent_pump.tui.screens.confirm_modal import ConfirmModal
 from agent_pump.tui.screens.log_filter_modal import LogFilterModal
 from agent_pump.tui.widgets.log_panel import LogPanel
 from agent_pump.tui.widgets.project_card import ProjectCard
 from agent_pump.tui.widgets.workflow_panel import WorkflowPanel
+from agent_pump.utils.roadmap import RoadmapFeature
 
 
 class AgentPumpApp(App):
@@ -49,6 +51,7 @@ class AgentPumpApp(App):
         Binding("a", "add_project", "Add"),
         Binding("d", "toggle_dark", "Dark"),
         Binding("i", "add_idea", "Idea"),
+        Binding("m", "manage_roadmap", "Roadmap"),
         Binding("P", "global_prompts", "Global"),
         Binding("f", "filter_logs", "Filter"),
         Binding("o", "toggle_sort", "Order"),
@@ -501,6 +504,28 @@ class AgentPumpApp(App):
                 self._log("No idea added")
 
         self.push_screen(IdeaInputModal(), handle_idea)
+
+    def action_manage_roadmap(self) -> None:
+        """Open the roadmap management modal."""
+        if not self.selected_project:
+            self._log("No project selected. Select a project first.")
+            return
+
+        project = self.projects[self.selected_project]
+        roadmap_path = project.path / "ROADMAP.md"
+
+        if not roadmap_path.exists():
+            self._log(f"No ROADMAP.md found in {project.name}")
+            return
+
+        def handle_result(result: list[RoadmapFeature] | None) -> None:
+            if result:
+                self._log(f"Roadmap reordered for {project.name}")
+                # Optionally trigger a workflow update if needed
+            else:
+                self._log("Roadmap management cancelled")
+
+        self.push_screen(RoadmapModal(roadmap_path), handle_result)
 
     def action_config_project(self) -> None:
         """Configure project settings."""
