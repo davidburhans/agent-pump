@@ -181,6 +181,36 @@ class TestProjectWorkflow:
         workflow.restart()
         assert workflow.state == "planning"
 
+    def test_parse_activity(self, workflow):
+        """Test parsing of activity from output lines."""
+        # Mock on_state_change to verify it gets called
+        workflow.on_state_change = MagicMock()
+
+        # Test "Running tool"
+        workflow._emit_output("Running tool: read_file")
+        assert workflow.project.current_activity == "read_file"
+        workflow.on_state_change.assert_called()
+
+        # Test "Calling tool"
+        workflow.on_state_change.reset_mock()
+        workflow._emit_output("Calling tool: write_file")
+        assert workflow.project.current_activity == "write_file"
+        workflow.on_state_change.assert_called()
+
+        # Test ignoring normal lines
+        workflow.on_state_change.reset_mock()
+        workflow._emit_output("Just some log output")
+        # Should NOT change activity or trigger callback
+        assert workflow.project.current_activity == "write_file"
+        workflow.on_state_change.assert_not_called()
+
+    def test_activity_cleared_on_state_change(self, workflow):
+        """Test that activity is cleared when state changes."""
+        workflow.project.current_activity = "doing something"
+        workflow.start()
+        assert workflow.project.current_activity is None
+
+
 
 class TestPrompts:
     """Tests for the workflow prompts."""

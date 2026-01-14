@@ -165,7 +165,17 @@ class ProjectCard(Static):
         elapsed = self._format_elapsed_time()
         elapsed_display = f" ({elapsed})" if elapsed else ""
 
-        return f"[{color}]{icon} {status_text}{verification_indicator}{elapsed_display}[/{color}]"
+        status_line = f"[{color}]{icon} {status_text}{verification_indicator}{elapsed_display}[/{color}]"
+
+        # Add granular activity if available
+        if self.project.current_activity and self._is_active_state():
+            # Truncate if too long (e.g. > 50 chars)
+            activity = self.project.current_activity
+            if len(activity) > 50:
+                activity = activity[:47] + "..."
+            status_line += f"\n[dim]   ↳ {activity}[/dim]"
+
+        return status_line
 
     def _format_elapsed_time(self) -> str:
         """Format the elapsed time since state changed or time remaining."""

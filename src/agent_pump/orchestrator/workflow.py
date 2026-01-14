@@ -183,6 +183,9 @@ class ProjectWorkflow:
         old_state = self.workflow_state.current_state
         new_state = self.state  # type: ignore
 
+        # Clear granular activity on state change
+        self.project.current_activity = None
+
         # Update workflow state
         self.workflow_state.current_state = new_state
         self.workflow_state.current_feature = self.project.current_feature
@@ -220,8 +223,32 @@ class ProjectWorkflow:
         except Exception as e:
             logger.warning(f"Error reading TASK_NAME: {e}")
 
+    def _parse_activity(self, line: str) -> None:
+        """Parse output line for activity indicators and update state."""
+        line_clean = line.strip()
+        activity = None
+
+        # Common patterns for tool usage
+        if "Running tool:" in line:
+            activity = line.split("Running tool:", 1)[1].strip()
+        elif "Calling tool:" in line:
+            activity = line.split("Calling tool:", 1)[1].strip()
+        elif "Executing command:" in line:
+            activity = line.split("Executing command:", 1)[1].strip()
+        # FallbackBackendRunner specific log
+        elif "[BACKEND] Using" in line:
+            activity = "Switching backend..."
+
+        # If activity detected and different from current, update and notify
+        if activity and activity != self.project.current_activity:
+            self.project.current_activity = activity
+            # Trigger UI refresh by notifying state change (even if state is same)
+            if self.on_state_change:
+                self.on_state_change(self.workflow_state.current_state, self.workflow_state.current_state)
+
     def _emit_output(self, line: str) -> None:
         """Emit output line to callback."""
+        self._parse_activity(line)
         if self.on_output:
             # Pass current state and current feature as metadata
             self.on_output(line, self.workflow_state.current_state, self.project.current_feature)

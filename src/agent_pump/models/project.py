@@ -49,6 +49,9 @@ class Project(BaseModel):
     state_changed_at: datetime = Field(
         default_factory=datetime.now, description="Timestamp when the current state was entered"
     )
+    current_activity: str | None = Field(
+        default=None, description="Transient granular activity description (e.g. 'Reading file...')"
+    )
 
     model_config = {"arbitrary_types_allowed": True}
 

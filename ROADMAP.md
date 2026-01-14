@@ -191,20 +191,7 @@ User preference to have new items added to the top of the activity log.
 
 ---
 
-### 🔴 Real-time State Visibility
-**Priority: High**
 
-Ability to see the current state of the machine while the machine is executing.
-
-**Acceptance Criteria:**
-- Live status indicator in TUI
-- Shows current state (e.g., Planning, Implementing)
-- Shows active substep or tool call if possible
-
----
-
-
----
 
 ### 🔴 Task Completion History
 **Priority: Medium**
@@ -222,6 +209,18 @@ Host a web UI with a similar UX to the TUI when running the app. It should be a 
 ## Completed
 
 *Features that have been implemented and verified.*
+
+### 🟢 Real-time State Visibility
+**Completed: 2026-01-13**
+
+Ability to see the current state of the machine while the machine is executing.
+
+**Acceptance Criteria:**
+- Live status indicator in TUI
+- Shows current state (e.g., Planning, Implementing)
+- Shows active substep or tool call if possible
+
+---
 
 ### 🟢 Project Persistence & Autoload
 **Completed: 2026-01-13**

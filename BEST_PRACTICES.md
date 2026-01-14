@@ -159,6 +159,11 @@ logger.info(f"Gemini CLI completed: {line_count} lines in {elapsed:.1f}s, exit c
 | **Destructive Actions** | Always use `ConfirmModal` for irreversible actions (e.g., delete project, overwrite all configs). |
 | **Testing Apps** | Inline `async with App().run_test() as pilot:` per test case; don't share app fixtures. |
 
+### TUI Granular Feedback
+- **Parsing Streams**: When dealing with long-running CLI agents, parse their output stream for granular activity indicators (e.g. "Running tool: read_file").
+- **Transient State**: Store transient detailed state (like "current tool call") in memory only; clear it on phase transitions or timeouts.
+- **Refresh Strategy**: Update the TUI immediately on activity changes, but also leverage periodic timers (like elapsed time) to pick up changes if the event stream is busy.
+
 ---
 
 ## Cross-Platform Considerations
