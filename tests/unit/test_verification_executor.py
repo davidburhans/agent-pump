@@ -1,10 +1,36 @@
 """Integration tests for verification executor."""
 
+import sys
 
 import pytest
 
 from agent_pump.models.verification_config import VerificationConfig
 from agent_pump.orchestrator.verification_executor import VerificationExecutor
+
+
+# Get Python executable path with forward slashes for cross-platform shlex compatibility
+_PYTHON = sys.executable.replace('\\', '/')
+
+
+# Cross-platform command helpers using Python
+# These work on both Windows and Unix because we invoke the Python interpreter directly
+# NOTE: Commands passed to VerificationConfig cannot contain semicolons (security validation),
+# so we use tricks to avoid them in multi-statement Python code.
+def echo_cmd(text: str) -> str:
+    """Return a cross-platform echo command."""
+    return f'{_PYTHON} -c "print(\'{text}\')"'
+
+
+def fail_cmd() -> str:
+    """Return a cross-platform command that always fails."""
+    # Use __import__ and exit() to avoid semicolons
+    return f'{_PYTHON} -c "exit(1)"'
+
+
+def sleep_cmd(seconds: float) -> str:
+    """Return a cross-platform sleep command."""
+    # Use __import__ to avoid semicolons
+    return f'{_PYTHON} -c "__import__(\'time\').sleep({seconds})"'
 
 
 class TestVerificationExecutor:
@@ -34,11 +60,12 @@ class TestVerificationExecutor:
         """Test running a successful command."""
         executor = VerificationExecutor(tmp_path)
 
-        # Use a simple echo command that should succeed
-        result = await executor.run_command("echo hello", timeout=10)
+        # Use cross-platform Python command
+        cmd = echo_cmd("hello")
+        result = await executor.run_command(cmd, timeout=10)
 
         assert result.success is True
-        assert result.command == "echo hello"
+        assert result.command == cmd
         assert "hello" in result.stdout
         assert result.stderr == ""
         assert result.exit_code == 0
@@ -49,11 +76,12 @@ class TestVerificationExecutor:
         """Test running a command that fails."""
         executor = VerificationExecutor(tmp_path)
 
-        # Use a command that will fail
-        result = await executor.run_command("false", timeout=10)
+        # Use cross-platform fail command
+        cmd = fail_cmd()
+        result = await executor.run_command(cmd, timeout=10)
 
         assert result.success is False
-        assert result.command == "false"
+        assert result.command == cmd
         assert result.exit_code != 0
         assert result.duration > 0
 
@@ -62,11 +90,12 @@ class TestVerificationExecutor:
         """Test running a command that times out."""
         executor = VerificationExecutor(tmp_path)
 
-        # Use a command that sleeps longer than timeout
-        result = await executor.run_command("sleep 5", timeout=1)
+        # Use cross-platform sleep command that takes longer than timeout
+        cmd = sleep_cmd(5)
+        result = await executor.run_command(cmd, timeout=1)
 
         assert result.success is False
-        assert result.command == "sleep 5"
+        assert result.command == cmd
         assert result.exit_code is None  # Process was terminated
         assert "timed out" in result.stderr.lower()
         assert result.duration > 0
@@ -101,13 +130,13 @@ class TestVerificationExecutor:
     @pytest.mark.asyncio
     async def test_run_build_method(self, tmp_path):
         """Test the run_build method."""
-        config = VerificationConfig(build_cmd="echo building")
+        config = VerificationConfig(build_cmd=echo_cmd("building"))
         executor = VerificationExecutor(tmp_path, config)
 
         result = await executor.run_build(timeout=10)
 
         assert result.success is True
-        assert result.command == "echo building"
+        assert result.command == echo_cmd("building")
         assert "building" in result.stdout
 
     @pytest.mark.asyncio
@@ -125,25 +154,25 @@ class TestVerificationExecutor:
     @pytest.mark.asyncio
     async def test_run_lint_method(self, tmp_path):
         """Test the run_lint method."""
-        config = VerificationConfig(lint_cmd="echo linting")
+        config = VerificationConfig(lint_cmd=echo_cmd("linting"))
         executor = VerificationExecutor(tmp_path, config)
 
         result = await executor.run_lint(timeout=10)
 
         assert result.success is True
-        assert result.command == "echo linting"
+        assert result.command == echo_cmd("linting")
         assert "linting" in result.stdout
 
     @pytest.mark.asyncio
     async def test_run_test_method(self, tmp_path):
         """Test the run_test method."""
-        config = VerificationConfig(test_cmd="echo testing")
+        config = VerificationConfig(test_cmd=echo_cmd("testing"))
         executor = VerificationExecutor(tmp_path, config)
 
         result = await executor.run_test(timeout=10)
 
         assert result.success is True
-        assert result.command == "echo testing"
+        assert result.command == echo_cmd("testing")
         assert "testing" in result.stdout
 
     @pytest.mark.asyncio
@@ -163,9 +192,9 @@ class TestVerificationExecutor:
     async def test_run_all_methods_success(self, tmp_path):
         """Test the run_all method when all commands succeed."""
         config = VerificationConfig(
-            build_cmd="echo build_success",
-            lint_cmd="echo lint_success",
-            test_cmd="echo test_success"
+            build_cmd=echo_cmd("build_success"),
+            lint_cmd=echo_cmd("lint_success"),
+            test_cmd=echo_cmd("test_success")
         )
         executor = VerificationExecutor(tmp_path, config)
 
@@ -182,9 +211,9 @@ class TestVerificationExecutor:
     async def test_run_all_methods_build_failure(self, tmp_path):
         """Test the run_all method when build command fails."""
         config = VerificationConfig(
-            build_cmd="false",  # This will fail
-            lint_cmd="echo lint_should_not_run",
-            test_cmd="echo test_should_not_run"
+            build_cmd=fail_cmd(),  # This will fail
+            lint_cmd=echo_cmd("lint_should_not_run"),
+            test_cmd=echo_cmd("test_should_not_run")
         )
         executor = VerificationExecutor(tmp_path, config)
 

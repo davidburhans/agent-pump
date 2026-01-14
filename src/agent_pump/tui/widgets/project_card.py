@@ -1,5 +1,7 @@
 """Project card widget for displaying project status."""
 
+from datetime import datetime
+
 from textual.app import ComposeResult
 from textual.message import Message
 from textual.widgets import Static
@@ -31,6 +33,11 @@ STATUS_ICONS = {
 
 class ProjectCard(Static):
     """A card widget displaying project status."""
+
+    # Class-level toggle: False = elapsed time, True = time remaining
+    show_time_remaining: bool = False
+    # Default timeout in seconds (30 minutes)
+    DEFAULT_TIMEOUT: int = 1800
 
     DEFAULT_CSS = """
     ProjectCard {
@@ -82,16 +89,19 @@ class ProjectCard(Static):
             self.card = card
             super().__init__()
 
-    def __init__(self, project: Project, **kwargs):
+    def __init__(self, project: Project, timeout: int | None = None, **kwargs):
         """
         Initialize the project card.
 
         Args:
             project: The project to display
+            timeout: Phase timeout in seconds (for time remaining display)
         """
         super().__init__(**kwargs)
         self.project = project
+        self.timeout = timeout or self.DEFAULT_TIMEOUT
         self.can_focus = True
+        self._timer_handle = None  # Track timer for cleanup
 
     def compose(self) -> ComposeResult:
         """Create the card content."""
@@ -99,6 +109,17 @@ class ProjectCard(Static):
         yield Static(self._format_status(), classes="project-status")
         yield Static(self._format_feature(), classes="project-feature")
         yield Static(self._format_progress(), classes="project-progress")
+
+    def on_mount(self) -> None:
+        """Start periodic timer refresh when mounted."""
+        # Refresh the timer display every second
+        self._timer_handle = self.set_interval(1.0, self._refresh_timer)
+
+    def on_unmount(self) -> None:
+        """Clean up timer when card is removed."""
+        if self._timer_handle:
+            self._timer_handle.stop()
+            self._timer_handle = None
 
     def _format_status(self) -> str:
         """Format the status line with icon and color."""
@@ -113,7 +134,49 @@ class ProjectCard(Static):
             self.project.config.test_cmd):
             verification_indicator = " 🔧"  # Gear icon indicates verification is configured
 
-        return f"[{color}]{icon} {status_text}{verification_indicator}[/{color}]"
+        # Add elapsed time in current state
+        elapsed = self._format_elapsed_time()
+        elapsed_display = f" ({elapsed})" if elapsed else ""
+
+        return f"[{color}]{icon} {status_text}{verification_indicator}{elapsed_display}[/{color}]"
+
+    def _format_elapsed_time(self) -> str:
+        """Format the elapsed time since state changed or time remaining."""
+        if not self.project.state_changed_at:
+            return ""
+        
+        elapsed = datetime.now() - self.project.state_changed_at
+        total_seconds = int(elapsed.total_seconds())
+        
+        if total_seconds < 0:
+            return ""
+        
+        if ProjectCard.show_time_remaining:
+            # Show time remaining until timeout
+            remaining = self.timeout - total_seconds
+            if remaining <= 0:
+                return "⏱️ TIMEOUT"
+            return self._format_time_value(remaining, prefix="⏳ ")
+        else:
+            # Show elapsed time
+            return self._format_time_value(total_seconds, prefix="⏱️ ")
+
+    def _format_time_value(self, total_seconds: int, prefix: str = "") -> str:
+        """Format a time value in human-readable format."""
+        hours, remainder = divmod(total_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        
+        if hours > 0:
+            return f"{prefix}{hours}h {minutes}m"
+        elif minutes > 0:
+            return f"{prefix}{minutes}m {seconds}s"
+        else:
+            return f"{prefix}{seconds}s"
+
+    @classmethod
+    def toggle_time_mode(cls) -> None:
+        """Toggle between showing elapsed time and time remaining."""
+        cls.show_time_remaining = not cls.show_time_remaining
 
     def _format_feature(self) -> str:
         """Format the current feature line."""
@@ -166,6 +229,15 @@ class ProjectCard(Static):
         # Update progress
         progress_widget = self.query_one(".project-progress", Static)
         progress_widget.update(self._format_progress())
+
+    def _refresh_timer(self) -> None:
+        """Refresh just the status line to update the elapsed timer."""
+        try:
+            status_widget = self.query_one(".project-status", Static)
+            status_widget.update(self._format_status())
+        except Exception:
+            # Widget may not be mounted yet
+            pass
 
     def on_click(self) -> None:
         """Handle click events."""

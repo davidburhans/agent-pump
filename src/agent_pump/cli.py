@@ -63,7 +63,7 @@ def main(
     # Load persisted projects
     app_state = AppState.load()
 
-    # Merge CLI projects with persisted projects (CLI args take precedence in order but we want union)
+    # Merge CLI projects with persisted projects (CLI args take precedence but we want union)
     all_projects = []
 
     # Add persisted projects first
@@ -96,7 +96,9 @@ def project_group() -> None:
 
 
 @project_group.command(name="add")
-@click.argument("path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path))
+@click.argument(
+    "path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path)
+)
 def add_project(path: Path) -> None:
     """Add a project to be managed."""
     state = AppState.load()
@@ -108,7 +110,9 @@ def add_project(path: Path) -> None:
 
 
 @project_group.command(name="remove")
-@click.argument("path", type=click.Path(exists=False, file_okay=False, dir_okay=True, path_type=Path))
+@click.argument(
+    "path", type=click.Path(exists=False, file_okay=False, dir_okay=True, path_type=Path)
+)
 def remove_project(path: Path) -> None:
     """Remove a project from management."""
     state = AppState.load()
@@ -147,7 +151,7 @@ async def _run_headless(projects: list[Path], max_iterations: int, branch: str |
             workflow = ProjectWorkflow(
                 project=project,
                 backend=GeminiBackend(),
-                on_output=lambda line: console.print(line, end=""),
+                on_output=lambda line, state, task: console.print(line, end=""),
             )
             await workflow.run(max_iterations=max_iterations)
         except Exception as e:
@@ -157,6 +161,7 @@ async def _run_headless(projects: list[Path], max_iterations: int, branch: str |
 # ============================================================================
 # Workspace Commands
 # ============================================================================
+
 
 @main.group(name="workspace")
 def workspace_group() -> None:
@@ -233,13 +238,14 @@ def show_workspace() -> None:
     if workspace.projects:
         console.print("\n[bold]Projects:[/bold]")
         for key, config in workspace.projects.items():
-            backends = config.phase_backends.implementing.backends
+            backends = [b.name for b in config.phase_backends.implementing.backends]
             console.print(f"  {config.name}: {', '.join(backends)}")
 
 
 # ============================================================================
 # Idea Queue Commands
 # ============================================================================
+
 
 @main.group(name="ideas")
 def ideas_group() -> None:
@@ -315,6 +321,7 @@ def remove_idea(index: int) -> None:
 # Verification Commands
 # ============================================================================
 
+
 @main.group(name="verification")
 def verification_group() -> None:
     """Manage verification commands for projects."""
@@ -322,7 +329,9 @@ def verification_group() -> None:
 
 
 @verification_group.command(name="set-build")
-@click.argument("project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path))
+@click.argument(
+    "project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path)
+)
 @click.argument("command")
 def set_build_command(project_path: Path, command: str) -> None:
     """Set the build command for a project."""
@@ -333,7 +342,9 @@ def set_build_command(project_path: Path, command: str) -> None:
 
 
 @verification_group.command(name="set-lint")
-@click.argument("project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path))
+@click.argument(
+    "project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path)
+)
 @click.argument("command")
 def set_lint_command(project_path: Path, command: str) -> None:
     """Set the lint command for a project."""
@@ -344,7 +355,9 @@ def set_lint_command(project_path: Path, command: str) -> None:
 
 
 @verification_group.command(name="set-test")
-@click.argument("project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path))
+@click.argument(
+    "project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path)
+)
 @click.argument("command")
 def set_test_command(project_path: Path, command: str) -> None:
     """Set the test command for a project."""
@@ -355,7 +368,9 @@ def set_test_command(project_path: Path, command: str) -> None:
 
 
 @verification_group.command(name="toggle-skip")
-@click.argument("project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path))
+@click.argument(
+    "project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path)
+)
 @click.option("--enable/--disable", default=None, help="Enable or disable skipping verification")
 def toggle_skip_verification(project_path: Path, enable: bool | None) -> None:
     """Toggle whether to skip verification for a project."""
@@ -373,7 +388,9 @@ def toggle_skip_verification(project_path: Path, enable: bool | None) -> None:
 
 
 @verification_group.command(name="show")
-@click.argument("project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path))
+@click.argument(
+    "project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path)
+)
 def show_verification_config(project_path: Path) -> None:
     """Show the verification configuration for a project."""
     config = load_verification_config(project_path)
@@ -386,7 +403,9 @@ def show_verification_config(project_path: Path) -> None:
 
 
 @verification_group.command(name="detect")
-@click.argument("project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path))
+@click.argument(
+    "project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path)
+)
 def detect_project_type(project_path: Path) -> None:
     """Detect project type and suggest appropriate verification commands."""
     from agent_pump.models.verification_config import detect_project_type as detect_proj_type

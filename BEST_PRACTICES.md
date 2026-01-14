@@ -96,6 +96,14 @@ logger.debug(f"Command: gemini --yolo --prompt <{len(prompt)} chars>")
 logger.info(f"Gemini CLI completed: {line_count} lines in {elapsed:.1f}s, exit code: {return_code}")
 ```
 
+### Type Checking Nuances (Pyright)
+- **Protocols and Async Generators**: `pyright` can be strict about `Protocol` definitions matching implementation.
+  - If implementation is an async generator (`async def` with `yield`), define Protocol method as `def run(...) -> AsyncIterator[T]`, NOT `async def`.
+  - `async def` in Protocol implies a Coroutine return type, which mismatches async generator return type (`AsyncIterator`).
+- **Lambdas**: `pyright` strictly checks lambda signatures when passed as callbacks. Ensure lambda arguments match the expected callback signature exactly.
+- **String Joining**: Ensure arguments to `str.join` are iterables of strings. Pydantic models or other objects must be converted to strings (e.g., `[b.name for b in backends]`) before joining.
+- **Return Type Mismatches**: Be careful with return type hints in `textual` widgets. If returning a specific widget subclass (e.g., `Horizontal`), hint it as such, or ensure it is correctly imported/available.
+
 ---
 
 ## Testing Standards
@@ -148,6 +156,7 @@ logger.info(f"Gemini CLI completed: {line_count} lines in {elapsed:.1f}s, exit c
 | **ModalScreen** | Use `ModalScreen[ReturnType]` with `self.dismiss(result)`. Add `priority=True` to bindings conflicting with TextArea. |
 | **TabbedContent** | Query widgets by unique IDs like `{phase}-backend`, not tab structure. |
 | **Focus vs Selection** | Use CSS classes (`.selected`) for app state, not `:focus` pseudo-classes. |
+| **Destructive Actions** | Always use `ConfirmModal` for irreversible actions (e.g., delete project, overwrite all configs). |
 | **Testing Apps** | Inline `async with App().run_test() as pilot:` per test case; don't share app fixtures. |
 
 ---
@@ -176,6 +185,7 @@ config_path = "~/.config/agent-pump/config.yml"
 - Use `asyncio.create_subprocess_exec()` for subprocesses
 - Handle different shell behaviors
 - Test commands on all platforms
+- **Windows `CREATE_NO_WINDOW`**: Always pass `creationflags=subprocess.CREATE_NO_WINDOW` on Windows. Without this flag, subprocesses may allocate their own console windows and write output directly to them (via `WriteConsole`) instead of through pipes, causing both terminal popups and broken output capture.
 
 ---
 
@@ -196,6 +206,7 @@ config_path = "~/.config/agent-pump/config.yml"
 Validate user-provided commands against dangerous patterns:
 - Command chaining: `||`, `&&`, `;`
 - Command substitution: `$()`, backticks
+- Security validation should be implemented at the model level using Pydantic validators to prevent command injection attacks
 
 ---
 
@@ -206,6 +217,16 @@ Validate user-provided commands against dangerous patterns:
 - Use prefix/suffix pattern for prompt customization: `prefix + base_prompt + suffix`
 - Access nested config safely: guard with `if project_config and project_config.phase_backends...`
 - Lambda closure bug: capture loop variables explicitly: `lambda msg, p=path: self._log(msg, p)`
+
+## Verification Command Patterns
+
+- Use Pydantic models for verification configuration with proper validation
+- Implement auto-detection logic for common project types (npm, cargo, go, uv, etc.)
+- Run verification commands in sequence: build → lint → test
+- Include security validation to prevent command injection
+- Provide clear logging of verification results
+- Allow skipping verification phases when needed
+- Implement proper error handling and reporting for failed commands
 
 ---
 
@@ -225,6 +246,15 @@ Closes #42
 
 ### File Handling
 Never commit: `.gemini/`, `__pycache__/`, `.pytest_cache/`, virtual environments, IDE settings
+
+---
+
+## State Management
+
+### Persistence & Resets
+- **Atomic Updates**: When resetting state or handling transitions, ensure both the in-memory object (e.g., `ProjectWorkflow`) and the persisted state file (e.g., `state.json`) are updated to prevent desync.
+- **Handling Interruptions**: Design state loading to be robust against partial writes or missing files. Use defaults and fallback to 'idle' or 'error' states if data is corrupt.
+- **Explicit Resets**: Provide a clear mechanism (e.g., `reset_workflow()`) to force a clean slate, rather than relying on manual file deletion.
 
 ---
 

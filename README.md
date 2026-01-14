@@ -178,7 +178,36 @@ verification:
   skip_verification: false
 ```
 
+**Java/Maven Project:**
+```yaml
+verification:
+  build_cmd: "mvn compile"
+  lint_cmd: "mvn checkstyle:check"
+  test_cmd: "mvn test"
+  skip_verification: false
+```
+
+**Java/Gradle Project:**
+```yaml
+verification:
+  build_cmd: "gradle build"
+  lint_cmd: "gradle check"
+  test_cmd: "gradle test"
+  skip_verification: false
+```
+
+**C++/Make Project:**
+```yaml
+verification:
+  build_cmd: "make"
+  lint_cmd: "cppcheck --enable=all src/"
+  test_cmd: "make test"
+  skip_verification: false
+```
+
 Verification commands run in sequence (build → lint → test) after the AI verification phase. If any command fails, the workflow enters an error state and the AI agent will attempt to fix the issue.
+
+The system includes security validation to prevent dangerous command patterns like `||`, `&&`, `;`, `$()`, and backticks to prevent command injection attacks.
 
 ### 3. Orchestrate
 

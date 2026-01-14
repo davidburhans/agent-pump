@@ -22,6 +22,9 @@ class PhaseLog(BaseModel):
 class WorkflowState(BaseModel):
     """Persisted state of a project's workflow."""
 
+    # Maximum number of phase logs to retain
+    MAX_PHASE_LOGS: int = 1000
+
     project_path: Path
     current_state: str = Field(default="idle")
     current_feature: str | None = None
@@ -53,6 +56,11 @@ class WorkflowState(BaseModel):
         """Log the start of a phase."""
         self.phase_logs.append(PhaseLog(phase=phase, started_at=datetime.now()))
         self.last_updated = datetime.now()
+        
+        # Trim old entries to prevent unbounded growth
+        if len(self.phase_logs) > self.MAX_PHASE_LOGS:
+            trim_count = self.MAX_PHASE_LOGS // 10
+            self.phase_logs = self.phase_logs[trim_count:]
 
     def log_phase_complete(
         self,

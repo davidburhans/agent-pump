@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import shlex
+import sys
 from pathlib import Path
 from typing import NamedTuple
 
@@ -61,7 +62,8 @@ class VerificationExecutor:
         start_time = asyncio.get_event_loop().time()
 
         try:
-            # Split the command into shell arguments
+            # Split the command into shell arguments using POSIX mode
+            # Note: Commands with Windows paths should use forward slashes for compatibility
             shell_cmd = shlex.split(cmd)
             executable = shell_cmd[0]
             args = shell_cmd[1:] if len(shell_cmd) > 1 else []

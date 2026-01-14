@@ -15,7 +15,7 @@ from agent_pump.models.workspace import (
     ProjectConfig,
     Workspace,
 )
-
+from agent_pump.tui.screens.confirm_modal import ConfirmModal
 
 PHASES = ["planning", "implementing", "verifying", "brainstorming", "committing"]
 
@@ -85,8 +85,8 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
     }
 
     .backend-list {
-        height: 1fr;
-        min-height: 10;
+        height: auto;
+        max-height: 20;
         border: solid $primary;
         padding: 1;
         margin-bottom: 1;
@@ -181,19 +181,19 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
         with Container(id="modal-container"):
             yield Static(f"⚙️ Backend Configuration: {self.project_config.name}", id="modal-title")
             yield Label(
-                "Configure backend fallback chains. Backends tried in order. Ctrl+S to save, Esc to cancel.",
-                classes="help-text"
+                "Configure backend fallback chains. Backends tried in order. Ctrl+S to save, Esc to cancel.",  # noqa: E501
+                classes="help-text",
             )
 
             with TabbedContent():
                 # Default Defaults Tab
                 with TabPane("🌐 Project Default", id="tab-default"):
-                     yield from self._compose_phase_content(
-                         "default",
-                         self._phase_backends_lists["default"],
-                         available_backends,
-                         preset_names,
-                         is_default_tab=True
+                    yield from self._compose_phase_content(
+                        "default",
+                        self._phase_backends_lists["default"],
+                        available_backends,
+                        preset_names,
+                        is_default_tab=True,
                     )
 
                 # Phase Tabs
@@ -211,11 +211,13 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
                             phase,
                             self._phase_backends_lists[phase],
                             available_backends,
-                            preset_names
+                            preset_names,
                         )
 
             with Horizontal(classes="button-row"):
+                yield Button("+ Add Backend", id="btn-add-backend", variant="primary")
                 yield Button("Reset All", variant="warning", id="btn-reset")
+                yield Button("Apply to All Projects", variant="warning", id="btn-apply-all")
                 yield Button("Cancel (Esc)", variant="error", id="btn-cancel")
                 yield Button("Save (Ctrl+S)", variant="success", id="btn-save")
 
@@ -225,7 +227,7 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
         backends: list[BackendInstance],
         available_backends: list[str],
         preset_names: list[str],
-        is_default_tab: bool = False
+        is_default_tab: bool = False,
     ) -> ComposeResult:
         """Helper to compose content for a single phase tab."""
         with VerticalScroll(classes="phase-config", id=f"{phase}-container"):
@@ -238,7 +240,7 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
                     "Use Project Default Chain",
                     value=is_inherited,
                     id=f"{phase}-inherit-checkbox",
-                    classes="inherit-checkbox"
+                    classes="inherit-checkbox",
                 )
 
             # Wrapper for content that gets disabled/hidden if inherited
@@ -247,13 +249,19 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
             # Copy from dropdown
             copy_options = [("(select to copy)", "")]
             if phase != "default":
-                 copy_options.append(("Project Default", "phase:default"))
+                copy_options.append(("Project Default", "phase:default"))
 
             for p in PHASES:
                 if p != phase:
                     copy_options.append((f"Phase: {p.capitalize()}", f"phase:{p}"))
             for preset_name in preset_names:
                 copy_options.append((f"Preset: {preset_name}", f"preset:{preset_name}"))
+
+            # Add projects
+            current_path = str(self.project_config.path.resolve())
+            for p_path_str, p_config in self.workspace.projects.items():
+                if p_path_str != current_path:
+                    copy_options.append((f"Project: {p_config.name}", f"project:{p_path_str}"))
 
             with Vertical(id=f"{phase}-content-wrapper"):
                 if not is_inherited:
@@ -267,20 +275,17 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
                         )
                         yield Button("Save as Preset", id=f"{phase}-save-preset", variant="primary")
 
-                    yield Label(f"Backend Chain (tried in order):", classes="section-label")
+                    yield Label("Backend Chain (tried in order):", classes="section-label")
 
                     with VerticalScroll(classes="backend-list", id=f"{phase}-backend-list"):
                         for idx, backend in enumerate(backends):
                             yield self._create_backend_row(phase, idx, backend, available_backends)
-
-                    with Horizontal(classes="add-row"):
-                        yield Button("+ Add Backend", id=f"{phase}-add-backend", variant="success")
                 else:
                     yield Label("Using Project Default Chain", classes="hint")
 
     def _create_backend_row(
         self, phase: str, idx: int, backend: BackendInstance, available_backends: list[str]
-    ) -> Container:
+    ) -> Horizontal:
         """Create a row for a single backend in the chain."""
         # Use rebuild counter in IDs to avoid duplicate ID errors during async removal
         rc = self._rebuild_counter
@@ -291,7 +296,7 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
                 [(b, b) for b in available_backends],
                 value=backend.name,
                 id=f"{phase}-backend-{rc}-{idx}",
-                allow_blank=False
+                allow_blank=False,
             )
         )
         row.compose_add_child(
@@ -306,7 +311,8 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
 
     def on_select_changed(self, event: Select.Changed) -> None:
         """Handle copy-from selection."""
-        if not event.select.id: return
+        if not event.select.id:
+            return
         select_id = str(event.select.id)
         if "-copy-from" in select_id and event.value:
             phase = select_id.replace("-copy-from", "")
@@ -328,7 +334,9 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
                 # User wants to customize. If empty, copy default or add one
                 if not self._phase_backends_lists[phase]:
                     if self._phase_backends_lists.get("default"):
-                        self._phase_backends_lists[phase] = [b.model_copy() for b in self._phase_backends_lists["default"]]
+                        self._phase_backends_lists[phase] = [
+                            b.model_copy() for b in self._phase_backends_lists["default"]
+                        ]
                     else:
                         self._phase_backends_lists[phase] = [BackendInstance()]
 
@@ -338,58 +346,72 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
     async def _rebuild_phase_ui(self, phase: str) -> None:
         """Rebuild the entire content wrapper for a phase."""
         try:
-             # Just remove the tab pane content and recreate it?
-             # Easier to just remove children of container and recall compose logic
-             container = self.query_one(f"#{phase}-container", VerticalScroll)
-             await container.remove_children()
+            # Just remove the tab pane content and recreate it?
+            # Easier to just remove children of container and recall compose logic
+            container = self.query_one(f"#{phase}-container", VerticalScroll)
+            await container.remove_children()
 
-             # Re-run compose logic manually
-             # Checkbox
-             backends = self._phase_backends_lists[phase]
-             is_inherited = phase != "default" and len(backends) == 0
+            # Re-run compose logic manually
+            # Checkbox
+            backends = self._phase_backends_lists[phase]
+            is_inherited = phase != "default" and len(backends) == 0
 
-             if phase != "default":
-                 await container.mount(Checkbox(
-                    "Use Project Default Chain",
-                    value=is_inherited,
-                    id=f"{phase}-inherit-checkbox",
-                    classes="inherit-checkbox"
-                 ))
+            if phase != "default":
+                await container.mount(
+                    Checkbox(
+                        "Use Project Default Chain",
+                        value=is_inherited,
+                        id=f"{phase}-inherit-checkbox",
+                        classes="inherit-checkbox",
+                    )
+                )
 
-             available_backends = list(BACKEND_REGISTRY.keys())
-             preset_names = list(self.workspace.backend_presets.keys())
+            available_backends = list(BACKEND_REGISTRY.keys())
+            preset_names = list(self.workspace.backend_presets.keys())
 
-             # Wrapper
-             wrapper = Vertical(id=f"{phase}-content-wrapper")
-             await container.mount(wrapper)
+            # Wrapper
+            wrapper = Vertical(id=f"{phase}-content-wrapper")
+            await container.mount(wrapper)
 
-             if not is_inherited:
+            if not is_inherited:
                 # Copy row
                 copy_options = [("(select to copy)", "")]
-                if phase != "default": copy_options.append(("Project Default", "phase:default"))
+                if phase != "default":
+                    copy_options.append(("Project Default", "phase:default"))
                 for p in PHASES:
-                    if p != phase: copy_options.append((f"Phase: {p.capitalize()}", f"phase:{p}"))
+                    if p != phase:
+                        copy_options.append((f"Phase: {p.capitalize()}", f"phase:{p}"))
                 for preset_name in preset_names:
                     copy_options.append((f"Preset: {preset_name}", f"preset:{preset_name}"))
 
+                # Add projects
+                current_path = str(self.project_config.path.resolve())
+                for p_path_str, p_config in self.workspace.projects.items():
+                    if p_path_str != current_path:
+                        copy_options.append((f"Project: {p_config.name}", f"project:{p_path_str}"))
+
                 copy_row = Horizontal(classes="copy-row")
                 copy_row.compose_add_child(Label("Copy from:"))
-                copy_row.compose_add_child(Select(copy_options, value="", allow_blank=False, id=f"{phase}-copy-from"))
-                copy_row.compose_add_child(Button("Save as Preset", id=f"{phase}-save-preset", variant="primary"))
+                copy_row.compose_add_child(
+                    Select(copy_options, value="", allow_blank=False, id=f"{phase}-copy-from")
+                )
+                copy_row.compose_add_child(
+                    Button("Save as Preset", id=f"{phase}-save-preset", variant="primary")
+                )
                 await wrapper.mount(copy_row)
 
-                await wrapper.mount(Label(f"Backend Chain (tried in order):", classes="section-label"))
+                await wrapper.mount(
+                    Label("Backend Chain (tried in order):", classes="section-label")
+                )
 
                 list_container = VerticalScroll(classes="backend-list", id=f"{phase}-backend-list")
                 await wrapper.mount(list_container)
 
                 for idx, backend in enumerate(backends):
-                    await list_container.mount(self._create_backend_row(phase, idx, backend, available_backends))
-
-                add_row = Horizontal(classes="add-row")
-                add_row.compose_add_child(Button("+ Add Backend", id=f"{phase}-add-backend", variant="success"))
-                await wrapper.mount(add_row)
-             else:
+                    await list_container.mount(
+                        self._create_backend_row(phase, idx, backend, available_backends)
+                    )
+            else:
                 await wrapper.mount(Label("Using Project Default Chain", classes="hint"))
 
         except Exception:
@@ -409,6 +431,17 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
             if preset_name in self.workspace.backend_presets:
                 preset = self.workspace.backend_presets[preset_name]
                 source_backends = [b.model_copy() for b in preset.backends.backends]
+        elif source.startswith("project:"):
+            project_path_str = source.replace("project:", "")
+            p_config = self.workspace.projects.get(project_path_str)
+            if p_config:
+                if target_phase == "default":
+                    if p_config.default_chain:
+                        source_backends = [b.model_copy() for b in p_config.default_chain.backends]
+                else:
+                    phase_chain = getattr(p_config.phase_backends, target_phase, None)
+                    if phase_chain and phase_chain.backends:
+                        source_backends = [b.model_copy() for b in phase_chain.backends]
 
         if source_backends:
             self._phase_backends_lists[target_phase] = source_backends
@@ -425,14 +458,17 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
             await container.remove_children()
 
             for idx, backend in enumerate(self._phase_backends_lists[phase]):
-                await container.mount(self._create_backend_row(phase, idx, backend, available_backends))
+                await container.mount(
+                    self._create_backend_row(phase, idx, backend, available_backends)
+                )
         except Exception:
             # Container might not exist if inherited
             pass
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
-        if not event.button.id: return
+        if not event.button.id:
+            return
         button_id = str(event.button.id)
 
         if button_id == "btn-cancel":
@@ -441,9 +477,11 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
             self.action_save()
         elif button_id == "btn-reset":
             self.call_later(self._reset_to_default)
-        elif "-add-backend" in button_id:
-            phase = button_id.replace("-add-backend", "")
-            self.call_later(self._add_backend, phase)
+        elif button_id == "btn-apply-all":
+            self.action_apply_to_all()
+        elif button_id == "btn-add-backend":
+            # Add backend to the currently active tab
+            self.call_later(self._add_backend_to_active_tab)
         elif "-remove-" in button_id:
             # ID format: {phase}-remove-{counter}-{idx}
             parts = button_id.split("-")
@@ -454,11 +492,34 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
             phase = button_id.replace("-save-preset", "")
             self._save_as_preset(phase)
 
+    async def _add_backend_to_active_tab(self) -> None:
+        """Determine the active tab and add a backend to it."""
+        try:
+            tabbed_content = self.query_one(TabbedContent)
+            active_tab_id = str(tabbed_content.active)
+            # Tab IDs are like "tab-planning", "tab-default", etc.
+            phase = active_tab_id.replace("tab-", "")
+
+            # Check if this phase is inherited (empty backends)
+            if phase != "default" and len(self._phase_backends_lists.get(phase, [])) == 0:
+                self.notify(
+                    f"Uncheck 'Use Project Default Chain' first to add backends to {phase}",
+                    severity="warning",
+                )
+                return
+
+            await self._add_backend(phase)
+        except Exception as e:
+            self.notify(f"Could not add backend: {e}", severity="error")
+
     async def _add_backend(self, phase: str) -> None:
         """Add a new backend to the chain."""
         self._sync_phase_from_ui(phase)  # Preserve current values
         self._phase_backends_lists[phase].append(BackendInstance())
-        self.notify(f"Added backend #{len(self._phase_backends_lists[phase])} to {phase}", severity="information")
+        self.notify(
+            f"Added backend #{len(self._phase_backends_lists[phase])} to {phase}",
+            severity="information",
+        )
         await self._rebuild_backend_list(phase)
 
     async def _remove_backend(self, phase: str, idx: int) -> None:
@@ -491,6 +552,62 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
         self.workspace.save()
         self.notify(f"Saved preset: {name}", severity="information")
 
+    def action_apply_to_all(self) -> None:
+        """Apply current configuration to all projects."""
+        def on_confirm(confirm: bool) -> None:
+            if confirm:
+                self._perform_apply_to_all()
+
+        self.app.push_screen(
+            ConfirmModal(
+                "Are you sure you want to apply this configuration to ALL projects?\n"
+                "This will overwrite their backend settings.",
+                confirm_label="Overwrite All"
+            ),
+            on_confirm
+        )
+
+    def _perform_apply_to_all(self) -> None:
+        """Execute the apply to all operation."""
+        # Save current state to memory
+        self._save_config_to_memory()
+
+        # Apply to all projects
+        current_phase_backends = self.project_config.phase_backends
+        current_default_chain = self.project_config.default_chain
+
+        count = 0
+        current_path = str(self.project_config.path.resolve())
+        for p_path, p_config in self.workspace.projects.items():
+            if p_path == current_path:
+                continue
+
+            p_config.phase_backends = current_phase_backends.model_copy(deep=True)
+            if current_default_chain:
+                p_config.default_chain = current_default_chain.model_copy(deep=True)
+            else:
+                p_config.default_chain = None
+            count += 1
+
+        self.workspace.save()
+        self.notify(f"Applied configuration to {count} other projects", severity="information")
+
+    def _save_config_to_memory(self) -> None:
+        """Save the UI state to the project config object without dismissing."""
+        # Save default phase
+        self._sync_phase_from_ui("default")
+        default_backends = self._phase_backends_lists["default"]
+        self.project_config.default_chain = BackendFallback(backends=default_backends)
+
+        # Save other phases
+        for phase in PHASES:
+            self._sync_phase_from_ui(phase)
+            backends = self._phase_backends_lists[phase]
+            setattr(self.phase_backends, phase, BackendFallback(backends=backends))
+
+        # Update the project config's phase_backends
+        self.project_config.phase_backends = self.phase_backends
+
     def action_cancel(self) -> None:
         """Cancel and dismiss without saving."""
         self.dismiss(None)
@@ -503,9 +620,9 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
         """Reset all phases to default (inherit)."""
         self._phase_backends_lists["default"] = [BackendInstance(name="gemini")]
         for phase in PHASES:
-             # Empty list means inherit
-             self._phase_backends_lists[phase] = []
-             await self._rebuild_phase_ui(phase)
+            # Empty list means inherit
+            self._phase_backends_lists[phase] = []
+            await self._rebuild_phase_ui(phase)
 
         await self._rebuild_phase_ui("default")
         self.notify("Reset to Project Default", severity="information")
@@ -514,7 +631,8 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
         """Sync backend list from UI values for a phase."""
         # Only sync if we have backends (not inherited)
         backends = self._phase_backends_lists[phase]
-        if not backends: return
+        if not backends:
+            return
 
         rc = self._rebuild_counter
         for idx in range(len(backends)):
@@ -528,15 +646,5 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
 
     def _save_config(self) -> None:
         """Save the configuration and dismiss."""
-        # Save default phase
-        self._sync_phase_from_ui("default")
-        default_backends = self._phase_backends_lists["default"]
-        self.project_config.default_chain = BackendFallback(backends=default_backends)
-
-        # Save other phases
-        for phase in PHASES:
-            self._sync_phase_from_ui(phase)
-            backends = self._phase_backends_lists[phase]
-            setattr(self.phase_backends, phase, BackendFallback(backends=backends))
-
+        self._save_config_to_memory()
         self.dismiss(self.phase_backends)

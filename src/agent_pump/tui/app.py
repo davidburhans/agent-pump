@@ -25,8 +25,10 @@ from agent_pump.tui.screens import (
     AddProjectModal,
     BackendConfigModal,
     GlobalPromptModal,
+    ProjectConfigModal,
     PromptConfigModal,
 )
+from agent_pump.tui.screens.confirm_modal import ConfirmModal
 from agent_pump.tui.screens.log_filter_modal import LogFilterModal
 from agent_pump.tui.widgets.log_panel import LogPanel
 from agent_pump.tui.widgets.project_card import ProjectCard
@@ -47,10 +49,11 @@ class AgentPumpApp(App):
         Binding("a", "add_project", "Add"),
         Binding("d", "toggle_dark", "Dark"),
         Binding("i", "add_idea", "Idea"),
-        Binding("i", "add_idea", "Idea"),
         Binding("P", "global_prompts", "Global"),
         Binding("f", "filter_logs", "Filter"),
         Binding("o", "toggle_sort", "Order"),
+        Binding("t", "toggle_timer", "Timer"),
+        Binding("W", "toggle_workflow_panel", "Flow Panel"),
     ]
 
     def __init__(self, project_paths: list[Path] | None = None):
@@ -108,11 +111,11 @@ class AgentPumpApp(App):
     def on_mount(self) -> None:
         """Called when app is mounted."""
         self.log_panel = self.query_one("#log-panel", LogPanel)
-        
+
         # Apply persisted sort order
         if self.log_panel:
             self.log_panel.set_sort_order(self.app_state.log_sort_order)
-            
+
         self.workflow_panel = self.query_one("#workflow-panel", WorkflowPanel)
         self._log("Agent Pump started")
         self._log("Press 'a' to add a project, 'q' to quit")
@@ -123,11 +126,11 @@ class AgentPumpApp(App):
             self._add_project(path)
 
     def _log(
-        self, 
-        message: str, 
+        self,
+        message: str,
         project_path: Path | None = None,
         state: str = "unknown",
-        task: str | None = None
+        task: str | None = None,
     ) -> None:
         """Log a message to the log panel."""
         if self.log_panel:
@@ -158,8 +161,10 @@ class AgentPumpApp(App):
             ("X", "stop_all", "All⏹"),
             ("k", "skip_feature", "Skip"),
             ("w", "show_workflow", "Flow"),
+            ("c", "config_project", "Conf"),
             ("b", "config_backends", "Back"),
             ("p", "config_prompts", "Prmt"),
+            ("R", "reset_project", "Reset"),
         ]
 
         if self.selected_project is not None and not self._project_bindings_active:
@@ -175,7 +180,6 @@ class AgentPumpApp(App):
                 except Exception:
                     pass
             self._project_bindings_active = False
-
 
     def _add_project(self, path: Path) -> None:
         """Add a project to the app."""
@@ -226,7 +230,9 @@ class AgentPumpApp(App):
                 prompt_customization=prompt_customization,
                 idea_queue=idea_queue,
                 on_output=lambda msg, s, t, p=path: self._log(msg, project_path=p, state=s, task=t),
-                on_state_change=lambda old, new, p=path: self._on_workflow_state_change(p, old, new),
+                on_state_change=lambda old, new, p=path: self._on_workflow_state_change(
+                    p, old, new
+                ),
                 on_ideas_processed=lambda p=path: self._on_ideas_processed(p),
             )
             self.workflows[path] = workflow
@@ -281,16 +287,16 @@ class AgentPumpApp(App):
             project_id = self._get_project_id(path)
             card = self.query_one(f"#{project_id}", ProjectCard)
             card.refresh_content()
-        except Exception:
+        except Exception as e:
             # Card might not exist anymore
             # Card might not exist anymore, or ID mismatch
             self._log(f"[ERROR] Failed to update card for {path}: {e}", project_path=path)
 
         # Update workflow panel if selected
         if self.selected_project == path:
-             workflow = self.workflows.get(path)
-             if workflow and self.workflow_panel:
-                 self.workflow_panel.set_workflow(workflow)
+            workflow = self.workflows.get(path)
+            if workflow and self.workflow_panel:
+                self.workflow_panel.set_workflow(workflow)
 
     def _remove_project(self, path: Path) -> None:
         """Remove a project from the app."""
@@ -337,6 +343,7 @@ class AgentPumpApp(App):
     def _get_project_id(self, path: Path) -> str:
         """Generate a safe CSS ID for a project path."""
         import re
+
         name = path.name or "root"
         safe_name = re.sub(r"[^a-zA-Z0-9_-]", "_", name)
         # Ensure it doesn't start with a number if possible, or just prefix
@@ -361,6 +368,7 @@ class AgentPumpApp(App):
 
     def action_add_project(self) -> None:
         """Handle add project action."""
+
         def handle_project_path(path: Path | None) -> None:
             if path:
                 self._add_project(path)
@@ -482,9 +490,7 @@ class AgentPumpApp(App):
                 if self.selected_project:
                     project_config = self.workspace.get_project_config(self.selected_project)
                     if project_config:
-                        project_config.idea_queue.append(
-                            IdeaQueueItem(idea=idea.strip())
-                        )
+                        project_config.idea_queue.append(IdeaQueueItem(idea=idea.strip()))
                         self.workspace.save()
                         self._log(f"Added idea to project queue: {idea.strip()}")
                 else:
@@ -495,6 +501,26 @@ class AgentPumpApp(App):
                 self._log("No idea added")
 
         self.push_screen(IdeaInputModal(), handle_idea)
+
+    def action_config_project(self) -> None:
+        """Configure project settings."""
+        if not self.selected_project:
+            self._log("No project selected. Select a project first.")
+            return
+
+        def handle_close(result: None) -> None:
+            self._log(f"Configuration closed for {self.selected_project}")
+            # Refresh config dependent properties
+            if self.selected_project and self.selected_project in self.projects:
+                config = Config.load(self.selected_project)
+                self.projects[self.selected_project].backend = config.backend
+
+                # Update workflow with new config
+                workflow = self.workflows.get(self.selected_project)
+                if workflow:
+                    workflow.config = config
+
+        self.push_screen(ProjectConfigModal(self.selected_project), handle_close)
 
     def action_config_backends(self) -> None:
         """Configure backend settings for the selected project."""
@@ -544,10 +570,11 @@ class AgentPumpApp(App):
             else:
                 self._log("Prompt customization cancelled")
 
-        self.push_screen(PromptConfigModal(project_config), handle_result)
+        self.push_screen(PromptConfigModal(project_config, self.workspace), handle_result)
 
     def action_global_prompts(self) -> None:
         """Configure global prompt prefix/suffix per engine and model."""
+
         def handle_result(settings: GlobalPromptSettings | None) -> None:
             if settings is not None:
                 self.workspace.global_prompt_settings = settings
@@ -571,36 +598,34 @@ class AgentPumpApp(App):
                 states, task = result
                 # Preserve project path filter from panel
                 current_project_path = self.log_panel.filter_path
-                # Pass explicit None for empty list if that's what we want, 
-                # but set_filter expects list | None. 
+                # Pass explicit None for empty list if that's what we want,
+                # but set_filter expects list | None.
                 # Logic in LogPanel: if states is not None, it filters.
                 # So if user cleared filters (empty list), we should pass None or empty list?
-                # LogPanel logic: "if self.filter_states is not None: if entry.state not in self.filter_states"
+                # LogPanel logic: "if self.filter_states is not None: if entry.state not in self.filter_states"  # noqa: E501
                 # So if we pass [], it will show NOTHING (unless state is in []).
-                # Wait, if user unchecks all, they probably want to see ALL? 
+                # Wait, if user unchecks all, they probably want to see ALL?
                 # Or do they want to see nothing? Usually "Clear Filters" implies see all.
                 # My Clear button returns ([], None).
-                
-                # Let's adjust logic: If user selected states, use them. If empty, assume NO filter on state?
+
+                # Let's adjust logic: If user selected states, use them. If empty, assume NO filter on state?  # noqa: E501
                 # The modal returns [] if nothing selected.
                 # If the user explicitly selects nothing, maybe they mean nothing.
                 # But the "Clear" button is distinct.
-                
+
                 # Let's assume sending None means "no filter".
-                final_states = states if states else None 
-                
+                final_states = states if states else None
+
                 self.log_panel.set_filter(
-                    project_path=current_project_path,
-                    states=final_states,
-                    task=task
+                    project_path=current_project_path, states=final_states, task=task
                 )
-                
+
                 filter_desc = []
                 if final_states:
                     filter_desc.append(f"states={final_states}")
                 if task:
                     filter_desc.append(f"task='{task}'")
-                
+
                 if filter_desc:
                     self._log(f"[UI] Log filter active: {', '.join(filter_desc)}")
                 else:
@@ -616,6 +641,86 @@ class AgentPumpApp(App):
             self.app_state.save()
             self._log(f"[UI] Log sort order: {new_order.upper()}")
 
+    def action_toggle_workflow_panel(self) -> None:
+        """Toggle the visibility of the workflow panel."""
+        try:
+            right_sidebar = self.query_one("#right-sidebar")
+            if right_sidebar.display:
+                right_sidebar.display = False
+                self._log("[UI] Workflow panel hidden")
+            else:
+                right_sidebar.display = True
+                self._log("[UI] Workflow panel shown")
+        except Exception as e:
+            self._log(f"[ERROR] Failed to toggle workflow panel: {e}")
+
+    def action_toggle_timer(self) -> None:
+        """Toggle timer display between elapsed time and time remaining."""
+        ProjectCard.toggle_time_mode()
+        mode = "time remaining" if ProjectCard.show_time_remaining else "elapsed time"
+        self._log(f"[UI] Timer mode: {mode}")
+        # Refresh all project cards to show the new mode immediately
+        try:
+            project_list = self.query_one("#project-list", Container)
+            for card in project_list.query(ProjectCard):
+                card.refresh_content()
+        except Exception:
+            pass
+
+    def action_reset_project(self) -> None:
+        """Reset the selected project's workflow state."""
+        if not self.selected_project:
+            self._log("No project selected.")
+            return
+
+        workflow = self.workflows.get(self.selected_project)
+        if not workflow:
+            return
+
+        def on_confirm(confirm: bool) -> None:
+            if confirm and self.selected_project:
+                wf = self.workflows.get(self.selected_project)
+                if wf:
+                    wf.reset_workflow()
+                    self._log(
+                        f"Reset workflow for {wf.project.name}",
+                        project_path=self.selected_project,
+                    )
+
+        self.push_screen(
+            ConfirmModal(
+                "Are you sure you want to RESET the workflow state?\n"
+                "This will cancel any running tasks and set the state to IDLE.",
+                confirm_label="Reset",
+                cancel_label="Cancel",
+            ),
+            on_confirm,
+        )
+
+    async def action_quit(self) -> None:
+        """Quit the application, properly cleaning up subprocesses."""
+        import asyncio
+        import warnings
+
+        # Cancel all running workflows
+        for workflow in self.workflows.values():
+            if workflow.is_running():
+                workflow.cancel()
+
+        # Cancel all Textual workers (background tasks)
+        self.workers.cancel_all()
+
+        # Give asyncio time to clean up subprocess transports
+        await asyncio.sleep(0.2)
+
+        # Suppress ResourceWarning for unclosed subprocess transports on Windows
+        # These warnings occur because Python's garbage collector runs after the
+        # event loop is closed, but the resources are already properly cleaned up
+        warnings.filterwarnings(
+            "ignore", category=ResourceWarning, message=".*unclosed transport.*"
+        )
+
+        self.exit()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
@@ -648,4 +753,3 @@ class AgentPumpApp(App):
             self.log_panel.set_filter(event.project.path)
         self._update_activity_log_title()
         self._update_project_bindings()
-

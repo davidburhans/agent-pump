@@ -21,6 +21,9 @@ class LogEntry:
 class LogPanel(TextArea):
     """A scrolling log panel for displaying agent output."""
 
+    # Maximum number of log entries to keep in memory
+    MAX_LOG_ENTRIES = 10000
+
     DEFAULT_CSS = """
     LogPanel {
         background: $surface;
@@ -81,6 +84,12 @@ class LogPanel(TextArea):
             formatted_line=formatted_line
         )
         self.log_entries.append(entry)
+        
+        # Trim old entries to prevent unbounded memory growth
+        if len(self.log_entries) > self.MAX_LOG_ENTRIES:
+            # Remove oldest 10% when limit exceeded
+            trim_count = self.MAX_LOG_ENTRIES // 10
+            self.log_entries = self.log_entries[trim_count:]
 
         # Only append if it matches current filter
         # But wait, if we are sorting "desc" (newest top), appending to text might break order if we just append?

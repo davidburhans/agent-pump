@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 class BackendRunner(Protocol):
     """Protocol for something that can run agent prompts."""
 
-    async def run(
+    def run(
         self,
         project_path: Path,
         prompt: str,
@@ -80,7 +80,7 @@ class ProjectWorkflow:
         project: Project,
         backend: AgentBackend | None = None,
         config: Any | None = None,  # Legacy file-based config
-        project_config: ProjectConfig | None = None, # New workspace config
+        project_config: ProjectConfig | None = None,  # New workspace config
         phase_backends: PhaseBackends | None = None,
         prompt_customization: PromptCustomization | None = None,
         idea_queue: list[str] | None = None,
@@ -96,7 +96,8 @@ class ProjectWorkflow:
             backend: The AI agent backend to use (defaults to GeminiBackend)
             config: The legacy application configuration
             project_config: The project configuration (includes timeout, phase_backends, etc.)
-            phase_backends: Optional phase-specific backend configuration (overrides project_config if passed)
+            phase_backends: Optional phase-specific backend configuration
+                            (overrides project_config if passed)
             prompt_customization: Optional per-phase prompt prefix/suffix overrides
             idea_queue: Optional list of ideas to include in brainstorming
             on_output: Callback for agent output lines
@@ -107,8 +108,12 @@ class ProjectWorkflow:
         self.backend = backend or GeminiBackend()
         self.config = config
         self.project_config = project_config
-        self.phase_backends = phase_backends or (project_config.phase_backends if project_config else None)
-        self.prompt_customization = prompt_customization or (project_config.prompt_customization if project_config else PromptCustomization())
+        self.phase_backends = phase_backends or (
+            project_config.phase_backends if project_config else None
+        )
+        self.prompt_customization = prompt_customization or (
+            project_config.prompt_customization if project_config else PromptCustomization()
+        )
         self.idea_queue = idea_queue or []
         self.on_output = on_output
         self.on_state_change = on_state_change
@@ -118,8 +123,7 @@ class ProjectWorkflow:
 
         # Initialize verification executor with project's verification config
         self.verification_executor = VerificationExecutor(
-            project_path=project.path,
-            config=project.config
+            project_path=project.path, config=project.config
         )
 
         # Load or create workflow state
@@ -141,7 +145,7 @@ class ProjectWorkflow:
         self._check_task_name_file()
         if not self.project.current_feature and self.workflow_state.current_feature:
             self.project.current_feature = self.workflow_state.current_feature
-        
+
         # Sync project status from loaded state
         try:
             self.project.status = ProjectStatus(self.workflow_state.current_state)
@@ -152,9 +156,27 @@ class ProjectWorkflow:
         # Sync feature history
         self.project.completed_features = self.workflow_state.completed_features.copy()
         self.project.failed_features = self.workflow_state.failed_features.copy()
-        
+
         # Workspace reference (optional)
         self.workspace = None
+
+    def _read_file_content(self, filename: str) -> str:
+        """Read content of a file from the project directory."""
+        try:
+            file_path = self.project.path / filename
+            if file_path.exists():
+                return file_path.read_text(encoding="utf-8").strip()
+        except Exception as e:
+            logger.warning(f"Error reading {filename}: {e}")
+        return "(File not found or empty)"
+
+    def _get_context_content(self) -> dict[str, str]:
+        """Get the context content for prompts."""
+        return {
+            "roadmap_content": self._read_file_content("ROADMAP.md"),
+            "engineering_plan_content": self._read_file_content("ENGINEERING_PLAN.md"),
+            "task_name_content": self._read_file_content("TASK_NAME"),
+        }
 
     def _after_state_change(self, *args: Any, **kwargs: Any) -> None:
         """Called after each state change."""
@@ -171,6 +193,7 @@ class ProjectWorkflow:
         # Update project status
         try:
             self.project.status = ProjectStatus(new_state)
+            self.project.state_changed_at = datetime.now()
         except ValueError:
             pass
 
@@ -201,11 +224,7 @@ class ProjectWorkflow:
         """Emit output line to callback."""
         if self.on_output:
             # Pass current state and current feature as metadata
-            self.on_output(
-                line, 
-                self.workflow_state.current_state, 
-                self.project.current_feature
-            )
+            self.on_output(line, self.workflow_state.current_state, self.project.current_feature)
 
     def _get_backend_for_phase(self, phase: str) -> BackendRunner:
         """
@@ -224,7 +243,7 @@ class ProjectWorkflow:
 
         # Determine which backend list to use
         backends_to_use = []
-        
+
         # 1. Use phase-specific backends if they exist and are not empty
         if phase_config and phase_config.backends:
             # Check if it's just a "use default" placeholder or actual config
@@ -236,19 +255,19 @@ class ProjectWorkflow:
             # This implies the project default is the BASE, and steps override it.
             # So if step config exists, it wins.
             backends_to_use = phase_config.backends
-        
+
         # 2. Fallback to project-level default chain
         # Try to get project config if not already available
         project_config = self.project_config
         if not project_config and self.workspace:
-             project_config = self.workspace.get_project_config(self.project.path)
+            project_config = self.workspace.get_project_config(self.project.path)
 
         if not backends_to_use and project_config and project_config.default_chain:
-             backends_to_use = project_config.default_chain.backends
+            backends_to_use = project_config.default_chain.backends
 
         # 3. Fallback to app-level/hardcoded default (Gemini)
         if not backends_to_use:
-             return self.backend
+            return self.backend
 
         # Single backend logic
         if len(backends_to_use) == 1:
@@ -295,9 +314,9 @@ class ProjectWorkflow:
             True if successful, False otherwise
         """
         self.workflow_state.log_phase_start(phase_name)
-        self._emit_output(f"\n{'='*60}\n")
+        self._emit_output(f"\n{'=' * 60}\n")
         self._emit_output(f"Starting {phase_name} phase...\n")
-        self._emit_output(f"{'='*60}\n\n")
+        self._emit_output(f"{'=' * 60}\n\n")
 
         start_time = datetime.now()
         output_lines: list[str] = []
@@ -305,29 +324,33 @@ class ProjectWorkflow:
 
         # Get the backend for this phase
         backend = self._get_backend_for_phase(phase_name)
-        
+
         # Initialize metrics
-        metrics_backend_name = str(backend.name) # Use str() in case it's a proxy
+        metrics_backend_name = str(backend.name)  # Use str() in case it's a proxy
         metrics_model_name = None
-        
+
         # If it's a single backend (not fallback runner), try to get model from attached args
         if hasattr(backend, "_extra_args"):
             metrics_model_name = self._extract_model_from_args(getattr(backend, "_extra_args"))
-        
-        # If it's a fallback runner, we'll rely on parsing the logs, 
+
+        # If it's a fallback runner, we'll rely on parsing the logs,
         # but defaulting to "Fallback Runner" as backend name is fine initially.
         if "FallbackBackendRunner" in str(type(backend)):
-             metrics_backend_name = "Fallback Runner (Pending)"
+            metrics_backend_name = "Fallback Runner (Pending)"
 
         # Determine timeout:
         # 1. Start with project configuration default (default 1800s / 30m)
         timeout = 1800
         if self.project_config:
             timeout = self.project_config.default_timeout
-        
+
         # Checking old config.workflow location just in case legacy
-        if self.config and hasattr(self.config, "workflow") and hasattr(self.config.workflow, "timeout"):
-             timeout = self.config.workflow.timeout
+        if (
+            self.config
+            and hasattr(self.config, "workflow")
+            and hasattr(self.config.workflow, "timeout")
+        ):
+            timeout = self.config.workflow.timeout
 
         # 2. Check for step-specific override in PhaseBackends
         if self.phase_backends:
@@ -358,7 +381,7 @@ class ProjectWorkflow:
 
                 output_lines.append(line)
                 self._emit_output(line)
-                
+
                 # Parse [BACKEND] line from FallbackBackendRunner
                 # Format: [BACKEND] Using Gemini CLI (args: ['--model', 'gemini-1.5-pro'])
                 if line.startswith("[BACKEND] Using"):
@@ -377,7 +400,10 @@ class ProjectWorkflow:
                                 if "'--model'" in args_clean or '"--model"' in args_clean:
                                     # Simple extraction for now
                                     import re
-                                    match = re.search(r"['\"]--model['\"],\s*['\"]([^'\"]+)['\"]", args_clean)
+
+                                    match = re.search(
+                                        r"['\"]--model['\"],\s*['\"]([^'\"]+)['\"]", args_clean
+                                    )
                                     if match:
                                         metrics_model_name = match.group(1)
                             else:
@@ -396,7 +422,9 @@ class ProjectWorkflow:
         # specific check for min execution time
         if success and not self._cancelled:
             if duration < self.project.min_execution_time_seconds:
-                self._emit_output(f"\n[ERROR] Backend execution too short ({duration:.1f}s < {self.project.min_execution_time_seconds}s). Assuming failure.\n")
+                self._emit_output(
+                    f"\n[ERROR] Backend execution too short ({duration:.1f}s < {self.project.min_execution_time_seconds}s). Assuming failure.\n"  # noqa: E501
+                )
                 success = False
 
         # Fail if no output received and not cancelled
@@ -407,11 +435,11 @@ class ProjectWorkflow:
         # Log phase completion
         summary = "".join(output_lines[-10:]) if output_lines else None
         self.workflow_state.log_phase_complete(
-            success=success, 
+            success=success,
             summary=summary,
             backend=metrics_backend_name,
             model=metrics_model_name,
-            duration_seconds=duration
+            duration_seconds=duration,
         )
         self.workflow_state.save()
 
@@ -444,7 +472,14 @@ class ProjectWorkflow:
                     continue
 
                 if current_state == "planning":
-                    base_prompt = build_planning_prompt(self.project.branch)
+                    context = self._get_context_content()
+                    base_prompt = build_planning_prompt(
+                        feature_request=context["task_name_content"],
+                        roadmap_content=context["roadmap_content"],
+                        engineering_plan_content=context["engineering_plan_content"],
+                        task_name_content=context["task_name_content"],
+                        branch=self.project.branch,
+                    )
                     prompt = self.prompt_customization.apply_to_prompt("planning", base_prompt)
                     success = await self.run_phase(prompt, "planning")
                     if self._cancelled:
@@ -456,7 +491,9 @@ class ProjectWorkflow:
                         self.plan_failed()  # type: ignore
 
                 elif current_state == "implementing":
-                    base_prompt = build_implementing_prompt(self.project.branch)
+                    context = self._get_context_content()
+                    base_prompt_template = build_implementing_prompt(self.project.branch)
+                    base_prompt = base_prompt_template.format(**context)
                     prompt = self.prompt_customization.apply_to_prompt("implementing", base_prompt)
                     success = await self.run_phase(prompt, "implementing")
                     if self._cancelled:
@@ -467,8 +504,10 @@ class ProjectWorkflow:
                         self.implement_failed()  # type: ignore
 
                 elif current_state == "verifying":
+                    context = self._get_context_content()
                     # First run the AI verification phase
-                    base_prompt = build_verifying_prompt(self.project.branch)
+                    base_prompt_template = build_verifying_prompt(self.project.branch)
+                    base_prompt = base_prompt_template.format(**context)
                     prompt = self.prompt_customization.apply_to_prompt("verifying", base_prompt)
                     ai_success = await self.run_phase(prompt, "verifying")
 
@@ -488,7 +527,9 @@ class ProjectWorkflow:
                         # Log verification results
                         for cmd_type, result in verification_results.items():
                             status = "PASSED" if result.success else "FAILED"
-                            self._emit_output(f"\n[{status}] {cmd_type.upper()} command: {result.command or 'N/A'}")
+                            self._emit_output(
+                                f"\n[{status}] {cmd_type.upper()} command: {result.command or 'N/A'}"  # noqa: E501
+                            )
                             if result.stdout:
                                 self._emit_output(f"STDOUT:\n{result.stdout}")
                             if result.stderr:
@@ -505,8 +546,14 @@ class ProjectWorkflow:
                         self.verify_failed()  # type: ignore
 
                 elif current_state == "brainstorming":
+                    context = self._get_context_content()
                     # Include any queued ideas in the brainstorming prompt
-                    base_prompt = build_brainstorming_prompt(self.idea_queue if self.idea_queue else None)
+                    base_prompt = build_brainstorming_prompt(
+                        roadmap_content=context["roadmap_content"],
+                        engineering_plan_content=context["engineering_plan_content"],
+                        task_name_content=context["task_name_content"],
+                        queued_ideas=self.idea_queue if self.idea_queue else None,
+                    )
                     prompt = self.prompt_customization.apply_to_prompt("brainstorming", base_prompt)
                     success = await self.run_phase(prompt, "brainstorming")
                     # Clear ideas after they've been processed
@@ -514,7 +561,7 @@ class ProjectWorkflow:
                         self.on_ideas_processed(self.project.path)
 
                     self.idea_queue = []
-                    
+
                     if success:
                         self._check_task_name_file()
 
@@ -523,7 +570,9 @@ class ProjectWorkflow:
                     self.brainstorm_complete()  # type: ignore
 
                 elif current_state == "committing":
-                    base_prompt = build_committing_prompt(self.project.branch)
+                    context = self._get_context_content()
+                    base_prompt_template = build_committing_prompt(self.project.branch)
+                    base_prompt = base_prompt_template.format(**context)
                     prompt = self.prompt_customization.apply_to_prompt("committing", base_prompt)
                     success = await self.run_phase(prompt, "committing")
                     if self._cancelled:
@@ -532,7 +581,7 @@ class ProjectWorkflow:
                     if success:
                         if self.project.current_feature:
                             self.project.completed_features.append(self.project.current_feature)
-                            # We don't clear current_feature here, it will be updated/cleared in next planning/brainstorming check
+                            # We don't clear current_feature here, it will be updated/cleared in next planning/brainstorming check  # noqa: E501
                             # But technically it is "done".
 
                         # Check if there are more features
@@ -541,7 +590,9 @@ class ProjectWorkflow:
                         iteration += 1
 
                         if iteration >= max_iterations:
-                            self._emit_output(f"\n[INFO] Max iterations ({max_iterations}) reached\n")
+                            self._emit_output(
+                                f"\n[INFO] Max iterations ({max_iterations}) reached\n"
+                            )
                             self.no_more_features()  # type: ignore
                         else:
                             self.commit_complete()  # type: ignore
@@ -570,6 +621,41 @@ class ProjectWorkflow:
         """Cancel the running workflow."""
         self._cancelled = True
 
+    def reset_workflow(self) -> None:
+        """
+        Force reset the workflow to IDLE state.
+
+        This is useful for recovering from stuck states or clearing
+        the current task to start over.
+        """
+        if self._running:
+            self.cancel()
+
+        # Force state to idle via internal machine manipulation if needed,
+        # or just set it and let the persistence handle it.
+        # Since pytransitions is used, we should use to_idle() if it exists
+        # (which it should as 'idle' is a state), but to_idle() might not trigger
+        # all callbacks if not defined as a transition.
+        # However, we can just force it.
+
+        self.workflow_state.current_state = "idle"
+        self.workflow_state.current_feature = None
+        # We don't clear completed/failed history
+        self.workflow_state.save()
+
+        # Update machine state
+        self.machine.set_state("idle")
+
+        # Update project status
+        self.project.status = ProjectStatus.IDLE
+        self.project.current_feature = None
+
+        logger.info("Workflow forced reset to IDLE")
+
+        # Notify UI
+        if self.on_state_change:
+            self.on_state_change("reset", "idle")
+
     def is_running(self) -> bool:
         """Check if the workflow is currently running."""
         return self._running
@@ -582,12 +668,12 @@ class ProjectWorkflow:
             DOT format string for Graphviz visualization
         """
         # Build DOT format manually since transitions may not have GraphMachine installed
-        lines = ["digraph workflow {", '    rankdir=LR;', '    node [shape=box];']
+        lines = ["digraph workflow {", "    rankdir=LR;", "    node [shape=box];"]
 
         # Highlight current state
         for state in self.states:
             if state == self.state:  # type: ignore
-                lines.append(f'    {state} [style=filled, fillcolor=lightblue];')
+                lines.append(f"    {state} [style=filled, fillcolor=lightblue];")
             else:
                 lines.append(f"    {state};")
 
@@ -618,15 +704,17 @@ class ProjectWorkflow:
         diagram = """
   IDLE ──> PLANNING ──> IMPLEMENTING
     ^          │              │
-    │       (fail)            │
-    │          v              v
-    └───── ERROR        BRAINSTORMING
+    │       (fail)            v
+    │          v          VERIFYING
+    └───── ERROR              │
+                              v
+                        BRAINSTORMING
                               │
                               v
            COMMITTING <───────┘
                │
                v
-           COMPLETED ───────┘
+           COMPLETED
                │
                v
            PLANNING (Loop)

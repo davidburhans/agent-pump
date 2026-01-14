@@ -8,6 +8,37 @@ from pydantic import BaseModel, Field
 
 from agent_pump.models.verification_config import VerificationConfig
 
+DEFAULT_CONFIG_TEMPLATE = """# Agent Pump Host Configuration
+# Generated automatically. Edit this file to customize behavior for this project.
+
+# The AI backend to use (e.g., "gemini", "openai:gpt-4")
+backend: gemini
+
+workflow:
+  # Maximum number of autonomous iterations per run
+  max_iterations: 10
+  # Timeout in seconds for agent operations
+  timeout: 1800
+  # Git branch to isolate work (optional)
+  branch: null
+
+verification:
+  # Commands to verify code correctness.
+  # Leave empty to skip or rely on auto-detection.
+
+  # Command to run for building the project (e.g., "npm run build", "cargo build")
+  build_cmd: null
+
+  # Command to run for linting the project (e.g., "npm run lint", "ruff check .")
+  lint_cmd: null
+
+  # Command to run for testing the project (e.g., "npm test", "pytest")
+  test_cmd: null
+
+  # Set to true to skip verification phase entirely
+  skip_verification: false
+"""
+
 
 class WorkflowConfig(BaseModel):
     """Workflow configuration options."""
@@ -22,7 +53,9 @@ class Config(BaseModel):
 
     backend: str = Field(default="gemini", description="AI agent backend to use")
     workflow: WorkflowConfig = Field(default_factory=WorkflowConfig)
-    verification: VerificationConfig = Field(default_factory=VerificationConfig, description="Verification command configuration")
+    verification: VerificationConfig = Field(
+        default_factory=VerificationConfig, description="Verification command configuration"
+    )
 
     @classmethod
     def load(cls, project_path: Path) -> "Config":
@@ -33,6 +66,8 @@ class Config(BaseModel):
         1. Project-level .agent-pump.yml
         2. User-level ~/.config/agent-pump/config.yml
         3. Defaults
+
+        If project-level configuration does not exist, it is created with defaults.
         """
         config_data: dict[str, Any] = {}
 
@@ -45,6 +80,11 @@ class Config(BaseModel):
 
         # Project-level config (overrides user)
         project_config = project_path / ".agent-pump.yml"
+        if not project_config.exists():
+            # Create default config file if it doesn't exist
+            with open(project_config, "w") as f:
+                f.write(DEFAULT_CONFIG_TEMPLATE)
+
         if project_config.exists():
             with open(project_config) as f:
                 project_data = yaml.safe_load(f) or {}

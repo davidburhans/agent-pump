@@ -1,104 +1,88 @@
-"""Prompt templates for workflow phases."""
+"""Prompt builders for different workflow phases."""
+
+from collections.abc import Sequence
 
 
-def get_branch_instructions(branch: str | None) -> str:
-    """Get prompt instructions for branch handling."""
-    if not branch:
-        return ""
-    return f"""
-IMPORTANT: All work must be done on branch '{branch}'.
-Before starting, run: git checkout {branch} || git checkout -b {branch}
-Ensure you are on this branch before making any changes.
-"""
-
-
-def build_planning_prompt(branch: str | None = None) -> str:
+def build_planning_prompt(
+    feature_request: str,
+    roadmap_content: str,
+    engineering_plan_content: str,
+    task_name_content: str,
+    branch: str | None = None,
+) -> str:
     """Build the prompt for the planning phase."""
-    branch_instructions = get_branch_instructions(branch)
-    return f"""{branch_instructions}
-You are starting the PLANNING phase for this project.
+    branch_instruction = f"\n\nIMPORTANT: Work on branch '{branch}'.\n" if branch else ""
+    return f"""{branch_instruction}Create a detailed engineering plan to implement the requested \
+feature.
 
-FIRST, check if ROADMAP.md and BEST_PRACTICES.md exist. If either is missing, create it:
+Context:
+- Current ROADMAP.md: {roadmap_content}
+- Current ENGINEERING_PLAN.md: {engineering_plan_content}
 
-**If ROADMAP.md is missing**, analyze the project and create one with:
-- Status legend (🔴 Not Started, 🟡 In Progress, 🟢 Complete)
-- "Current Sprint" section with 2-3 actionable features
-- "Future Enhancements" section with ideas for later
-- "Completed" section (empty initially)
-- Each item should have: title, priority, description, acceptance criteria
+Feature Request:
+{feature_request}
 
-**If BEST_PRACTICES.md is missing**, analyze the project and create one with:
-- Project philosophy and goals
-- Tech stack with rationale for each choice
-- Code style guidelines (naming, formatting, patterns)
-- Testing standards (what to test, coverage expectations)
-- Error handling patterns
-- Logging conventions
-- Git practices (commit message format, branching)
-- Verification checklist (commands to run before committing)
-- "Lessons Learned" section (updated during development)
-
-THEN, proceed with planning:
-1. Read ROADMAP.md and identify the first uncompleted item (marked with 🔴 or "Not Started")
-4. Read BEST_PRACTICES.md to understand the project's coding standards
-5. Create a detailed ENGINEERING_PLAN.md with:
+Requirements:
+1. Format as ENGINEERING_PLAN.md with:
    - Feature description and goals
    - Detailed task list with checkboxes
    - Each task should be small and actionable
    - Include tasks for: implementation, testing, documentation
-   - THE FINAL TASK MUST BE: "Reflect on the work done and update BEST_PRACTICES.md with any lessons learned, \
-      and check if README.md needs updates as a result"
+   - THE FINAL TASK MUST BE: (
+      "Reflect on the work done and update BEST_PRACTICES.md with any "
+      "lessons learned, and check if README.md needs updates as a result"
+   )
 6. Create a TASK_NAME file containing ONLY the exact title of the feature you are working on.
 
-Be thorough but concise. The task list will guide the implementation phase.
-"""
+
+Be thorough but concise. The task list will guide the implementation phase."""
 
 
 def build_implementing_prompt(branch: str | None = None) -> str:
     """Build the prompt for the implementing phase."""
-    branch_instructions = get_branch_instructions(branch)
-    return f"""{branch_instructions}
-You are in the IMPLEMENTING phase.
+    branch_instruction = f"\n\nIMPORTANT: Work on branch '{branch}'.\n" if branch else ""
 
-Your task:
-1. Read ENGINEERING_PLAN.md to understand the tasks
-2. Execute each task in the checklist, marking them complete as you go
-3. For each code change:
-   - Follow BEST_PRACTICES.md guidelines
-   - Ensure the code builds without errors
-   - Ensure linting passes
-   - Ensure tests pass (run the test command)
-4. Complete ALL tasks including the final reflection task to update BEST_PRACTICES.md 
-   and check README.md
+    return f"""{branch_instruction}Execute the tasks in ENGINEERING_PLAN.md.
 
-Work through the entire task list systematically. Do not skip any tasks.
-"""
+Context:
+- Current ROADMAP.md: {{roadmap_content}}
+- Current ENGINEERING_PLAN.md: {{engineering_plan_content}}
+- Current TASK_NAME: {{task_name_content}}
+
+Requirements:
+1. Follow the task list exactly
+2. Update code, tests, documentation as needed
+3. Maintain code quality and best practices
+4. Keep changes focused on the current task
+5. Update BEST_PRACTICES.md with any lessons learned during implementation"""
 
 
 def build_verifying_prompt(branch: str | None = None) -> str:
     """Build the prompt for the verifying phase."""
-    branch_instructions = get_branch_instructions(branch)
-    return f"""{branch_instructions}
-You are in the VERIFYING phase.
+    branch_instruction = f"\n\nIMPORTANT: Work on branch '{branch}'.\n" if branch else ""
 
-Your task is to ensure the codebase is healthy and meets standards before proceeding.
+    return f"""{branch_instruction}Verify the implementation by running verification commands and
+fixing any issues.
 
-1. Read BEST_PRACTICES.md to find the "Verification Checklist" section.
-2. Run each verification command listed (e.g., tests, linting, type checking).
-3. If ANY command fails:
-   - Analyze the error output.
-   - Fix the issue in the code.
-   - Re-run the verification command to confirm the fix.
-   - Repeat until ALL checks pass.
-4. Ensure no new files were created that violate .gitignore or project standards.
+Context:
+- Current ROADMAP.md: {{roadmap_content}}
+- Current ENGINEERING_PLAN.md: {{engineering_plan_content}}
+- Current TASK_NAME: {{task_name_content}}
 
-Do NOT proceed to the next phase until all verification steps pass successfully.
-"""
+Requirements:
+1. Run build, lint, and test commands as configured for this project
+2. Fix any issues that arise
+3. Ensure all verification commands pass
+4. Update BEST_PRACTICES.md with any lessons learned during verification"""
 
 
-def build_brainstorming_prompt(queued_ideas: list[str] | None = None) -> str:
-    """
-    Build the prompt for the brainstorming phase.
+def build_brainstorming_prompt(
+    roadmap_content: str,
+    engineering_plan_content: str,
+    task_name_content: str,
+    queued_ideas: Sequence[str] | None = None,
+) -> str:
+    """Build the prompt for the brainstorming phase.
 
     Args:
         queued_ideas: Optional list of user-submitted ideas to consider
@@ -106,59 +90,55 @@ def build_brainstorming_prompt(queued_ideas: list[str] | None = None) -> str:
     ideas_section = ""
     if queued_ideas:
         ideas_section = "\n\n## USER-SUBMITTED IDEAS TO CONSIDER\n"
-        ideas_section += "The user has submitted the following ideas. Please evaluate each one and add any valuable ideas to the roadmap:\n\n"
+        ideas_section += (
+            "The user has submitted the following ideas. Please evaluate each one "
+            "and add any valuable ideas to the roadmap:\n\n"
+        )
         for i, idea in enumerate(queued_ideas, 1):
             ideas_section += f"{i}. {idea}\n"
         ideas_section += "\nFor each submitted idea:\n"
         ideas_section += "- If valuable: Add to 'Future Enhancements' with acceptance criteria\n"
-        ideas_section += "- If not suitable: You may skip it (the user understands not all ideas make it)\n"
+        ideas_section += (
+            "- If not suitable: You may skip it (the user understands not all ideas make it)\n"
+        )
 
-    return f"""
-You are in the BRAINSTORMING phase.
+    return f"""Brainstorm the next feature to work on based on current state.
+
+Context:
+- Current ROADMAP.md: {roadmap_content}
+- Current ENGINEERING_PLAN.md: {engineering_plan_content}
+- Current TASK_NAME: {task_name_content}
+{ideas_section}
 
 Your task:
 1. Review the feature you just implemented
 2. Update ROADMAP.md:
-   - Remove the completed feature from the list (do not just mark it as complete, remove it entirely to keep the roadmap focused)
+   - Remove the completed feature from the list (do not just mark it as complete, remove it
+     entirely to keep the roadmap focused)
    - Ensure the "current Sprint" pointers match the new top priority
 3. Documentation:
    - Check if FEATURES.md exists. If not, create it.
    - FEATURES.md should contain a list of features with:
      - Feature Name
      - Description (what it does)
-     - How to use it (commands, UI interactions, keybindings)
-     - When to use it (use cases)
-   - Add the feature you just completed to FEATURES.md
-4. Brainstorm and add NEW feature ideas to "Future Enhancements" in ROADMAP.md
-5. For EACH new idea you add, also promote ONE existing "Future Enhancement":
-   - Select an existing future item that would be valuable
-   - Flesh it out with detailed acceptance criteria
-   - Move it from "Future Enhancements" to "Current Sprint" (mark as 🔴 Not Started)
-   This ensures the roadmap always has ready-to-implement items.
-6. Delete ENGINEERING_PLAN.md (it's no longer needed)
-7. Delete TASK_NAME (it's no longer needed)
-{ideas_section}
-Focus on practical, valuable improvements that align with the project's goals.
-"""
+     - Status (planned, in-progress, completed)
+     - Link to relevant documentation
+4. Update BEST_PRACTICES.md with any lessons learned during brainstorming"""
 
 
 def build_committing_prompt(branch: str | None = None) -> str:
     """Build the prompt for the committing phase."""
-    branch_instructions = get_branch_instructions(branch)
-    return f"""{branch_instructions}
-You are in the COMMITTING phase.
+    branch_instruction = f"\n\nIMPORTANT: Work on branch '{branch}'.\n" if branch else ""
 
-Your task:
-1. Use `git status` to see what files have changed
-2. Add ONLY the files you modified using `git add <specific-file>` for each file
-   - NEVER use `git add .` or `git add -A`
-   - Do NOT add any files in the .gemini/ directory
-   - Do NOT add any files in __pycache__/ or .pytest_cache/
-3. Write a clear, conventional commit message describing the feature
-   - Format: type(scope): description
-   - Example: feat(auth): add user login functionality
-4. Commit the changes with `git commit`
-5. Push to the remote repository
+    return f"""{branch_instruction}Commit the changes with appropriate git commit messages.
 
-Verify each step succeeded before moving to the next.
-"""
+Context:
+- Current ROADMAP.md: {{roadmap_content}}
+- Current ENGINEERING_PLAN.md: {{engineering_plan_content}}
+- Current TASK_NAME: {{task_name_content}}
+
+Requirements:
+1. Create a meaningful commit message based on the changes
+2. Include reference to the feature being implemented
+3. Follow conventional commit format
+4. Update BEST_PRACTICES.md with any lessons learned during committing"""

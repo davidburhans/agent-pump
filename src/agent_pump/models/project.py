@@ -1,5 +1,6 @@
 """Project model for agent-pump."""
 
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,7 @@ class ProjectStatus(str, Enum):
     IDLE = "idle"
     PLANNING = "planning"
     IMPLEMENTING = "implementing"
+    VERIFYING = "verifying"
     BRAINSTORMING = "brainstorming"
     COMMITTING = "committing"
     PAUSED = "paused"
@@ -42,6 +44,7 @@ class Project(BaseModel):
     error_message: str | None = Field(default=None)
     iteration_count: int = Field(default=0, description="Number of workflow iterations completed")
     config: VerificationConfig = Field(default_factory=VerificationConfig, description="Verification configuration for the project")
+    state_changed_at: datetime = Field(default_factory=datetime.now, description="Timestamp when the current state was entered")
 
     model_config = {"arbitrary_types_allowed": True}
 
