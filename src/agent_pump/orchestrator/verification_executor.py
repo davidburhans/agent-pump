@@ -3,7 +3,6 @@
 import asyncio
 import logging
 import shlex
-import sys
 from pathlib import Path
 from typing import NamedTuple
 
@@ -14,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 class VerificationResult(NamedTuple):
     """Result of a verification command execution."""
+
     success: bool
     command: str
     stdout: str
@@ -28,7 +28,7 @@ class VerificationExecutor:
     def __init__(self, project_path: Path, config: VerificationConfig | None = None):
         """
         Initialize the verification executor.
-        
+
         Args:
             project_path: Path to the project directory
             config: Verification configuration (uses defaults if None)
@@ -39,22 +39,17 @@ class VerificationExecutor:
     async def run_command(self, cmd: str, timeout: int = 120) -> VerificationResult:
         """
         Run a single command asynchronously.
-        
+
         Args:
             cmd: Command to execute
             timeout: Timeout in seconds
-            
+
         Returns:
             VerificationResult with execution details
         """
         if not cmd:
             return VerificationResult(
-                success=True,
-                command=cmd,
-                stdout="",
-                stderr="",
-                exit_code=0,
-                duration=0.0
+                success=True, command=cmd, stdout="", stderr="", exit_code=0, duration=0.0
             )
 
         logger.info(f"Running verification command: {cmd}")
@@ -68,14 +63,28 @@ class VerificationExecutor:
             executable = shell_cmd[0]
             args = shell_cmd[1:] if len(shell_cmd) > 1 else []
 
-            # Create the subprocess
-            proc = await asyncio.create_subprocess_exec(
-                executable,
-                *args,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=self.project_path
-            )
+            # Create the subprocess with platform-specific flags
+            import subprocess
+            import sys
+
+            if sys.platform == "win32":
+                # CREATE_NO_WINDOW prevents console popups and ensures output goes through pipes
+                proc = await asyncio.create_subprocess_exec(
+                    executable,
+                    *args,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=self.project_path,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                )
+            else:
+                proc = await asyncio.create_subprocess_exec(
+                    executable,
+                    *args,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=self.project_path,
+                )
 
             try:
                 # Wait for the process to complete with timeout
@@ -90,7 +99,9 @@ class VerificationExecutor:
 
                 success = exit_code == 0
 
-                logger.info(f"Command completed: {cmd} (exit code: {exit_code}, duration: {duration:.2f}s)")
+                logger.info(
+                    f"Command completed: {cmd} (exit code: {exit_code}, duration: {duration:.2f}s)"
+                )
 
                 return VerificationResult(
                     success=success,
@@ -98,7 +109,7 @@ class VerificationExecutor:
                     stdout=stdout_str,
                     stderr=stderr_str,
                     exit_code=exit_code,
-                    duration=duration
+                    duration=duration,
                 )
 
             except TimeoutError:
@@ -121,7 +132,7 @@ class VerificationExecutor:
                     stdout="",
                     stderr=f"Command timed out after {timeout} seconds",
                     exit_code=None,
-                    duration=duration
+                    duration=duration,
                 )
 
         except FileNotFoundError:
@@ -134,7 +145,7 @@ class VerificationExecutor:
                 stdout="",
                 stderr=f"Command not found: {cmd}",
                 exit_code=None,
-                duration=duration
+                duration=duration,
             )
 
         except Exception as e:
@@ -147,7 +158,7 @@ class VerificationExecutor:
                 stdout="",
                 stderr=str(e),
                 exit_code=None,
-                duration=duration
+                duration=duration,
             )
 
     async def run_build(self, timeout: int = 120) -> VerificationResult:
@@ -160,7 +171,7 @@ class VerificationExecutor:
                 stdout="No build command configured",
                 stderr="",
                 exit_code=0,
-                duration=0.0
+                duration=0.0,
             )
 
         return await self.run_command(self.config.build_cmd, timeout)
@@ -175,7 +186,7 @@ class VerificationExecutor:
                 stdout="No lint command configured",
                 stderr="",
                 exit_code=0,
-                duration=0.0
+                duration=0.0,
             )
 
         return await self.run_command(self.config.lint_cmd, timeout)
@@ -190,7 +201,7 @@ class VerificationExecutor:
                 stdout="No test command configured",
                 stderr="",
                 exit_code=0,
-                duration=0.0
+                duration=0.0,
             )
 
         return await self.run_command(self.config.test_cmd, timeout)
@@ -198,10 +209,10 @@ class VerificationExecutor:
     async def run_all(self, timeout_per_command: int = 120) -> dict[str, VerificationResult]:
         """
         Run all verification commands sequentially.
-        
+
         Args:
             timeout_per_command: Timeout in seconds for each command
-            
+
         Returns:
             Dictionary mapping command type to result
         """
@@ -209,41 +220,41 @@ class VerificationExecutor:
 
         if self.config.skip_verification:
             logger.info("Skipping verification phase as configured")
-            results['build'] = VerificationResult(
+            results["build"] = VerificationResult(
                 success=True,
                 command="",
                 stdout="Verification skipped as configured",
                 stderr="",
                 exit_code=0,
-                duration=0.0
+                duration=0.0,
             )
-            results['lint'] = results['build']
-            results['test'] = results['build']
+            results["lint"] = results["build"]
+            results["test"] = results["build"]
             return results
 
         # Run build, lint, and test in sequence
-        results['build'] = await self.run_build(timeout_per_command)
-        if not results['build'].success:
+        results["build"] = await self.run_build(timeout_per_command)
+        if not results["build"].success:
             logger.warning("Build failed, skipping lint and test")
-            results['lint'] = VerificationResult(
+            results["lint"] = VerificationResult(
                 success=False,
                 command="",
                 stdout="Build failed, skipping lint",
                 stderr="",
                 exit_code=0,
-                duration=0.0
+                duration=0.0,
             )
-            results['test'] = VerificationResult(
+            results["test"] = VerificationResult(
                 success=False,
                 command="",
                 stdout="Build failed, skipping test",
                 stderr="",
                 exit_code=0,
-                duration=0.0
+                duration=0.0,
             )
             return results
 
-        results['lint'] = await self.run_lint(timeout_per_command)
-        results['test'] = await self.run_test(timeout_per_command * 2)  # Tests might take longer
+        results["lint"] = await self.run_lint(timeout_per_command)
+        results["test"] = await self.run_test(timeout_per_command * 2)  # Tests might take longer
 
         return results

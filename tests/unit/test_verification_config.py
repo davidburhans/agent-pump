@@ -1,6 +1,5 @@
 """Unit tests for verification configuration models."""
 
-
 import pytest
 
 from agent_pump.models.verification_config import (
@@ -27,7 +26,7 @@ class TestVerificationConfig:
             build_cmd="npm run build",
             lint_cmd="npm run lint",
             test_cmd="npm test",
-            skip_verification=True
+            skip_verification=True,
         )
         assert config.build_cmd == "npm run build"
         assert config.lint_cmd == "npm run lint"
@@ -69,11 +68,7 @@ class TestVerificationConfig:
 
     def test_none_values_allowed(self):
         """Test that None values are allowed for commands."""
-        config = VerificationConfig(
-            build_cmd=None,
-            lint_cmd=None,
-            test_cmd=None
-        )
+        config = VerificationConfig(build_cmd=None, lint_cmd=None, test_cmd=None)
         assert config.build_cmd is None
         assert config.lint_cmd is None
         assert config.test_cmd is None
@@ -96,7 +91,7 @@ class TestProjectDetectionResult:
             project_type="npm",
             build_cmd="npm run build",
             lint_cmd="npm run lint",
-            test_cmd="npm test"
+            test_cmd="npm test",
         )
         assert result.project_type == "npm"
         assert result.build_cmd == "npm run build"
@@ -119,7 +114,7 @@ class TestDetectProjectType:
     def test_detect_cargo_project(self, tmp_path):
         """Test detection of Cargo project."""
         # Create Cargo.toml file
-        (tmp_path / "Cargo.toml").write_text("[package]\nname = \"test\"")
+        (tmp_path / "Cargo.toml").write_text('[package]\nname = "test"')
 
         result = detect_project_type(tmp_path)
         assert result.project_type == "cargo"

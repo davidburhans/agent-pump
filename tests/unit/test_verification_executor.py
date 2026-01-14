@@ -7,9 +7,8 @@ import pytest
 from agent_pump.models.verification_config import VerificationConfig
 from agent_pump.orchestrator.verification_executor import VerificationExecutor
 
-
 # Get Python executable path with forward slashes for cross-platform shlex compatibility
-_PYTHON = sys.executable.replace('\\', '/')
+_PYTHON = sys.executable.replace("\\", "/")
 
 
 # Cross-platform command helpers using Python
@@ -18,7 +17,7 @@ _PYTHON = sys.executable.replace('\\', '/')
 # so we use tricks to avoid them in multi-statement Python code.
 def echo_cmd(text: str) -> str:
     """Return a cross-platform echo command."""
-    return f'{_PYTHON} -c "print(\'{text}\')"'
+    return f"{_PYTHON} -c \"print('{text}')\""
 
 
 def fail_cmd() -> str:
@@ -30,7 +29,7 @@ def fail_cmd() -> str:
 def sleep_cmd(seconds: float) -> str:
     """Return a cross-platform sleep command."""
     # Use __import__ to avoid semicolons
-    return f'{_PYTHON} -c "__import__(\'time\').sleep({seconds})"'
+    return f"{_PYTHON} -c \"__import__('time').sleep({seconds})\""
 
 
 class TestVerificationExecutor:
@@ -42,7 +41,7 @@ class TestVerificationExecutor:
             build_cmd="echo build",
             lint_cmd="echo lint",
             test_cmd="echo test",
-            skip_verification=False
+            skip_verification=False,
         )
 
         executor = VerificationExecutor(tmp_path, config)
@@ -194,7 +193,7 @@ class TestVerificationExecutor:
         config = VerificationConfig(
             build_cmd=echo_cmd("build_success"),
             lint_cmd=echo_cmd("lint_success"),
-            test_cmd=echo_cmd("test_success")
+            test_cmd=echo_cmd("test_success"),
         )
         executor = VerificationExecutor(tmp_path, config)
 
@@ -203,9 +202,9 @@ class TestVerificationExecutor:
         # All results should succeed
         assert len(results) == 3
         assert all(result.success for result in results.values())
-        assert "build_success" in results['build'].stdout
-        assert "lint_success" in results['lint'].stdout
-        assert "test_success" in results['test'].stdout
+        assert "build_success" in results["build"].stdout
+        assert "lint_success" in results["lint"].stdout
+        assert "test_success" in results["test"].stdout
 
     @pytest.mark.asyncio
     async def test_run_all_methods_build_failure(self, tmp_path):
@@ -213,15 +212,15 @@ class TestVerificationExecutor:
         config = VerificationConfig(
             build_cmd=fail_cmd(),  # This will fail
             lint_cmd=echo_cmd("lint_should_not_run"),
-            test_cmd=echo_cmd("test_should_not_run")
+            test_cmd=echo_cmd("test_should_not_run"),
         )
         executor = VerificationExecutor(tmp_path, config)
 
         results = await executor.run_all(timeout_per_command=10)
 
         # Build should fail, lint and test should be skipped
-        assert results['build'].success is False
-        assert results['lint'].success is False
-        assert results['test'].success is False
-        assert "Build failed, skipping lint" in results['lint'].stdout
-        assert "Build failed, skipping test" in results['test'].stdout
+        assert results["build"].success is False
+        assert results["lint"].success is False
+        assert results["test"].success is False
+        assert "Build failed, skipping lint" in results["lint"].stdout
+        assert "Build failed, skipping test" in results["test"].stdout

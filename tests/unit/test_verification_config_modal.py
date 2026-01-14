@@ -1,6 +1,5 @@
 """Tests for verification config modal."""
 
-
 from agent_pump.models.verification_config import VerificationConfig
 from agent_pump.tui.screens.verification_config_modal import VerificationConfigModal
 
@@ -20,7 +19,7 @@ class TestVerificationConfigModal:
             build_cmd="npm run build",
             lint_cmd="npm run lint",
             test_cmd="npm test",
-            skip_verification=True
+            skip_verification=True,
         )
         modal = VerificationConfigModal(config=config)
         assert modal is not None
@@ -32,10 +31,7 @@ class TestVerificationConfigModal:
 
     def test_modal_independent_config(self):
         """Test that modal creates independent copy of config."""
-        original_config = VerificationConfig(
-            build_cmd="original build",
-            lint_cmd="original lint"
-        )
+        original_config = VerificationConfig(build_cmd="original build", lint_cmd="original lint")
 
         modal = VerificationConfigModal(config=original_config)
 

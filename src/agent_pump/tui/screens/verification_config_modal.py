@@ -26,7 +26,7 @@ class VerificationConfigModal(ModalScreen[VerificationConfig]):
             build_cmd=self.original_config.build_cmd,
             lint_cmd=self.original_config.lint_cmd,
             test_cmd=self.original_config.test_cmd,
-            skip_verification=self.original_config.skip_verification
+            skip_verification=self.original_config.skip_verification,
         )
 
     def compose(self) -> ComposeResult:
@@ -38,10 +38,7 @@ class VerificationConfigModal(ModalScreen[VerificationConfig]):
                 # Skip verification toggle
                 with Horizontal(classes="setting-row"):
                     yield Label("Skip Verification:", classes="setting-label")
-                    yield Switch(
-                        value=self.config.skip_verification,
-                        id="skip-verification-switch"
-                    )
+                    yield Switch(value=self.config.skip_verification, id="skip-verification-switch")
 
                 # Build command
                 with Vertical(classes="command-section"):
@@ -49,7 +46,7 @@ class VerificationConfigModal(ModalScreen[VerificationConfig]):
                     yield TextArea(
                         text=self.config.build_cmd or "",
                         id="build-command-input",
-                        placeholder="e.g., npm run build, cargo build, python -m build"
+                        placeholder="e.g., npm run build, cargo build, python -m build",
                     )
 
                 # Lint command
@@ -58,7 +55,7 @@ class VerificationConfigModal(ModalScreen[VerificationConfig]):
                     yield TextArea(
                         text=self.config.lint_cmd or "",
                         id="lint-command-input",
-                        placeholder="e.g., npm run lint, ruff check ., cargo clippy"
+                        placeholder="e.g., npm run lint, ruff check ., cargo clippy",
                     )
 
                 # Test command
@@ -67,7 +64,7 @@ class VerificationConfigModal(ModalScreen[VerificationConfig]):
                     yield TextArea(
                         text=self.config.test_cmd or "",
                         id="test-command-input",
-                        placeholder="e.g., npm test, pytest, cargo test"
+                        placeholder="e.g., npm test, pytest, cargo test",
                     )
 
             with Horizontal(id="button-row"):
@@ -112,7 +109,7 @@ class VerificationConfigModal(ModalScreen[VerificationConfig]):
                 build_cmd=self.config.build_cmd,
                 lint_cmd=self.config.lint_cmd,
                 test_cmd=self.config.test_cmd,
-                skip_verification=self.config.skip_verification
+                skip_verification=self.config.skip_verification,
             )
         except ValueError as e:
             # Show error message to user
