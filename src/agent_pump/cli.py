@@ -37,6 +37,11 @@ console = Console()
     type=str,
     help="Branch to isolate work (overrides project config)",
 )
+@click.option(
+    "--no-autoload",
+    is_flag=True,
+    help="Do not automatically load projects from the current workspace",
+)
 @click.version_option()
 @click.pass_context
 def main(
@@ -45,6 +50,7 @@ def main(
     no_tui: bool,
     max_iterations: int,
     branch: str | None,
+    no_autoload: bool,
 ) -> None:
     """
     Agent Pump - Automated AI coding agent orchestrator.
@@ -66,10 +72,15 @@ def main(
     # Merge CLI projects with persisted projects (CLI args take precedence but we want union)
     all_projects = []
 
-    # Add persisted projects first
-    for p in app_state.projects:
-        if p.exists():
-            all_projects.append(p)
+    # Add persisted projects from workspace first (if autoload enabled)
+    if not no_autoload:
+        from agent_pump.models.workspace import Workspace
+
+        workspace = Workspace.load(app_state.current_workspace)
+        for path_str in workspace.projects:
+            p = Path(path_str)
+            if p.exists():
+                all_projects.append(p)
 
     # Add CLI args (avoiding duplicates)
     for p in projects:
