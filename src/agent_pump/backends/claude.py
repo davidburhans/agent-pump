@@ -51,7 +51,6 @@ RATE LIMITS:
 import asyncio
 import logging
 import os
-import shutil
 import subprocess
 import sys
 import time
@@ -60,6 +59,7 @@ from datetime import datetime
 from pathlib import Path
 
 from agent_pump.backends.base import AgentBackend
+from agent_pump.utils.system import cached_which
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +82,7 @@ class ClaudeBackend(AgentBackend):
 
     async def is_available(self) -> bool:
         """Check if claude command is available in PATH."""
-        available = shutil.which(self.command) is not None
+        available = cached_which(self.command) is not None
         logger.debug(f"Claude Code availability check: {available}")
         return available
 
@@ -121,7 +121,7 @@ class ClaudeBackend(AgentBackend):
         Uses `claude -p "prompt"` for non-interactive (print) mode.
         The prompt is passed via stdin to avoid shell escaping issues.
         """
-        executable = shutil.which(self.command)
+        executable = cached_which(self.command)
         if not executable:
             logger.error("Claude Code CLI not found in PATH")
             yield f"[ERROR] Command '{self.command}' not found in PATH.\n"

@@ -47,7 +47,6 @@ RATE LIMITS:
 import asyncio
 import logging
 import os
-import shutil
 import subprocess
 import sys
 import time
@@ -56,6 +55,7 @@ from datetime import datetime
 from pathlib import Path
 
 from agent_pump.backends.base import AgentBackend
+from agent_pump.utils.system import cached_which
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +80,7 @@ class QwenBackend(AgentBackend):
 
     async def is_available(self) -> bool:
         """Check if qwen command is available in PATH."""
-        available = shutil.which(self.command) is not None
+        available = cached_which(self.command) is not None
         logger.debug(f"Qwen Code availability check: {available}")
         return available
 
@@ -123,7 +123,7 @@ class QwenBackend(AgentBackend):
 
         Prompt is passed via stdin for reliable operation.
         """
-        executable = shutil.which(self.command)
+        executable = cached_which(self.command)
         if not executable:
             logger.error("Qwen Code CLI not found in PATH")
             yield f"[ERROR] Command '{self.command}' not found in PATH.\n"
