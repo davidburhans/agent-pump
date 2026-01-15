@@ -44,13 +44,13 @@ async def test_gemini_backend_properties(gemini_backend):
 
 @pytest.mark.asyncio
 async def test_gemini_is_available_true(gemini_backend):
-    with patch("shutil.which", return_value="/usr/bin/gemini"):
+    with patch("agent_pump.backends.gemini.cached_which", return_value="/usr/bin/gemini"):
         assert await gemini_backend.is_available() is True
 
 
 @pytest.mark.asyncio
 async def test_gemini_is_available_false(gemini_backend):
-    with patch("shutil.which", return_value=None):
+    with patch("agent_pump.backends.gemini.cached_which", return_value=None):
         assert await gemini_backend.is_available() is False
 
 
@@ -86,7 +86,7 @@ async def test_gemini_run_success(gemini_backend, sample_project_path):
 
     with (
         patch(target, return_value=mock_process) as mock_exec,
-        patch("shutil.which", return_value="/usr/bin/gemini"),
+        patch("agent_pump.backends.gemini.cached_which", return_value="/usr/bin/gemini"),
     ):
         lines = []
         async for line in gemini_backend.run(sample_project_path, "Test prompt"):
@@ -138,7 +138,7 @@ async def test_gemini_run_verbose(gemini_backend, sample_project_path):
 
     with (
         patch(target, return_value=mock_process) as mock_exec,
-        patch("shutil.which", return_value="/usr/bin/gemini"),
+        patch("agent_pump.backends.gemini.cached_which", return_value="/usr/bin/gemini"),
     ):
         async for _ in gemini_backend.run(sample_project_path, "Test prompt", verbose=True):
             pass
@@ -165,20 +165,20 @@ async def test_claude_backend_properties(claude_backend):
 
 @pytest.mark.asyncio
 async def test_claude_is_available_true(claude_backend):
-    with patch("shutil.which", return_value="/usr/bin/claude"):
+    with patch("agent_pump.backends.claude.cached_which", return_value="/usr/bin/claude"):
         assert await claude_backend.is_available() is True
 
 
 @pytest.mark.asyncio
 async def test_claude_is_available_false(claude_backend):
-    with patch("shutil.which", return_value=None):
+    with patch("agent_pump.backends.claude.cached_which", return_value=None):
         assert await claude_backend.is_available() is False
 
 
 @pytest.mark.asyncio
 async def test_claude_run_not_found(claude_backend, sample_project_path):
     """Test that Claude backend yields setup instructions when CLI not found."""
-    with patch("shutil.which", return_value=None):
+    with patch("agent_pump.backends.claude.cached_which", return_value=None):
         lines = []
         async for line in claude_backend.run(sample_project_path, "Test prompt"):
             lines.append(line)
@@ -218,7 +218,7 @@ async def test_claude_run_success(claude_backend, sample_project_path):
 
     with (
         patch(target, return_value=mock_process),
-        patch("shutil.which", return_value="/usr/bin/claude"),
+        patch("agent_pump.backends.claude.cached_which", return_value="/usr/bin/claude"),
     ):
         lines = []
         async for line in claude_backend.run(sample_project_path, "Test prompt"):
@@ -241,20 +241,20 @@ async def test_opencode_backend_properties(opencode_backend):
 
 @pytest.mark.asyncio
 async def test_opencode_is_available_true(opencode_backend):
-    with patch("shutil.which", return_value="/usr/bin/opencode"):
+    with patch("agent_pump.backends.opencode.cached_which", return_value="/usr/bin/opencode"):
         assert await opencode_backend.is_available() is True
 
 
 @pytest.mark.asyncio
 async def test_opencode_is_available_false(opencode_backend):
-    with patch("shutil.which", return_value=None):
+    with patch("agent_pump.backends.opencode.cached_which", return_value=None):
         assert await opencode_backend.is_available() is False
 
 
 @pytest.mark.asyncio
 async def test_opencode_run_not_found(opencode_backend, sample_project_path):
     """Test that OpenCode backend yields setup instructions when CLI not found."""
-    with patch("shutil.which", return_value=None):
+    with patch("agent_pump.backends.opencode.cached_which", return_value=None):
         lines = []
         async for line in opencode_backend.run(sample_project_path, "Test prompt"):
             lines.append(line)
@@ -290,7 +290,7 @@ async def test_opencode_run_success(opencode_backend, sample_project_path):
 
     with (
         patch(target, return_value=mock_process),
-        patch("shutil.which", return_value="/usr/bin/opencode"),
+        patch("agent_pump.backends.opencode.cached_which", return_value="/usr/bin/opencode"),
     ):
         lines = []
         async for line in opencode_backend.run(sample_project_path, "Test prompt"):
@@ -313,20 +313,20 @@ async def test_qwen_backend_properties(qwen_backend):
 
 @pytest.mark.asyncio
 async def test_qwen_is_available_true(qwen_backend):
-    with patch("shutil.which", return_value="/usr/bin/qwen"):
+    with patch("agent_pump.backends.qwen.cached_which", return_value="/usr/bin/qwen"):
         assert await qwen_backend.is_available() is True
 
 
 @pytest.mark.asyncio
 async def test_qwen_is_available_false(qwen_backend):
-    with patch("shutil.which", return_value=None):
+    with patch("agent_pump.backends.qwen.cached_which", return_value=None):
         assert await qwen_backend.is_available() is False
 
 
 @pytest.mark.asyncio
 async def test_qwen_run_not_found(qwen_backend, sample_project_path):
     """Test that Qwen backend yields setup instructions when CLI not found."""
-    with patch("shutil.which", return_value=None):
+    with patch("agent_pump.backends.qwen.cached_which", return_value=None):
         lines = []
         async for line in qwen_backend.run(sample_project_path, "Test prompt"):
             lines.append(line)
@@ -366,7 +366,7 @@ async def test_qwen_run_success(qwen_backend, sample_project_path):
 
     with (
         patch(target, return_value=mock_process) as mock_exec,
-        patch("shutil.which", return_value="/usr/bin/qwen"),
+        patch("agent_pump.backends.qwen.cached_which", return_value="/usr/bin/qwen"),
     ):
         lines = []
         async for line in qwen_backend.run(sample_project_path, "Test prompt"):

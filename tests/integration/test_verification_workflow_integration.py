@@ -61,8 +61,8 @@ class TestVerificationWorkflowIntegration:
 
             # Manually trigger the verifying state
             workflow.start()  # idle -> planning
-            workflow.plan_complete()  # planning -> implementing
-            workflow.implement_complete()  # implementing -> verifying
+            workflow.planning_complete()  # planning -> implementing
+            workflow.implementing_complete()  # implementing -> verifying
 
             # Run just the verifying phase
             base_prompt = workflow.prompt_customization.apply_to_prompt(
@@ -71,9 +71,9 @@ class TestVerificationWorkflowIntegration:
             success = await workflow.run_phase(base_prompt, "verifying")
 
             # Since AI verification succeeds, custom commands should run
-            # and if they all pass, verify_complete should be called
+            # and if they all pass, verifying_complete should be called
             if success:
-                workflow.verify_complete()  # verifying -> brainstorming
+                workflow.verifying_complete()  # verifying -> brainstorming
 
             # Verify state transition happened
             assert workflow.state in [
@@ -109,8 +109,8 @@ class TestVerificationWorkflowIntegration:
 
             # Manually trigger the verifying state
             workflow.start()  # idle -> planning
-            workflow.plan_complete()  # planning -> implementing
-            workflow.implement_complete()  # implementing -> verifying
+            workflow.planning_complete()  # planning -> implementing
+            workflow.implementing_complete()  # implementing -> verifying
 
             # Run just the verifying phase
             base_prompt = workflow.prompt_customization.apply_to_prompt(
@@ -119,7 +119,7 @@ class TestVerificationWorkflowIntegration:
             success = await workflow.run_phase(base_prompt, "verifying")
 
             if success:
-                workflow.verify_complete()  # verifying -> brainstorming
+                workflow.verifying_complete()  # verifying -> brainstorming
 
             # Verify state transition happened (should go to brainstorming since verification is skipped)  # noqa: E501
             assert workflow.state in ["brainstorming", "verifying"]
@@ -157,8 +157,8 @@ class TestVerificationWorkflowIntegration:
 
             # Manually trigger the verifying state
             workflow.start()  # idle -> planning
-            workflow.plan_complete()  # planning -> implementing
-            workflow.implement_complete()  # implementing -> verifying
+            workflow.planning_complete()  # planning -> implementing
+            workflow.implementing_complete()  # implementing -> verifying
 
             # Run just the verifying phase
             base_prompt = workflow.prompt_customization.apply_to_prompt(
@@ -166,12 +166,12 @@ class TestVerificationWorkflowIntegration:
             )
             success = await workflow.run_phase(base_prompt, "verifying")
 
-            # If verification commands fail, verify_failed should be called
+            # If verification commands fail, verifying_failed should be called
             if not success:
-                workflow.verify_failed()  # verifying -> error
+                workflow.verifying_failed()  # verifying -> error
             else:
-                # If verification commands succeed, verify_complete should be called
-                workflow.verify_complete()  # verifying -> brainstorming
+                # If verification commands succeed, verifying_complete should be called
+                workflow.verifying_complete()  # verifying -> brainstorming
 
             # State should be either brainstorming (if commands passed) or error (if they failed)
             # Since we're using "false" command, it should fail
