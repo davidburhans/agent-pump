@@ -1,6 +1,5 @@
 """Tests for ConfigMigrator."""
 
-from pathlib import Path
 
 import pytest
 
@@ -26,8 +25,12 @@ class TestConfigMigrator:
         (project_path / ".agent-pump.yml").touch()
         assert migrator.needs_migration()
 
-        # Create new directory
+        # Create new directory (but no config) -> Should STILL need migration
         (project_path / ".agent-pump").mkdir()
+        assert migrator.needs_migration()
+        
+        # Create config.yml -> Should NOT need migration
+        (project_path / ".agent-pump" / "config.yml").touch()
         assert not migrator.needs_migration()
 
     def test_migrate(self, project_path):

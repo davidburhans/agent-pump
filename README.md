@@ -254,6 +254,60 @@ graph LR
 4.  **BRAINSTORM**: The agent reviews its own work and looks for improvements or follow-up tasks.
 5.  **COMMIT**: Changes are staged and committed to git with a descriptive message.
 
+## Development
+
+### Prerequisites
+
+-   **Python 3.12+**: This project requires Python 3.12 or newer.
+-   **uv**: We use `uv` for dependency management. [Install uv](https://github.com/astral-sh/uv).
+
+### Setup
+
+1.  Clone the repository:
+    ```bash
+    git clone https://github.com/yourusername/agent-pump.git
+    cd agent-pump
+    ```
+
+2.  Sync dependencies and create virtual environment:
+    ```bash
+    uv sync
+    ```
+
+### Static Analysis
+
+We run a strict ship. Please run these commands before submitting a PR:
+
+-   **Linting (Ruff)**:
+    ```bash
+    uv run ruff check .
+    ```
+
+-   **Type Checking (Pyright)**:
+    ```bash
+    uv run pyright
+    ```
+
+### Testing
+
+Run the test suite with pytest:
+
+```bash
+# Run all tests
+uv run pytest tests/ -v
+
+# Run unit tests only
+uv run pytest tests/unit/ -v
+```
+
+### Pre-commit Checklist
+
+Before pushing your changes, ensure you pass the full verification suite:
+
+1.  [ ] `uv run ruff check .` (Linting)
+2.  [ ] `uv run pyright` (Type Checking)
+3.  [ ] `uv run pytest tests/ -v` (Tests)
+
 ## Contributing
 
 We are building the future of agentic coding. Contributions are welcome!

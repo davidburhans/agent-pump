@@ -3,6 +3,7 @@
 import logging
 from pathlib import Path
 
+from agent_pump.api.schemas import ProjectStatusDTO
 from agent_pump.backends import get_backend
 from agent_pump.backends.gemini import GeminiBackend
 from agent_pump.config import Config
@@ -10,14 +11,12 @@ from agent_pump.events.bus import EventBus
 from agent_pump.events.models import (
     ProjectAddedEvent,
     ProjectRemovedEvent,
-    WorkflowStateChangedEvent,
 )
 from agent_pump.models.app_state import AppState
 from agent_pump.models.project import Project
 from agent_pump.models.workspace import Workspace
 from agent_pump.orchestrator.workflow import ProjectWorkflow
 from agent_pump.services.base import BaseService
-from agent_pump.api.schemas import ProjectStatusDTO
 
 logger = logging.getLogger(__name__)
 
@@ -68,9 +67,7 @@ class ProjectService(BaseService):
             # Get workspace-level config overrides
             project_config = self.workspace.get_project_config(path)
             phase_backends = project_config.phase_backends if project_config else None
-            prompt_customization = (
-                project_config.prompt_customization if project_config else None
-            )
+            prompt_customization = project_config.prompt_customization if project_config else None
 
             # Initialize idea queue
             idea_queue = []
@@ -81,10 +78,7 @@ class ProjectService(BaseService):
 
             # determine backend
             backend = GeminiBackend()
-            if (
-                project_config
-                and project_config.phase_backends.implementing.backends
-            ):
+            if project_config and project_config.phase_backends.implementing.backends:
                 try:
                     backend_instance = project_config.phase_backends.implementing.backends[0]
                     backend = get_backend(backend_instance.name)
@@ -176,5 +170,3 @@ class ProjectService(BaseService):
             return None
 
         return ProjectStatusDTO.from_internal(project)
-
-

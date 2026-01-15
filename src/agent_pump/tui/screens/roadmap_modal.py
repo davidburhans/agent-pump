@@ -83,7 +83,7 @@ class RoadmapModal(ModalScreen[list[RoadmapFeature] | None]):
             yield Label("Feature Prioritization", classes="section-title")
             yield Static(
                 "Use J/K or Shift+Up/Down to move items. Enter to save, Esc to cancel.",
-                classes="help-text"
+                classes="help-text",
             )
 
             items = [RoadmapItem(f) for f in self.uncompleted_features]
@@ -92,7 +92,7 @@ class RoadmapModal(ModalScreen[list[RoadmapFeature] | None]):
             yield Horizontal(
                 Button("Cancel", id="btn-cancel"),
                 Button("Save", variant="success", id="btn-save"),
-                classes="button-row"
+                classes="button-row",
             )
 
     def action_move_up(self) -> None:

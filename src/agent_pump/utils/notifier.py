@@ -4,6 +4,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class Notifier:
     """Handles sending desktop notifications."""
 
@@ -20,13 +21,8 @@ class Notifier:
         """
         try:
             from plyer import notification
-            
-            notification.notify(
-                title=title,
-                message=message,
-                app_name=app_name,
-                timeout=timeout
-            )
+
+            notification.notify(title=title, message=message, app_name=app_name, timeout=timeout)
             logger.debug(f"Notification sent: {title} - {message}")
         except Exception as e:
             logger.error(f"Failed to send notification: {e}")

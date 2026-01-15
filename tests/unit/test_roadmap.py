@@ -63,6 +63,7 @@ Completed description
     roadmap_path.write_text(content, encoding="utf-8")
     return roadmap_path
 
+
 def test_parse_roadmap(sample_roadmap):
     parser = RoadmapParser(sample_roadmap)
     features = parser.parse()
@@ -79,6 +80,7 @@ def test_parse_roadmap(sample_roadmap):
     assert features[3].title == "Task 0"
     assert features[3].status == "🟢"
 
+
 def test_get_uncompleted_features(sample_roadmap):
     parser = RoadmapParser(sample_roadmap)
     parser.parse()
@@ -86,6 +88,7 @@ def test_get_uncompleted_features(sample_roadmap):
 
     assert len(uncompleted) == 3
     assert all(f.title in ["Task 1", "Task 2", "Task 3"] for f in uncompleted)
+
 
 def test_save_reordered_roadmap(sample_roadmap):
     parser = RoadmapParser(sample_roadmap)

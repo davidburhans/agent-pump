@@ -8,6 +8,7 @@ from pathlib import Path
 @dataclass
 class RoadmapFeature:
     """Represents a feature in the roadmap."""
+
     title: str
     status: str  # e.g., "🔴 Not Started", "🟡 In Progress", "🟢 Complete"
     priority: str | None = None
@@ -28,7 +29,7 @@ class RoadmapParser:
         r"(?:\*\*Priority: ([^\n]+)\*\*\n\n)?"  # Optional Priority
         r"(.*?)\n\n"  # Description
         r"\*\*Acceptance Criteria:\*\*\n((?:- [^\n]+\n?)*)",  # Acceptance Criteria
-        re.DOTALL
+        re.DOTALL,
     )
 
     def __init__(self, path: Path):
@@ -36,8 +37,8 @@ class RoadmapParser:
         self.content = ""
         self.features = []
         self.preamble = ""  # Content before features
-        self.postamble = "" # Content after features (if any)
-        self.sections = {} # To store different sections (Current Sprint, Future Enhancements, etc.)
+        self.postamble = ""  # Content after features (if any)
+        self.sections = {}  # To store different sections (Current Sprint, Future Enhancements, etc.)
 
     def parse(self) -> list[RoadmapFeature]:
         """Parse the ROADMAP.md file."""
@@ -57,7 +58,7 @@ class RoadmapParser:
         # Process sections
         for i in range(1, len(sections), 2):
             header = sections[i]
-            body = sections[i+1] if i+1 < len(sections) else ""
+            body = sections[i + 1] if i + 1 < len(sections) else ""
 
             # Find features in this section
             # We want to keep track of where features are
@@ -79,14 +80,11 @@ class RoadmapParser:
                     priority=priority,
                     description=description,
                     acceptance_criteria=criteria,
-                    raw_content=full_text
+                    raw_content=full_text,
                 )
                 section_features.append(feature)
 
-            self.sections[header] = {
-                "body": body,
-                "features": section_features
-            }
+            self.sections[header] = {"body": body, "features": section_features}
             current_features.extend(section_features)
 
         self.features = current_features

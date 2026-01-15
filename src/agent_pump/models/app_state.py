@@ -3,7 +3,7 @@
 import logging
 from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ class AppState(BaseModel):
     current_workspace: str = Field(default="default", description="Name of the current workspace")
     log_sort_order: str = Field(default="desc", description="Log sort order: 'asc' or 'desc'")
 
-    model_config = {"arbitrary_types_allowed": True}
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @classmethod
     def get_state_path(cls) -> Path:
