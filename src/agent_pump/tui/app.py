@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from textual import on, work
+from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
@@ -69,7 +69,6 @@ class AgentPumpApp(App):
         Binding("s", "open_settings", "Settings"),
         Binding("t", "toggle_timer", "Timer"),
         Binding("W", "toggle_workflow_panel", "Flow Panel"),
-        Binding("u", "update_config", "Reload Conf"),
     ]
 
     def __init__(self, project_paths: list[Path] | None = None):
@@ -159,7 +158,6 @@ class AgentPumpApp(App):
         self.run_worker(self._handle_events())
         # Yield to allow event loop to start and subscribe
         import asyncio
-
         await asyncio.sleep(0.1)
 
         # Load initial projects
@@ -181,16 +179,12 @@ class AgentPumpApp(App):
                 self._on_ideas_processed(event.project_path)
             elif isinstance(event, IdeaAddedEvent):
                 if event.project_path:
-                    self._log(
-                        f"Added idea to project queue: {event.idea}",
-                        project_path=event.project_path,
-                    )
+                    self._log(f"Added idea to project queue: {event.idea}", project_path=event.project_path)
                 else:
                     self._log(f"Added idea to global queue: {event.idea}")
             elif isinstance(event, ConfigUpdatedEvent):
-                self._log(
-                    f"Configuration updated: {event.config_type}", project_path=event.project_path
-                )
+                self._log(f"Configuration updated: {event.config_type}", project_path=event.project_path)
+
 
     def _log(
         self,
@@ -313,8 +307,8 @@ class AgentPumpApp(App):
     async def _on_ideas_processed(self, path: Path | None) -> None:
         """Callback when ideas have been processed by the workflow."""
         if path:
-            # Logic is now event driven, but we might want to log
-            self._log("Project idea queue processed and cleared", project_path=path)
+             # Logic is now event driven, but we might want to log
+             self._log("Project idea queue processed and cleared", project_path=path)
         """Callback when ideas have been processed by the workflow."""
         project_config = self.workspace.get_project_config(path)
         if project_config:
@@ -387,9 +381,9 @@ class AgentPumpApp(App):
         """Handle add project action."""
 
         def handle_project_path(path: Path | None) -> None:
-            if path:
-                # worker task wrapper needed for async
-                self.run_worker(self._add_project(path))
+             if path:
+                 # worker task wrapper needed for async
+                 self.run_worker(self._add_project(path))
 
         self.push_screen(AddProjectModal(), handle_project_path)
 
@@ -414,23 +408,19 @@ class AgentPumpApp(App):
     def action_start_all(self) -> None:
         """Start all projects."""
         self.run_worker(self.workflow_service.start_all())
-
         # Log handled by service? No, usage of start_all returns count
         # But we are running worker asynchronously.
         # We can wrap it to log count.
         async def run_start_all():
             count = await self.workflow_service.start_all()
             self._log(f"Started {count} projects")
-
         self.run_worker(run_start_all())
 
     def action_stop_all(self) -> None:
         """Stop all projects."""
-
         async def run_stop_all():
-            count = await self.workflow_service.stop_all()
-            self._log(f"Stopped {count} projects")
-
+             count = await self.workflow_service.stop_all()
+             self._log(f"Stopped {count} projects")
         self.run_worker(run_stop_all())
 
     def action_skip_feature(self) -> None:
@@ -503,13 +493,11 @@ class AgentPumpApp(App):
         def handle_idea(idea: str | None) -> None:
             if idea and idea.strip():
                 if self.selected_project:
-                    self.run_worker(
-                        self.idea_service.add_idea(idea.strip(), project_path=self.selected_project)
-                    )
+                    self.run_worker(self.idea_service.add_idea(idea.strip(), project_path=self.selected_project))
                 else:
                     self.run_worker(self.idea_service.add_idea(idea.strip()))
             else:
-                self._log("No idea added")
+                 self._log("No idea added")
 
         self.push_screen(IdeaInputModal(), handle_idea)
 
@@ -569,9 +557,7 @@ class AgentPumpApp(App):
         def handle_result(phase_backends: PhaseBackends | None) -> None:
             if phase_backends is not None:
                 self.run_worker(
-                    self.workspace_service.update_backend_config(
-                        self.selected_project, phase_backends
-                    )
+                    self.workspace_service.update_backend_config(self.selected_project, phase_backends)
                 )
             else:
                 self._log("Backend configuration cancelled")
@@ -592,9 +578,7 @@ class AgentPumpApp(App):
         def handle_result(prompt_customization: PromptCustomization | None) -> None:
             if prompt_customization is not None:
                 self.run_worker(
-                    self.workspace_service.update_prompt_config(
-                        self.selected_project, prompt_customization
-                    )
+                    self.workspace_service.update_prompt_config(self.selected_project, prompt_customization)
                 )
             else:
                 self._log("Prompt customization cancelled")
@@ -611,39 +595,6 @@ class AgentPumpApp(App):
                 self._log("Global prompt settings cancelled")
 
         self.push_screen(GlobalPromptModal(self.workspace.global_prompt_settings), handle_result)
-
-    async def action_update_config(self) -> None:
-        """Reload configuration and check for migration."""
-        if not self.selected_project:
-            self._log("No project selected to update config.")
-            return
-
-        project = self.projects.get(self.selected_project)
-        if not project:
-            return
-            
-        # Check migration again (force check)
-        await self._check_config_migration(project)
-        
-        # Reload config
-        try:
-             # Force reload of config from disk
-             new_config = Config.load(project.path)
-             # Update project object
-             project.backend = new_config.backend
-             if self.selected_project in self.workflows:
-                 self.workflows[self.selected_project].config = new_config
-             
-             self._log(f"Configuration reloaded for {project.name}")
-             
-             # Log which config file was used
-             if (project.path / ".agent-pump" / "config.yml").exists():
-                 self._log("  Using: .agent-pump/config.yml")
-             elif (project.path / ".agent-pump.yml").exists():
-                 self._log("  Using: .agent-pump.yml (Legacy)")
-                 
-        except Exception as e:
-            self._log(f"[ERROR] Failed to reload config: {e}")
 
     def action_open_settings(self) -> None:
         """Open the settings modal."""
@@ -774,23 +725,16 @@ class AgentPumpApp(App):
 
         self.exit()
 
-    @on(Button.Pressed, "#btn-add")
-    def action_add_project_button(self) -> None:
-        """Handle add project button."""
-        self.action_add_project()
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button presses."""
+        if event.button.id == "btn-add":
+            self.action_add_project()
+        elif event.button.id == "btn-start-all":
+            self.action_start_all()
+        elif event.button.id == "btn-stop-all":
+            self.action_stop_all()
 
-    @on(Button.Pressed, "#btn-start-all")
-    def action_start_all_button(self) -> None:
-        """Handle start all button."""
-        self.action_start_all()
-
-    @on(Button.Pressed, "#btn-stop-all")
-    def action_stop_all_button(self) -> None:
-        """Handle stop all button."""
-        self.action_stop_all()
-
-    @on(ProjectCard.Selected)
-    def handle_project_card_selected(self, event: ProjectCard.Selected) -> None:
+    def on_project_card_selected(self, event: ProjectCard.Selected) -> None:
         """Handle project card selection."""
         # Update UI selection state
         project_list = self.query_one("#project-list", Container)

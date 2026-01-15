@@ -1,9 +1,9 @@
 """Settings modal for Agent Pump configuration."""
 
 from textual.app import ComposeResult
-from textual.containers import Horizontal, Vertical
+from textual.containers import Vertical, Horizontal
 from textual.screen import ModalScreen
-from textual.widgets import Button, Label, Switch
+from textual.widgets import Label, Switch, Button
 
 from agent_pump.models.workspace import Workspace
 
@@ -23,7 +23,10 @@ class SettingsModal(ModalScreen[bool]):
             # Notifications toggle
             yield Horizontal(
                 Label("Enable Desktop Notifications:"),
-                Switch(value=self.workspace.notifications_enabled, id="notifications-toggle"),
+                Switch(
+                    value=self.workspace.notifications_enabled,
+                    id="notifications-toggle"
+                )
             )
 
             # Test notification button
@@ -32,7 +35,7 @@ class SettingsModal(ModalScreen[bool]):
             # OK and Cancel buttons
             yield Horizontal(
                 Button("OK", variant="primary", id="ok-btn"),
-                Button("Cancel", variant="default", id="cancel-btn"),
+                Button("Cancel", variant="default", id="cancel-btn")
             )
 
     def on_mount(self) -> None:
@@ -59,5 +62,4 @@ class SettingsModal(ModalScreen[bool]):
     def _test_notification(self) -> None:
         """Send a test notification."""
         from agent_pump.utils.notifier import Notifier
-
         Notifier.test()

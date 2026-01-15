@@ -1,6 +1,7 @@
 """Workflow panel widget for displaying workflow diagrams."""
 
 import logging
+from typing import ClassVar
 
 from textual.containers import Center, Horizontal, Middle
 from textual.message import Message
@@ -129,24 +130,24 @@ class WorkflowPanel(Middle):
     }
     """
 
-    workflow: ProjectWorkflow | None = reactive(None)
-
     def __init__(self, **kwargs):
         """Initialize the workflow panel."""
         super().__init__(**kwargs)
+        self.workflow: ProjectWorkflow | None = None
         self.nodes: dict[str, WorkflowNode] = {}
         self.timer = None
 
-    def watch_workflow(
-        self, old_workflow: ProjectWorkflow | None, new_workflow: ProjectWorkflow | None
-    ) -> None:
-        """Rebuild diagram when workflow changes."""
-        self.rebuild_diagram()
-
     def set_workflow(self, workflow: ProjectWorkflow | None) -> None:
-        """Set the workflow to display (helper for app.py)."""
-        if self.workflow != workflow:
-            self.workflow = workflow
+        """Set the workflow to display."""
+        logger.debug(f"WorkflowPanel.set_workflow called with: {workflow}")
+
+        # Only rebuild if workflow object changed (or first time)
+        # Note: We rely on refresh_visuals for state updates
+        is_new_workflow = self.workflow != workflow
+        self.workflow = workflow
+
+        if is_new_workflow:
+            self.rebuild_diagram()
         else:
             self.refresh_visuals()
 
@@ -238,7 +239,7 @@ class WorkflowPanel(Middle):
         if current_state in phases:
             current_idx = phases.index(current_state)
         elif current_state == "completed":
-            current_idx = len(phases)  # All phases done
+            current_idx = len(phases) # All phases done
         elif current_state == "idle":
             current_idx = -1
 
@@ -252,8 +253,7 @@ class WorkflowPanel(Middle):
         # Handle phases
         for i, phase_name in enumerate(phases):
             node = self.nodes.get(phase_name)
-            if not node:
-                continue
+            if not node: continue
 
             if i < current_idx:
                 node.add_class("completed")

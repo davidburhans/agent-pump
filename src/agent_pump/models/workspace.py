@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 from .verification_config import VerificationConfig
 
@@ -210,7 +210,7 @@ class ProjectConfig(BaseModel):
         description="Ideas to feed to the brainstormer for this project",
     )
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = {"arbitrary_types_allowed": True}
 
     def model_post_init(self, __context) -> None:
         """Set name from path if not provided."""
@@ -247,12 +247,13 @@ class Workspace(BaseModel):
         description="Custom workflow definitions (name -> WorkflowDefinition as dict)",
     )
     notifications_enabled: bool = Field(
-        default=True, description="Enable desktop notifications for workflow events"
+        default=True,
+        description="Enable desktop notifications for workflow events"
     )
     created_at: datetime = Field(default_factory=datetime.now)
     last_modified: datetime = Field(default_factory=datetime.now)
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = {"arbitrary_types_allowed": True}
 
     @classmethod
     def get_workspaces_dir(cls) -> Path:

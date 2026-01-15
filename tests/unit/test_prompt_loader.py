@@ -1,5 +1,6 @@
 """Tests for PromptLoader."""
 
+from pathlib import Path
 
 import pytest
 

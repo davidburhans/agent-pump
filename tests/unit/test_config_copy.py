@@ -15,7 +15,6 @@ class MockApp:
     def push_screen(self, screen, callback=None):
         pass
 
-
 @pytest.fixture
 def workspace_with_projects(tmp_path):
     ws = Workspace(name="test_ws")
@@ -41,7 +40,6 @@ def workspace_with_projects(tmp_path):
 
     return ws, proj_a, proj_b, proj_c
 
-
 @pytest.mark.asyncio
 async def test_backend_copy_from_project(workspace_with_projects):
     ws, proj_a, proj_b, proj_c = workspace_with_projects
@@ -66,7 +64,6 @@ async def test_backend_copy_from_project(workspace_with_projects):
     assert backends[0].name == "gemini"
     assert backends[0].args == ["--model", "gemini-pro"]
 
-
 @pytest.mark.asyncio
 async def test_backend_apply_to_all(workspace_with_projects):
     ws, proj_a, proj_b, proj_c = workspace_with_projects
@@ -86,7 +83,6 @@ async def test_backend_apply_to_all(workspace_with_projects):
     assert len(proj_c.phase_backends.planning.backends) == 1
     assert proj_c.phase_backends.planning.backends[0].args == ["--model", "gemini-pro"]
 
-
 @pytest.mark.asyncio
 async def test_prompt_copy_from_project(workspace_with_projects):
     ws, proj_a, proj_b, proj_c = workspace_with_projects
@@ -95,11 +91,10 @@ async def test_prompt_copy_from_project(workspace_with_projects):
     modal = PromptConfigModal(proj_b, ws)
     # Mock query_one to return mocks for TextAreas
     mock_widgets = {}
-
     def query_one_side_effect(selector, type=None):
         if selector not in mock_widgets:
             mock = MagicMock()
-            mock.text = ""  # Default text
+            mock.text = "" # Default text
             mock_widgets[selector] = mock
         return mock_widgets[selector]
 
@@ -113,7 +108,6 @@ async def test_prompt_copy_from_project(workspace_with_projects):
     # Verify UI update (mocked widgets)
     assert mock_widgets["#planning-prefix"].text == "PLAN_PREFIX_A"
 
-
 @pytest.mark.asyncio
 async def test_prompt_apply_to_all(workspace_with_projects):
     ws, proj_a, proj_b, proj_c = workspace_with_projects
@@ -124,7 +118,6 @@ async def test_prompt_apply_to_all(workspace_with_projects):
 
     # Mock UI state (TextArea values) because _save_config_to_memory reads from UI
     mock_widgets = {}
-
     def query_one_side_effect(selector, type=None):
         if selector not in mock_widgets:
             mock = MagicMock()

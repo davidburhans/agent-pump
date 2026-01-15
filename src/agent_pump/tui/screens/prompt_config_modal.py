@@ -215,7 +215,7 @@ class PromptConfigModal(ModalScreen[PromptCustomization | None]):
                                     allow_blank=False,
                                     id=f"{phase}-copy-from",
                                 ),
-                                classes="copy-row",
+                                classes="copy-row"
                             )
 
                             # Prefix
@@ -238,36 +238,36 @@ class PromptConfigModal(ModalScreen[PromptCustomization | None]):
 
                             # Base prompt section (collapsible)
                             with Vertical(classes="base-prompt-section"):
-                                with Collapsible(
-                                    title="Base Prompt (click to expand)",
-                                    collapsed=True,
-                                    id=f"{phase}-base-collapsible",
-                                ):
-                                    yield Horizontal(
-                                        Checkbox(
-                                            "Override base prompt",
-                                            value=has_override,
-                                            id=f"{phase}-override-checkbox",
-                                        ),
-                                        Button(
-                                            "Reset to Default",
-                                            variant="warning",
-                                            id=f"{phase}-reset-base",
-                                        ),
-                                        classes="override-row",
+                                    with Collapsible(
+                                        title="Base Prompt (click to expand)",
+                                        collapsed=True,
+                                        id=f"{phase}-base-collapsible",
+                                    ):
+                                        yield Horizontal(
+                                            Checkbox(
+                                                "Override base prompt",
+                                                value=has_override,
+                                                id=f"{phase}-override-checkbox",
+                                            ),
+                                            Button(
+                                                "Reset to Default",
+                                                variant="warning",
+                                                id=f"{phase}-reset-base",
+                                            ),
+                                            classes="override-row"
+                                        )
+                                    yield TextArea(
+                                        base_override if has_override else default_base,
+                                        id=f"{phase}-base",
+                                        read_only=not has_override,
                                     )
-                                yield TextArea(
-                                    base_override if has_override else default_base,
-                                    id=f"{phase}-base",
-                                    read_only=not has_override,
-                                )
 
             yield Horizontal(
                 Button("Clear All", variant="warning", id="btn-clear"),
                 Button("Apply to All Projects", variant="warning", id="btn-apply-all"),
                 Button("Cancel (Esc)", variant="error", id="btn-cancel"),
                 Button("Save (Ctrl+S)", variant="success", id="btn-save"),
-                classes="button-row",
+                classes="button-row"
             )
 
     def on_select_changed(self, event: Select.Changed) -> None:
@@ -356,7 +356,6 @@ class PromptConfigModal(ModalScreen[PromptCustomization | None]):
 
     def action_apply_to_all(self) -> None:
         """Apply current configuration to all projects."""
-
         def on_confirm(confirm: bool) -> None:
             if confirm:
                 self._perform_apply_to_all()
@@ -365,9 +364,9 @@ class PromptConfigModal(ModalScreen[PromptCustomization | None]):
             ConfirmModal(
                 "Are you sure you want to apply this configuration to ALL projects?\n"
                 "This will overwrite their prompt settings.",
-                confirm_label="Overwrite All",
+                confirm_label="Overwrite All"
             ),
-            on_confirm,
+            on_confirm
         )
 
     def _perform_apply_to_all(self) -> None:

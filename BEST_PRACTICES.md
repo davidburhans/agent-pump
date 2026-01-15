@@ -16,7 +16,7 @@ Agent Pump automates iterative AI-assisted development. The tool must be:
 
 | Component | Technology | Rationale |
 |-----------|------------|-----------|
-| Language | Python 3.12+ | Modern async, type hints, broad ecosystem |
+| Language | Python 3.11+ | Modern async, type hints, broad ecosystem |
 | Package Manager | uv | Fast, reliable, cross-platform |
 | TUI Framework | Textual | Modern, async-first, CSS styling |
 | Data Models | Pydantic v2 | Validation, serialization, IDE support |
@@ -237,87 +237,6 @@ Validate user-provided commands against dangerous patterns:
 - Provide clear logging of verification results
 - Allow skipping verification phases when needed
 - Implement proper error handling and reporting for failed commands
-
----
-
-## Pydantic V2 Standards
-
-### Configuration
-- **ALWAYS** use `model_config = ConfigDict(...)` instead of the nested `class Config:` pattern or `dict` assignment.
-- Enable `strict=True` for internal domain models unless flexible parsing is explicitly required.
-- Enable `frozen=True` for immutable models (preferred for state).
-
-```python
-from pydantic import BaseModel, ConfigDict, Field
-
-class Project(BaseModel):
-    model_config = ConfigDict(strict=True, frozen=False)
-    
-    name: str
-```
-
-### Validation
-- Use `@field_validator` and `@model_validator(mode='after')` decorators.
-- Do NOT use V1 `@validator`.
-
-### Serialization
-- Use `model_dump()` and `model_dump_json()`. Avoid `.dict()` and `.json()`.
-
----
-
-## Textual Event Handling
-
-### Interactive Elements
-- **Do not** override `on_button_pressed` or similar generic handlers in `App`.
-- **Use the `@on` decorator** for explicit event routing.
-
-```python
-from textual import on
-
-class MyApp(App):
-    @on(Button.Pressed, "#btn-start")
-    def handle_start(self) -> None:
-        ...
-```
-
-### Reactive State
-- Use `textual.reactive.reactive` for state variables that should trigger UI repaints.
-- Implement `watch_<var_name>` methods for side effects.
-
-```python
-from textual.reactive import reactive
-
-class StatusPanel(Widget):
-    status: str = reactive("idle")
-
-    def watch_status(self, new_status: str) -> None:
-        self.update(f"Status: {new_status}")
-```
-
----
-
-## Python 3.12+ Control Flow
-
-### Pattern Matching
-- Use `match/case` statements for complex branching logic, especially state machines and message handling.
-- Avoid long `if/elif/else` chains for checking a single variable against multiple constants.
-
-```python
-# Good
-match current_state:
-    case "planning":
-        await self.plan()
-    case "implementing":
-        await self.implement()
-    case _:
-        logger.error(f"Unknown state: {current_state}")
-
-# Bad
-if current_state == "planning":
-    await self.plan()
-elif current_state == "implementing":
-    await self.implement()
-```
 
 ---
 

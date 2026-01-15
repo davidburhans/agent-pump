@@ -2,15 +2,17 @@
 
 import asyncio
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from agent_pump.events.bus import EventBus
 from agent_pump.events.models import (
+    IdeasClearedEvent,
     LogEntryEvent,
     ProjectAddedEvent,
     ProjectRemovedEvent,
+    WorkflowStateChangedEvent,
 )
 from agent_pump.models.app_state import AppState
 from agent_pump.models.workspace import Workspace
@@ -47,9 +49,7 @@ class TestProjectService:
 
         # Create minimal project files
         (path / ".agent-pump").mkdir()
-        (path / ".agent-pump" / "config.yml").write_text(
-            "backend: gemini\nworkflow:\n  branch: main", encoding="utf-8"
-        )
+        (path / ".agent-pump" / "config.yml").write_text("backend: gemini\nworkflow:\n  branch: main", encoding="utf-8")
 
         return path
 
@@ -58,7 +58,6 @@ class TestProjectService:
         """Test adding a project."""
         # Setup event listener
         events = []
-
         async def listener():
             async for event in event_bus.subscribe(ProjectAddedEvent):
                 events.append(event)
@@ -113,7 +112,6 @@ class TestProjectService:
 
         # Setup event listener
         events = []
-
         async def listener():
             async for event in event_bus.subscribe(ProjectRemovedEvent):
                 events.append(event)
@@ -199,12 +197,10 @@ class TestProjectService:
 
         # Setup event listener
         events = []
-
         async def listener():
             async for event in event_bus.subscribe(LogEntryEvent):
                 events.append(event)
                 break
-
         task = asyncio.create_task(listener())
         await asyncio.sleep(0.01)
 

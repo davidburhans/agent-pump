@@ -90,7 +90,7 @@ class TestWorkflowService:
         path = Path("/tmp/p1").resolve()
         mock_workflow = MagicMock()
         mock_workflow.state = "implementing"
-        mock_workflow.project.iteration_count = 2
+        mock_workflow.project.iteration = 2
         mock_workflow.machine.get_triggers.return_value = ["complete"]
 
         service.project_service.workflows[path] = mock_workflow

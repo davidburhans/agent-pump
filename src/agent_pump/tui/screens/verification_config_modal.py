@@ -39,7 +39,7 @@ class VerificationConfigModal(ModalScreen[VerificationConfig]):
                 yield Horizontal(
                     Label("Skip Verification:", classes="setting-label"),
                     Switch(value=self.config.skip_verification, id="skip-verification-switch"),
-                    classes="setting-row",
+                    classes="setting-row"
                 )
 
                 # Build command
@@ -72,7 +72,7 @@ class VerificationConfigModal(ModalScreen[VerificationConfig]):
             yield Horizontal(
                 Button("Cancel", variant="default", id="cancel-button"),
                 Button("Save", variant="primary", id="save-button"),
-                id="button-row",
+                id="button-row"
             )
 
     def on_mount(self) -> None:

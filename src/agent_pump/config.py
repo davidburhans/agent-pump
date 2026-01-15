@@ -63,12 +63,11 @@ class Config(BaseModel):
         Load configuration from files.
 
         Priority:
-        1. Project-level .agent-pump/config.yml (New Standard)
-        2. Project-level .agent-pump.yml (Legacy)
-        3. User-level ~/.config/agent-pump/config.yml
-        4. Defaults
+        1. Project-level .agent-pump.yml
+        2. User-level ~/.config/agent-pump/config.yml
+        3. Defaults
 
-        If no project-level configuration exists, the new standard (.agent-pump/config.yml) is created.
+        If project-level configuration does not exist, it is created with defaults.
         """
         config_data: dict[str, Any] = {}
 
@@ -79,42 +78,15 @@ class Config(BaseModel):
                 user_data = yaml.safe_load(f) or {}
                 config_data.update(user_data)
 
-        # Check for configs
-        new_config_dir = project_path / ".agent-pump"
-        new_config_file = new_config_dir / "config.yml"
-        legacy_config_file = project_path / ".agent-pump.yml"
-
-        # If neither exists, create NEW structure
-        if not new_config_file.exists() and not legacy_config_file.exists():
-            new_config_dir.mkdir(parents=True, exist_ok=True)
-            (new_config_dir / "states").mkdir(parents=True, exist_ok=True)
-            (new_config_dir / "backends").mkdir(parents=True, exist_ok=True)
-
-            with open(new_config_file, "w") as f:
+        # Project-level config (overrides user)
+        project_config = project_path / ".agent-pump.yml"
+        if not project_config.exists():
+            # Create default config file if it doesn't exist
+            with open(project_config, "w") as f:
                 f.write(DEFAULT_CONFIG_TEMPLATE)
-            
-            # Create stub prompt files
-            for state in [
-                "planning",
-                "implementing",
-                "verifying",
-                "brainstorming",
-                "committing",
-            ]:
-                stub = new_config_dir / "states" / f"pre-{state}.md"
-                if not stub.exists():
-                    stub.write_text(
-                        f"<!-- Add custom instructions to prepend to {state} phase -->\n",
-                        encoding="utf-8",
-                    )
 
-        # Load project config (prefer new)
-        if new_config_file.exists():
-             with open(new_config_file) as f:
-                project_data = yaml.safe_load(f) or {}
-                config_data.update(project_data)
-        elif legacy_config_file.exists():
-             with open(legacy_config_file) as f:
+        if project_config.exists():
+            with open(project_config) as f:
                 project_data = yaml.safe_load(f) or {}
                 config_data.update(project_data)
 
@@ -124,4 +96,3 @@ class Config(BaseModel):
         """Save configuration to a file."""
         with open(path, "w") as f:
             yaml.safe_dump(self.model_dump(), f, default_flow_style=False)
-

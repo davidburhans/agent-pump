@@ -13,11 +13,7 @@ class ConfigMigrator:
 
     def needs_migration(self) -> bool:
         """Check if legacy config exists without new directory."""
-        # Check if legacy exists AND (new dir doesn't exist OR new config doesn't exist)
-        # But wait, if new dir exists but config doesn't, we should probably migrate.
-        has_legacy = self.legacy_file.exists()
-        has_new_config = (self.new_dir / "config.yml").exists()
-        return has_legacy and not has_new_config
+        return self.legacy_file.exists() and not self.new_dir.exists()
 
     def migrate(self, remove_legacy: bool = False) -> None:
         """Convert legacy config to directory structure.

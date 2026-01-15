@@ -40,17 +40,14 @@ class TestIdeaService:
         # Override add_idea to append to list
         def mock_add_idea(idea, priority=0, source="user"):
             workspace.idea_queue.append(IdeaQueueItem(idea=idea, priority=priority))
-
         workspace.add_idea.side_effect = mock_add_idea
 
         # Setup event listener
         events = []
-
         async def listener():
             async for event in event_bus.subscribe(IdeaAddedEvent):
                 events.append(event)
                 break
-
         task = asyncio.create_task(listener())
         await asyncio.sleep(0.01)
 
@@ -76,12 +73,10 @@ class TestIdeaService:
 
         # Setup event listener
         events = []
-
         async def listener():
             async for event in event_bus.subscribe(IdeaAddedEvent):
                 events.append(event)
                 break
-
         task = asyncio.create_task(listener())
         await asyncio.sleep(0.01)
 
@@ -104,12 +99,10 @@ class TestIdeaService:
 
         # Setup event listener
         events = []
-
         async def listener():
             async for event in event_bus.subscribe(IdeasClearedEvent):
                 events.append(event)
                 break
-
         task = asyncio.create_task(listener())
         await asyncio.sleep(0.01)
 

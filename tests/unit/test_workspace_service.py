@@ -43,12 +43,10 @@ class TestWorkspaceService:
 
         # Setup event listener
         events = []
-
         async def listener():
             async for event in event_bus.subscribe(ConfigUpdatedEvent):
                 events.append(event)
                 break
-
         task = asyncio.create_task(listener())
         await asyncio.sleep(0.01)
 
@@ -75,12 +73,10 @@ class TestWorkspaceService:
 
         # Event listener
         events = []
-
         async def listener():
             async for event in event_bus.subscribe(ConfigUpdatedEvent):
                 events.append(event)
                 break
-
         task = asyncio.create_task(listener())
         await asyncio.sleep(0.01)
 
@@ -100,12 +96,10 @@ class TestWorkspaceService:
         mock_settings = MagicMock()
 
         events = []
-
         async def listener():
             async for event in event_bus.subscribe(ConfigUpdatedEvent):
                 events.append(event)
                 break
-
         task = asyncio.create_task(listener())
         await asyncio.sleep(0.01)
 

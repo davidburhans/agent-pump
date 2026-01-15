@@ -34,13 +34,13 @@ class ProjectStatusDTO(APIBaseModel):
     path: Path = Field(description="Absolute path to the project root")
     state: str = Field(description="Current workflow state (e.g. 'planning', 'idle')")
     iteration: int = Field(default=0, description="Current workflow iteration count")
-    current_feature: str | None = Field(
-        default=None, description="Feature currently being worked on"
-    )
+    current_feature: str | None = Field(default=None, description="Feature currently being worked on")
     current_activity: str | None = Field(
         default=None, description="Transient activity description (e.g. 'Reading file...')"
     )
-    time_in_state: float = Field(default=0.0, description="Seconds elapsed in current state")
+    time_in_state: float = Field(
+        default=0.0, description="Seconds elapsed in current state"
+    )
 
     @classmethod
     def from_internal(cls, project: Project) -> Self:
@@ -98,7 +98,7 @@ class WorkflowStateDTO(APIBaseModel):
 
         # Get transitions
         transitions = []
-        if hasattr(workflow, "machine"):
+        if hasattr(workflow, 'machine'):
             transitions = workflow.machine.get_triggers(workflow.state)
 
         # TODO: Implement node/edge extraction from workflow definition
@@ -171,14 +171,14 @@ class BackendConfigDTO(APIBaseModel):
             return cls(
                 name=primary.name if primary else "unknown",
                 args=primary.args if primary else [],
-                fallback_chain=chain,
+                fallback_chain=chain
             )
         else:
             # It's a single instance (or lookalike)
             return cls(
                 name=getattr(backend, "name", "unknown"),
                 args=getattr(backend, "args", []),
-                fallback_chain=[],
+                fallback_chain=[]
             )
 
 

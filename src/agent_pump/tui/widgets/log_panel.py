@@ -171,6 +171,8 @@ class LogPanel(TextArea):
 
     def _refresh_display(self) -> None:
         """Refresh the text area with filtered logs."""
+        self.text = ""
+
         # Filter entries first
         visible_entries = [entry for entry in self.log_entries if self._should_show(entry)]
 

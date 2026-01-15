@@ -1,14 +1,15 @@
 """Tests for ProjectConfigModal."""
 
-from unittest.mock import MagicMock, patch
-
 import pytest
+
+from unittest.mock import MagicMock, patch
 
 from agent_pump.models.app_state import AppState
 from agent_pump.models.workspace import Workspace
 from agent_pump.tui.app import AgentPumpApp
 from agent_pump.tui.screens.project_config_modal import ProjectConfigModal
-
+from agent_pump.models.project import Project
+from agent_pump.config import Config
 
 class TestPumpApp(AgentPumpApp):
     """Test app that skips background workers to avoid race conditions/mounting errors."""
@@ -24,7 +25,6 @@ class TestPumpApp(AgentPumpApp):
     async def _handle_events(self) -> None:
         """Override to ensure no background event processing occurs."""
         pass
-
 
 @pytest.mark.asyncio
 async def test_project_config_modal_interaction(tmp_path):
@@ -45,13 +45,12 @@ verification:
     (project_path / "BEST_PRACTICES.md").touch()
 
     # Mock AppState and Workspace to avoid touching real user config
-    with (
-        patch("agent_pump.models.app_state.AppState.load") as mock_state_load,
-        patch("agent_pump.models.workspace.Workspace.load") as mock_ws_load,
-    ):
+    with patch("agent_pump.models.app_state.AppState.load") as mock_state_load, \
+         patch("agent_pump.models.workspace.Workspace.load") as mock_ws_load:
+
         mock_app_state = MagicMock(spec=AppState)
         mock_app_state.log_sort_order = "desc"
-        mock_app_state.current_workspace = None  # Use default
+        mock_app_state.current_workspace = None # Use default
         mock_state_load.return_value = mock_app_state
 
         # Use a real workspace instance for logic validation
@@ -100,7 +99,6 @@ verification:
             content = (project_path / ".agent-pump.yml").read_text()
             assert "skip_verification: false" in content
 
-
 @pytest.mark.asyncio
 async def test_project_config_creation(tmp_path):
     """Test that start-up creates the config file if missing."""
@@ -108,10 +106,9 @@ async def test_project_config_creation(tmp_path):
     project_path.mkdir()
     (project_path / "ROADMAP.md").touch()
 
-    with (
-        patch("agent_pump.models.app_state.AppState.load") as mock_state_load,
-        patch("agent_pump.models.workspace.Workspace.load") as mock_ws_load,
-    ):
+    with patch("agent_pump.models.app_state.AppState.load") as mock_state_load, \
+         patch("agent_pump.models.workspace.Workspace.load") as mock_ws_load:
+
         mock_app_state = MagicMock(spec=AppState)
         mock_app_state.log_sort_order = "desc"
         mock_app_state.current_workspace = None

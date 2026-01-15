@@ -4,11 +4,11 @@ from agent_pump.config import DEFAULT_CONFIG_TEMPLATE, Config
 
 
 def test_auto_create_config_on_load(tmp_path):
-    """Test that .agent-pump/config.yml is created when loading config if it doesn't exist."""
+    """Test that .agent-pump.yml is created when loading config if it doesn't exist."""
     project_path = tmp_path / "new_project"
     project_path.mkdir()
 
-    config_file = project_path / ".agent-pump" / "config.yml"
+    config_file = project_path / ".agent-pump.yml"
     assert not config_file.exists()
 
     # Load config should trigger creation
@@ -24,7 +24,6 @@ def test_auto_create_config_on_load(tmp_path):
     assert config.workflow.timeout == 1800
     assert config.workflow.branch is None
     assert config.verification.build_cmd is None
-
 
 def test_do_not_overwrite_existing_config(tmp_path):
     """Test that existing .agent-pump.yml is not overwritten."""

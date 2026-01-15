@@ -3,9 +3,9 @@
 import logging
 from pathlib import Path
 
-from agent_pump.api.schemas import WorkflowStateDTO
 from agent_pump.events.bus import EventBus
 from agent_pump.services.base import BaseService
+from agent_pump.api.schemas import WorkflowStateDTO
 from agent_pump.services.project_service import ProjectService
 
 logger = logging.getLogger(__name__)
@@ -47,10 +47,7 @@ class WorkflowService(BaseService):
         # Note: In real app, we need to manage this task properly.
         # For now, we create a task and let it run.
         import asyncio
-
-        config = self.project_service.projects[
-            path
-        ].config  # Assuming project object has config attached, wait Project model doesn't store config used by workflow init.
+        config = self.project_service.projects[path].config  # Assuming project object has config attached, wait Project model doesn't store config used by workflow init.
         # Actually workflow has config.
 
         # We need max_iterations from config.
@@ -63,8 +60,8 @@ class WorkflowService(BaseService):
         # Let's verify ProjectWorkflow definition. It initializes with config.
 
         max_iterations = 10
-        if hasattr(workflow, "config") and workflow.config and workflow.config.workflow:
-            max_iterations = workflow.config.workflow.max_iterations
+        if hasattr(workflow, 'config') and workflow.config and workflow.config.workflow:
+             max_iterations = workflow.config.workflow.max_iterations
 
         asyncio.create_task(self._run_workflow_safe(workflow, max_iterations))
 

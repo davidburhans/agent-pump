@@ -5,11 +5,10 @@ state machines. The default 5-phase workflow is defined here, and users
 can create custom workflows stored in workspace configuration.
 """
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 
 class WorkflowPhase(BaseModel):
-    model_config = ConfigDict(frozen=True)
     """A single phase in a workflow.
 
     Represents one step in the development workflow, with its prompt
@@ -35,7 +34,6 @@ class WorkflowPhase(BaseModel):
 
 
 class WorkflowDefinition(BaseModel):
-    model_config = ConfigDict(frozen=True)
     """A complete workflow state machine definition.
 
     Defines all the states, phases, and transitions for a workflow.

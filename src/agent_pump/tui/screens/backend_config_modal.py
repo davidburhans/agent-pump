@@ -220,7 +220,7 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
                 Button("Apply to All Projects", variant="warning", id="btn-apply-all"),
                 Button("Cancel (Esc)", variant="error", id="btn-cancel"),
                 Button("Save (Ctrl+S)", variant="success", id="btn-save"),
-                classes="button-row",
+                classes="button-row"
             )
 
     def _compose_phase_content(
@@ -276,7 +276,7 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
                             id=f"{phase}-copy-from",
                         ),
                         Button("Save as Preset", id=f"{phase}-save-preset", variant="primary"),
-                        classes="copy-row",
+                        classes="copy-row"
                     )
 
                     yield Label("Backend Chain (tried in order):", classes="section-label")
@@ -558,7 +558,6 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
 
     def action_apply_to_all(self) -> None:
         """Apply current configuration to all projects."""
-
         def on_confirm(confirm: bool) -> None:
             if confirm:
                 self._perform_apply_to_all()
@@ -567,9 +566,9 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
             ConfirmModal(
                 "Are you sure you want to apply this configuration to ALL projects?\n"
                 "This will overwrite their backend settings.",
-                confirm_label="Overwrite All",
+                confirm_label="Overwrite All"
             ),
-            on_confirm,
+            on_confirm
         )
 
     def _perform_apply_to_all(self) -> None:

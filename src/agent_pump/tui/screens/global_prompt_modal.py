@@ -190,7 +190,7 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
                                 id="new-model-input",
                             ),
                             Button("+ Add Model", variant="success", id="btn-add-model"),
-                            classes="add-model-row",
+                            classes="add-model-row"
                         )
 
                         # Show configured models
@@ -210,7 +210,7 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
                                         "×",
                                         variant="error",
                                         id=f"remove-model-{self._safe_id(model_name)}",
-                                    ),
+                                    )
                                 )
 
                                 with Vertical(classes="textarea-row"):
@@ -233,7 +233,7 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
                 Button("Clear All", variant="warning", id="btn-clear"),
                 Button("Cancel (Esc)", variant="error", id="btn-cancel"),
                 Button("Save (Ctrl+S)", variant="success", id="btn-save"),
-                classes="button-row",
+                classes="button-row"
             )
 
     def _safe_id(self, name: str) -> str:

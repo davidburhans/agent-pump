@@ -67,7 +67,9 @@ class IdeaService(BaseService):
         self.workspace.save()
         logger.info(f"Added idea: {idea[:20]}... (Project: {project_path})")
 
-        await self.event_bus.publish(IdeaAddedEvent(idea=idea, project_path=project_path))
+        await self.event_bus.publish(
+            IdeaAddedEvent(idea=idea, project_path=project_path)
+        )
         return item
 
     def list_ideas(self, project_path: Path | None = None) -> list[IdeaQueueItem]:

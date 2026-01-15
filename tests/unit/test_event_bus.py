@@ -63,9 +63,7 @@ class TestEventBus:
 
         # Publish mixed events
         await bus.publish(Event())  # Should be ignored
-        await bus.publish(
-            WorkflowStateChangedEvent(project_path=Path("p"), old_state="a", new_state="b")
-        )
+        await bus.publish(WorkflowStateChangedEvent(project_path=Path("p"), old_state="a", new_state="b"))
         await bus.publish(ProjectAddedEvent(project_path=Path("test")))  # Should be captured
 
         await asyncio.wait_for(task, timeout=1.0)
@@ -127,9 +125,7 @@ class TestEventBus:
             pass
 
         # Should be removed from subscribers list
-        await asyncio.sleep(
-            0.01
-        )  # Allow cleanup callback to run if there was one (not needed here but good practice)
+        await asyncio.sleep(0.01)  # Allow cleanup callback to run if there was one (not needed here but good practice)
 
         # Note: In our current implementation, cleanup happens when the generator exits.
         # But since we cancelled the task consuming the generator, we need to ensure the generator's finally block runs.
@@ -200,7 +196,9 @@ class TestNewEventTypes:
         await asyncio.sleep(0.01)
 
         await bus.publish(
-            IdeaProcessedEvent(project_path=Path("test"), ideas=["Add feature X", "Refactor Y"])
+            IdeaProcessedEvent(
+                project_path=Path("test"), ideas=["Add feature X", "Refactor Y"]
+            )
         )
 
         await asyncio.wait_for(task, timeout=1.0)

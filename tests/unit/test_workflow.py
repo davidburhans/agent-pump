@@ -122,8 +122,8 @@ class TestProjectWorkflow:
             initial_state="init",
             phases=[
                 WorkflowPhase(name="phase1", on_success="phase2"),
-                WorkflowPhase(name="phase2", on_success="completed"),
-            ],
+                WorkflowPhase(name="phase2", on_success="completed")
+            ]
         )
 
         workflow = ProjectWorkflow(project=project, workflow_def=custom_def)
@@ -142,7 +142,7 @@ class TestProjectWorkflow:
         assert workflow.state == "phase1"
 
         # Trigger dynamic transition method
-        workflow.phase1_complete()  # type: ignore
+        workflow.phase1_complete() # type: ignore
         assert workflow.state == "phase2"
 
     def test_state_change_callback(self, project):
@@ -191,14 +191,12 @@ class TestProjectWorkflow:
     async def test_auto_pick_roadmap_item(self, tmp_path):
         """Test that planning phase auto-picks the first roadmap item if TASK_NAME is missing."""
         import textwrap
-
         project_dir = tmp_path / "test_project_auto_pick"
         project_dir.mkdir()
 
         # Create a ROADMAP.md
         roadmap_path = project_dir / "ROADMAP.md"
-        roadmap_path.write_text(
-            textwrap.dedent("""\
+        roadmap_path.write_text(textwrap.dedent("""\
             # Roadmap
 
             ## Future Enhancements
@@ -208,9 +206,7 @@ class TestProjectWorkflow:
 
             **Acceptance Criteria:**
             - Done
-        """),
-            encoding="utf-8",
-        )
+        """), encoding="utf-8")
 
         project = Project.from_path(project_dir)
         workflow = ProjectWorkflow(project=project)
@@ -220,7 +216,6 @@ class TestProjectWorkflow:
         workflow.run_phase = AsyncMock(return_value=True)
         # Mock build_planning_prompt to verify arguments
         from unittest.mock import patch
-
         with patch(
             "agent_pump.orchestrator.workflow.build_planning_prompt", return_value="Mocked Prompt"
         ) as mock_build:
@@ -303,6 +298,7 @@ class TestProjectWorkflow:
         workflow.project.current_activity = "doing something"
         workflow.start()
         assert workflow.project.current_activity is None
+
 
 
 class TestPrompts:
