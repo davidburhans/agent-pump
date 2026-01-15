@@ -5,7 +5,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .verification_config import VerificationConfig
 
@@ -53,7 +53,7 @@ class Project(BaseModel):
         default=None, description="Transient granular activity description (e.g. 'Reading file...')"
     )
 
-    model_config = {"arbitrary_types_allowed": True}
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @classmethod
     def from_path(cls, path: Path, **kwargs: Any) -> "Project":

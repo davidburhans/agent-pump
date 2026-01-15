@@ -1,7 +1,6 @@
 """Workflow panel widget for displaying workflow diagrams."""
 
 import logging
-from typing import ClassVar
 
 from textual.containers import Center, Horizontal, Middle
 from textual.message import Message
@@ -76,7 +75,7 @@ class WorkflowNode(Static):
             self.node_name = phase.name
             self.icon = phase.icon or "●"
             self.label = phase.name.title()
-        
+
         # Idle/Completed/Error nodes might need custom labels/icons
         if self.node_name == "idle":
             self.icon = "⏹"
@@ -87,7 +86,7 @@ class WorkflowNode(Static):
         elif self.node_name == "error":
             self.icon = "❌"
             self.label = "Error"
-        
+
         self.update(f"{self.icon} {self.label}")
 
     def on_click(self) -> None:
@@ -130,24 +129,24 @@ class WorkflowPanel(Middle):
     }
     """
 
+    workflow: ProjectWorkflow | None = reactive(None)
+
     def __init__(self, **kwargs):
         """Initialize the workflow panel."""
         super().__init__(**kwargs)
-        self.workflow: ProjectWorkflow | None = None
         self.nodes: dict[str, WorkflowNode] = {}
         self.timer = None
 
+    def watch_workflow(
+        self, old_workflow: ProjectWorkflow | None, new_workflow: ProjectWorkflow | None
+    ) -> None:
+        """Rebuild diagram when workflow changes."""
+        self.rebuild_diagram()
+
     def set_workflow(self, workflow: ProjectWorkflow | None) -> None:
-        """Set the workflow to display."""
-        logger.debug(f"WorkflowPanel.set_workflow called with: {workflow}")
-        
-        # Only rebuild if workflow object changed (or first time)
-        # Note: We rely on refresh_visuals for state updates
-        is_new_workflow = self.workflow != workflow
-        self.workflow = workflow
-        
-        if is_new_workflow:
-            self.rebuild_diagram()
+        """Set the workflow to display (helper for app.py)."""
+        if self.workflow != workflow:
+            self.workflow = workflow
         else:
             self.refresh_visuals()
 
@@ -155,7 +154,7 @@ class WorkflowPanel(Middle):
         """Rebuild the node structure."""
         self.query("Center").remove()
         self.nodes.clear()
-        
+
         if self.timer:
             self.timer.stop()
             self.timer = None
@@ -167,12 +166,12 @@ class WorkflowPanel(Middle):
         # Build nodes list
         # Build nodes list
         widgets = []
-        
+
         # Add Idle state
         idle_node = WorkflowNode("idle", id="node-idle")
         widgets.append(idle_node)
         self.nodes["idle"] = idle_node
-        
+
         widgets.append(WorkflowConnector())
 
         # Add phases
@@ -181,11 +180,11 @@ class WorkflowPanel(Middle):
             node = WorkflowNode(phase, id=f"node-{phase.name}")
             widgets.append(node)
             self.nodes[phase.name] = node
-            
+
             if i < len(phases) - 1:
                 widgets.append(WorkflowConnector())
 
-        # Logic for terminal states? 
+        # Logic for terminal states?
         # Usually completed/error are outcomes.
         # But for linear graph, maybe just show phases?
         # The plan says "WorkflowNode (idle) ... (planning) ... (implementing) ..."
@@ -193,7 +192,7 @@ class WorkflowPanel(Middle):
         # If the state IS completed, we should probably highlight the last node or show a completed node?
         # Let's add 'completed' and 'error' nodes at the end/bottom? or just change state of current nodes?
         # Actually, adding "Completed" node at end is good.
-        
+
         widgets.append(WorkflowConnector())
         completed_node = WorkflowNode("completed", id="node-completed")
         widgets.append(completed_node)
@@ -201,16 +200,16 @@ class WorkflowPanel(Middle):
 
         # Error state usually jumps from anywhere, hard to visualize linearly.
         # Maybe display it separately if active?
-        # For now, let's keep it simple. If state is error, we highlight the node that failed? 
+        # For now, let's keep it simple. If state is error, we highlight the node that failed?
         # Or we can add an Error node. Let's add it.
         # But where? Maybe not in the linear flow.
-        
+
         nodes_container = Horizontal(*widgets)
         self.mount(Center(nodes_container))
-        
+
         # Start pulse timer
         self.timer = self.set_interval(0.8, self.pulse_active_node)
-        
+
         self.refresh_visuals()
 
     def refresh_visuals(self) -> None:
@@ -219,7 +218,7 @@ class WorkflowPanel(Middle):
             return
 
         current_state = self.workflow.state
-        
+
         # Reset all nodes
         for node in self.nodes.values():
             node.remove_class("active")
@@ -231,18 +230,18 @@ class WorkflowPanel(Middle):
         # If in a phase, everything before it is "completed"
         # If IDLE, nothing is completed.
         # If COMPLETED, everything is completed.
-        
+
         phases = [p.name for p in self.workflow.workflow_def.phases]
-        
+
         # Determine index of current state
         current_idx = -1
         if current_state in phases:
             current_idx = phases.index(current_state)
         elif current_state == "completed":
-            current_idx = len(phases) # All phases done
+            current_idx = len(phases)  # All phases done
         elif current_state == "idle":
             current_idx = -1
-        
+
         # Mark previous phases as completed
         # Handle 'idle' node
         if current_state != "idle":
@@ -253,8 +252,9 @@ class WorkflowPanel(Middle):
         # Handle phases
         for i, phase_name in enumerate(phases):
             node = self.nodes.get(phase_name)
-            if not node: continue
-            
+            if not node:
+                continue
+
             if i < current_idx:
                 node.add_class("completed")
             elif i == current_idx:
@@ -262,10 +262,10 @@ class WorkflowPanel(Middle):
 
         # Handle completed/error state specifically
         if current_state == "completed":
-            self.nodes["completed"].add_class("completed") 
+            self.nodes["completed"].add_class("completed")
             # Also mark it active/pulsing? Usually completed is static success.
             # But the last phase should be completed too.
-        
+
         if current_state == "error":
             # Finding where we failed is tricky without history, but usually we just show Error state active
             # Or we can look at workflow.workflow_state.previous_state? (not exposed easily)
@@ -277,10 +277,10 @@ class WorkflowPanel(Middle):
         """Toggle pulse class on active node."""
         if not self.workflow:
             return
-            
+
         current_state = self.workflow.state
         # Only pulse if it's a phase (not idle/completed/error)
         is_phase = any(p.name == current_state for p in self.workflow.workflow_def.phases)
-        
+
         if is_phase and current_state in self.nodes:
             self.nodes[current_state].toggle_class("pulse")

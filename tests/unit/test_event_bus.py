@@ -63,7 +63,9 @@ class TestEventBus:
 
         # Publish mixed events
         await bus.publish(Event())  # Should be ignored
-        await bus.publish(WorkflowStateChangedEvent(project_path=Path("p"), old_state="a", new_state="b"))
+        await bus.publish(
+            WorkflowStateChangedEvent(project_path=Path("p"), old_state="a", new_state="b")
+        )
         await bus.publish(ProjectAddedEvent(project_path=Path("test")))  # Should be captured
 
         await asyncio.wait_for(task, timeout=1.0)
@@ -113,36 +115,38 @@ class TestEventBus:
                 pass
 
         task = asyncio.create_task(listener())
-        
+
         # Give it a moment to register
         await asyncio.sleep(0.01)
         assert len(bus._subscribers) == 1
-        
+
         task.cancel()
         try:
             await task
         except asyncio.CancelledError:
             pass
-            
+
         # Should be removed from subscribers list
-        await asyncio.sleep(0.01)  # Allow cleanup callback to run if there was one (not needed here but good practice)
-        
+        await asyncio.sleep(
+            0.01
+        )  # Allow cleanup callback to run if there was one (not needed here but good practice)
+
         # Note: In our current implementation, cleanup happens when the generator exits.
         # But since we cancelled the task consuming the generator, we need to ensure the generator's finally block runs.
         # Python async generators' finally blocks run when the generator is garbage collected or aclose is called.
         # asyncio loop usually handles this. Let's verify our implementation robustness.
-        
+
         # Actually, our implementation has a try/finally block that removes the queue.
         # When task is cancelled, `await queue.get()` raises CancelledError inside the generator?
         # No, the `await` inside the task raises CancelledError, so the task stops iterating.
         # The generator itself needs to be closed.
-        
-        # Let's verify if our logic handles it. 
+
+        # Let's verify if our logic handles it.
         # If the task awaiting the generator is cancelled, the generator is typically closed.
-        
-        # Manually triggering cleanup for test deterministic behavior if needed, 
+
+        # Manually triggering cleanup for test deterministic behavior if needed,
         # but realistically we just want to ensure NO ERROR allows the bus to keep working.
-        
+
         await bus.publish(Event())
         # If no error, we are good.
 
@@ -196,9 +200,7 @@ class TestNewEventTypes:
         await asyncio.sleep(0.01)
 
         await bus.publish(
-            IdeaProcessedEvent(
-                project_path=Path("test"), ideas=["Add feature X", "Refactor Y"]
-            )
+            IdeaProcessedEvent(project_path=Path("test"), ideas=["Add feature X", "Refactor Y"])
         )
 
         await asyncio.wait_for(task, timeout=1.0)

@@ -35,7 +35,7 @@ class WorkspaceService(BaseService):
     def get_current_workspace(self) -> Workspace:
         """
         Get the current workspace. Initializes it if necessary.
-        
+
         Returns:
              The current Workspace object.
         """
@@ -54,8 +54,8 @@ class WorkspaceService(BaseService):
             workspace_path = self.app_state.current_workspace
             # If app_state doesn't have it (unlikely if properly initialized), fallback
             if not workspace_path:
-                 workspace_path = Path.home() / ".agent-pump" / "workspace.json"
-            
+                workspace_path = Path.home() / ".agent-pump" / "workspace.json"
+
             self._workspace = Workspace.load(workspace_path)
 
         return self._workspace
@@ -67,7 +67,7 @@ class WorkspaceService(BaseService):
     async def switch_workspace(self, name: str) -> Workspace:
         """
         Switch to a different workspace (placeholder logic as multiple workspaces support is minimal).
-        
+
         Args:
             name: Name or path of the workspace.
         """
@@ -78,9 +78,7 @@ class WorkspaceService(BaseService):
         )
         return self.get_current_workspace()
 
-    async def update_backend_config(
-        self, path: Path | None, config: PhaseBackends
-    ) -> None:
+    async def update_backend_config(self, path: Path | None, config: PhaseBackends) -> None:
         """
         Update backend configuration.
 
@@ -107,9 +105,7 @@ class WorkspaceService(BaseService):
                 ConfigUpdatedEvent(project_path=None, config_type="backend")
             )
 
-    async def update_prompt_config(
-        self, path: Path, config: PromptCustomization
-    ) -> None:
+    async def update_prompt_config(self, path: Path, config: PromptCustomization) -> None:
         """
         Update prompt customization for a project.
 

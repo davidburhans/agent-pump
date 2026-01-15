@@ -104,7 +104,7 @@ class ProjectConfigModal(ModalScreen[None]):
                         ],
                         value=self.config.backend,
                         id="input-backend",
-                        allow_blank=False
+                        allow_blank=False,
                     )
 
                     yield Label("Workflow Settings:", classes="section-label")
@@ -115,9 +115,9 @@ class ProjectConfigModal(ModalScreen[None]):
                             str(self.config.workflow.max_iterations),
                             placeholder="10",
                             id="input-max-iterations",
-                            type="integer"
+                            type="integer",
                         ),
-                        classes="input-row"
+                        classes="input-row",
                     )
 
                     yield Horizontal(
@@ -126,9 +126,9 @@ class ProjectConfigModal(ModalScreen[None]):
                             str(self.config.workflow.timeout),
                             placeholder="1800",
                             id="input-timeout",
-                            type="integer"
+                            type="integer",
                         ),
-                        classes="input-row"
+                        classes="input-row",
                     )
 
                     yield Horizontal(
@@ -136,16 +136,16 @@ class ProjectConfigModal(ModalScreen[None]):
                         Input(
                             self.config.workflow.branch or "",
                             placeholder="(optional branch name)",
-                            id="input-branch"
+                            id="input-branch",
                         ),
-                        classes="input-row"
+                        classes="input-row",
                     )
 
                 with TabPane("Verification", id="tab-verification"):
                     yield Checkbox(
                         "Skip Verification Phase",
                         value=self.config.verification.skip_verification,
-                        id="input-skip-verification"
+                        id="input-skip-verification",
                     )
 
                     yield Label("Commands (leave empty to auto-detect):", classes="section-label")
@@ -155,9 +155,9 @@ class ProjectConfigModal(ModalScreen[None]):
                         Input(
                             self.config.verification.build_cmd or "",
                             placeholder="e.g., npm run build",
-                            id="input-build-cmd"
+                            id="input-build-cmd",
                         ),
-                        classes="input-row"
+                        classes="input-row",
                     )
 
                     yield Horizontal(
@@ -165,9 +165,9 @@ class ProjectConfigModal(ModalScreen[None]):
                         Input(
                             self.config.verification.lint_cmd or "",
                             placeholder="e.g., npm run lint",
-                            id="input-lint-cmd"
+                            id="input-lint-cmd",
                         ),
-                        classes="input-row"
+                        classes="input-row",
                     )
 
                     yield Horizontal(
@@ -175,16 +175,16 @@ class ProjectConfigModal(ModalScreen[None]):
                         Input(
                             self.config.verification.test_cmd or "",
                             placeholder="e.g., npm test",
-                            id="input-test-cmd"
+                            id="input-test-cmd",
                         ),
-                        classes="input-row"
+                        classes="input-row",
                     )
 
             # Button row (outside tabs)
             yield Horizontal(
                 Button("Cancel (Esc)", variant="error", id="btn-cancel"),
                 Button("Save (Ctrl+S)", variant="success", id="btn-save"),
-                classes="button-row"
+                classes="button-row",
             )
 
     def action_cancel(self) -> None:

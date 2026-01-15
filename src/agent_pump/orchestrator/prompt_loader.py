@@ -22,9 +22,7 @@ class PromptLoader:
         path = self.prompt_dir / "states" / filename
         return path.read_text(encoding="utf-8").strip() if path.exists() else None
 
-    def load_backend_prompt(
-        self, backend: str, part: Literal["pre", "post"]
-    ) -> str | None:
+    def load_backend_prompt(self, backend: str, part: Literal["pre", "post"]) -> str | None:
         """Load backend-specific prompt."""
         path = self.prompt_dir / "backends" / f"{part}-{backend}.md"
         return path.read_text(encoding="utf-8").strip() if path.exists() else None

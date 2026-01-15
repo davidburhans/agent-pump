@@ -69,7 +69,7 @@ class ConfirmModal(ModalScreen[bool]):
             yield Horizontal(
                 Button(self.cancel_label, variant="primary", id="btn-cancel"),
                 Button(self.confirm_label, variant="error", id="btn-confirm"),
-                classes="buttons"
+                classes="buttons",
             )
 
     def on_button_pressed(self, event: Button.Pressed) -> None:

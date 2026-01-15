@@ -33,17 +33,17 @@ class TestWorkflowService:
     async def test_start_project(self, service):
         """Test starting a project."""
         path = Path("/tmp/p1").resolve()
-        
+
         mock_workflow = MagicMock()
         mock_workflow.is_running.return_value = False
         mock_workflow.run = AsyncMock()
         mock_workflow.config.workflow.max_iterations = 5
-        
+
         service.project_service.workflows[path] = mock_workflow
         service.project_service.projects[path] = MagicMock()
 
         result = await service.start_project(path)
-        
+
         assert result is True
         # Allow time for background task to start
         await asyncio.sleep(0.01)
@@ -69,7 +69,7 @@ class TestWorkflowService:
         service.project_service.workflows[path] = mock_workflow
 
         result = await service.stop_project(path)
-        
+
         assert result is True
         mock_workflow.cancel.assert_called()
 
@@ -81,7 +81,7 @@ class TestWorkflowService:
         service.project_service.workflows[path] = mock_workflow
 
         result = await service.reset_project(path)
-        
+
         assert result is True
         mock_workflow.reset_workflow.assert_called()
 
@@ -90,13 +90,13 @@ class TestWorkflowService:
         path = Path("/tmp/p1").resolve()
         mock_workflow = MagicMock()
         mock_workflow.state = "implementing"
-        mock_workflow.project.iteration = 2
+        mock_workflow.project.iteration_count = 2
         mock_workflow.machine.get_triggers.return_value = ["complete"]
-        
+
         service.project_service.workflows[path] = mock_workflow
-        
+
         status = service.get_workflow_status(path)
-        
+
         assert status is not None
         assert status.current_state == "implementing"
         assert status.iteration == 2

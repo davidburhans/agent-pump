@@ -85,4 +85,3 @@ def test_timer_lifecycle():
     card.refresh_content()
     card.set_interval.assert_called_once()
     assert card._timer_handle is not None
-
