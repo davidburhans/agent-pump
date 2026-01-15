@@ -79,7 +79,7 @@ class ClaudeBackend(AgentBackend):
     def command(self) -> str:
         return "claude"
 
-    async def is_available(self) -> bool:
+    async def _check_availability(self) -> bool:
         """Check if claude command is available in PATH."""
         available = cached_which(self.command) is not None
         logger.debug(f"Claude Code availability check: {available}")

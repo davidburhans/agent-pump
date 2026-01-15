@@ -77,7 +77,7 @@ class QwenBackend(AgentBackend):
     def command(self) -> str:
         return "qwen"
 
-    async def is_available(self) -> bool:
+    async def _check_availability(self) -> bool:
         """Check if qwen command is available in PATH."""
         available = cached_which(self.command) is not None
         logger.debug(f"Qwen Code availability check: {available}")

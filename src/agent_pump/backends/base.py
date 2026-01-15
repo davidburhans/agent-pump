@@ -70,10 +70,25 @@ class AgentBackend(ABC):
         """
         ...
 
-    @abstractmethod
+    _is_available_cache: bool | None = None
+
     async def is_available(self) -> bool:
         """
         Check if this backend is installed and configured.
+
+        Returns:
+            True if the backend can be used, False otherwise
+        """
+        if self._is_available_cache is not None:
+            return self._is_available_cache
+
+        self._is_available_cache = await self._check_availability()
+        return self._is_available_cache
+
+    @abstractmethod
+    async def _check_availability(self) -> bool:
+        """
+        Actual check implementation for availability.
 
         Returns:
             True if the backend can be used, False otherwise
