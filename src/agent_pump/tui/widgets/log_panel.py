@@ -178,11 +178,11 @@ class LogPanel(TextArea):
 
         # Sort based on order
         # Since entries are appended in chronological order, "desc" means reverse list
+        # Use join for O(N) string construction instead of O(N^2) loop
         if self.sort_order == "desc":
-            visible_entries.reverse()
-
-        for entry in visible_entries:
-            self.text += entry.formatted_line
+            self.text = "".join(entry.formatted_line for entry in reversed(visible_entries))
+        else:
+            self.text = "".join(entry.formatted_line for entry in visible_entries)
 
         # If desc (newest first), we usually want to be at the top?
         # But standard log view is "tail".
