@@ -2,12 +2,12 @@
 
 import asyncio
 import logging
-import shutil
 import time
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
 from agent_pump.backends.base import AgentBackend
+from agent_pump.utils.system import cached_which
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class GeminiBackend(AgentBackend):
 
     async def is_available(self) -> bool:
         """Check if gemini command is available."""
-        available = shutil.which(self.command) is not None
+        available = cached_which(self.command) is not None
         logger.debug(f"Gemini CLI availability check: {available}")
         return available
 
@@ -42,7 +42,7 @@ class GeminiBackend(AgentBackend):
 
         Uses --yolo for non-interactive mode (auto-approve all actions).
         """
-        executable = shutil.which(self.command)
+        executable = cached_which(self.command)
         if not executable:
             logger.error("Gemini CLI not found in PATH")
             yield (
