@@ -73,7 +73,7 @@ class OpenCodeBackend(AgentBackend):
     def command(self) -> str:
         return "opencode"
 
-    async def is_available(self) -> bool:
+    async def _check_availability(self) -> bool:
         """Check if opencode command is available in PATH."""
         available = cached_which(self.command) is not None
         logger.debug(f"OpenCode availability check: {available}")

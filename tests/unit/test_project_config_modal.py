@@ -127,7 +127,12 @@ async def test_project_config_creation(tmp_path):
 
             await pilot.pause()
 
-            config_file = project_path / ".agent-pump.yml"
+            # Check for new config path first
+            config_file = project_path / ".agent-pump" / "config.yml"
+            if not config_file.exists():
+                 # Fallback to legacy
+                 config_file = project_path / ".agent-pump.yml"
+
             # Verify config file was created
             assert config_file.exists()
             assert "# Agent Pump Host Configuration" in config_file.read_text()

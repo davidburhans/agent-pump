@@ -23,7 +23,7 @@ class GeminiBackend(AgentBackend):
     def command(self) -> str:
         return "gemini"
 
-    async def is_available(self) -> bool:
+    async def _check_availability(self) -> bool:
         """Check if gemini command is available."""
         available = cached_which(self.command) is not None
         logger.debug(f"Gemini CLI availability check: {available}")
