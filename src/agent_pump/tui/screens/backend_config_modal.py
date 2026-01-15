@@ -214,12 +214,14 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
                             preset_names,
                         )
 
-            with Horizontal(classes="button-row"):
-                yield Button("+ Add Backend", id="btn-add-backend", variant="primary")
-                yield Button("Reset All", variant="warning", id="btn-reset")
-                yield Button("Apply to All Projects", variant="warning", id="btn-apply-all")
-                yield Button("Cancel (Esc)", variant="error", id="btn-cancel")
-                yield Button("Save (Ctrl+S)", variant="success", id="btn-save")
+            yield Horizontal(
+                Button("+ Add Backend", id="btn-add-backend", variant="primary"),
+                Button("Reset All", variant="warning", id="btn-reset"),
+                Button("Apply to All Projects", variant="warning", id="btn-apply-all"),
+                Button("Cancel (Esc)", variant="error", id="btn-cancel"),
+                Button("Save (Ctrl+S)", variant="success", id="btn-save"),
+                classes="button-row"
+            )
 
     def _compose_phase_content(
         self,
@@ -265,15 +267,17 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
 
             with Vertical(id=f"{phase}-content-wrapper"):
                 if not is_inherited:
-                    with Horizontal(classes="copy-row"):
-                        yield Label("Copy from:")
-                        yield Select(
+                    yield Horizontal(
+                        Label("Copy from:"),
+                        Select(
                             copy_options,
                             value="",
                             allow_blank=False,
                             id=f"{phase}-copy-from",
-                        )
-                        yield Button("Save as Preset", id=f"{phase}-save-preset", variant="primary")
+                        ),
+                        Button("Save as Preset", id=f"{phase}-save-preset", variant="primary"),
+                        classes="copy-row"
+                    )
 
                     yield Label("Backend Chain (tried in order):", classes="section-label")
 

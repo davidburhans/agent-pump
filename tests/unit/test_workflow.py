@@ -41,47 +41,47 @@ class TestProjectWorkflow:
     def test_planning_to_implementing(self, workflow):
         """Test transitioning from planning to implementing."""
         workflow.start()
-        workflow.plan_complete()
+        workflow.planning_complete()
         assert workflow.state == "implementing"
 
     def test_implementing_to_verifying(self, workflow):
         """Test transitioning from implementing to verifying."""
         workflow.start()
-        workflow.plan_complete()
-        workflow.implement_complete()
+        workflow.planning_complete()
+        workflow.implementing_complete()
         assert workflow.state == "verifying"
 
     def test_verifying_to_brainstorming(self, workflow):
         """Test transitioning from verifying to brainstorming."""
         workflow.start()
-        workflow.plan_complete()
-        workflow.implement_complete()
-        workflow.verify_complete()
+        workflow.planning_complete()
+        workflow.implementing_complete()
+        workflow.verifying_complete()
         assert workflow.state == "brainstorming"
 
     def test_brainstorming_to_committing(self, workflow):
         """Test transitioning from brainstorming to committing."""
         workflow.start()
-        workflow.plan_complete()
-        workflow.implement_complete()
-        workflow.verify_complete()
-        workflow.brainstorm_complete()
+        workflow.planning_complete()
+        workflow.implementing_complete()
+        workflow.verifying_complete()
+        workflow.brainstorming_complete()
         assert workflow.state == "committing"
 
     def test_full_cycle(self, workflow):
         """Test a full workflow cycle back to planning."""
         workflow.start()
-        workflow.plan_complete()
-        workflow.implement_complete()
-        workflow.verify_complete()
-        workflow.brainstorm_complete()
-        workflow.commit_complete()
+        workflow.planning_complete()
+        workflow.implementing_complete()
+        workflow.verifying_complete()
+        workflow.brainstorming_complete()
+        workflow.committing_complete()
         assert workflow.state == "planning"
 
     def test_error_recovery(self, workflow):
         """Test error state and recovery."""
         workflow.start()
-        workflow.plan_failed()
+        workflow.planning_failed()
         assert workflow.state == "error"
 
         workflow.reset()
@@ -91,7 +91,7 @@ class TestProjectWorkflow:
     async def test_cancel_preserves_state(self, workflow):
         """Test that cancel stops execution but preserves state."""
         workflow.start()
-        workflow.plan_complete()
+        workflow.planning_complete()
         assert workflow.state == "implementing"
 
         # We can't easily test the "stopping" of the loop here without running it,
@@ -104,7 +104,7 @@ class TestProjectWorkflow:
         # Create first workflow and advance state
         workflow = ProjectWorkflow(project=project)
         workflow.start()
-        workflow.plan_complete()
+        workflow.planning_complete()
         assert workflow.state == "implementing"
 
         # Create second workflow instance for same project
@@ -112,6 +112,38 @@ class TestProjectWorkflow:
         # Should auto-load the state
         assert workflow2.state == "implementing"
         assert workflow2.workflow_state.current_state == "implementing"
+
+    def test_custom_workflow_definition(self, project):
+        """Test using a custom workflow definition."""
+        from agent_pump.orchestrator.workflow_definition import WorkflowDefinition, WorkflowPhase
+        
+        custom_def = WorkflowDefinition(
+            name="custom",
+            initial_state="init",
+            phases=[
+                WorkflowPhase(name="phase1", on_success="phase2"),
+                WorkflowPhase(name="phase2", on_success="completed")
+            ]
+        )
+        
+        workflow = ProjectWorkflow(project=project, workflow_def=custom_def)
+        
+        # Verify initial state matches custom def
+        # Ensure we force reset state for this test since project path is shared per fixture
+        workflow.workflow_state.current_state = "init"
+        workflow.machine.set_state("init")
+        
+        assert workflow.state == "init"
+        assert "phase1" in workflow.machine.states
+        assert "phase2" in workflow.machine.states
+        
+        # Test transition
+        workflow.start()
+        assert workflow.state == "phase1"
+        
+        # Trigger dynamic transition method
+        workflow.phase1_complete() # type: ignore
+        assert workflow.state == "phase2"
 
     def test_state_change_callback(self, project):
         """Test that state change callback is called."""

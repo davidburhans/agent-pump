@@ -36,9 +36,11 @@ class VerificationConfigModal(ModalScreen[VerificationConfig]):
 
             with VerticalScroll(id="verification-config-scroll"):
                 # Skip verification toggle
-                with Horizontal(classes="setting-row"):
-                    yield Label("Skip Verification:", classes="setting-label")
-                    yield Switch(value=self.config.skip_verification, id="skip-verification-switch")
+                yield Horizontal(
+                    Label("Skip Verification:", classes="setting-label"),
+                    Switch(value=self.config.skip_verification, id="skip-verification-switch"),
+                    classes="setting-row"
+                )
 
                 # Build command
                 with Vertical(classes="command-section"):
@@ -67,9 +69,11 @@ class VerificationConfigModal(ModalScreen[VerificationConfig]):
                         placeholder="e.g., npm test, pytest, cargo test",
                     )
 
-            with Horizontal(id="button-row"):
-                yield Button("Cancel", variant="default", id="cancel-button")
-                yield Button("Save", variant="primary", id="save-button")
+            yield Horizontal(
+                Button("Cancel", variant="default", id="cancel-button"),
+                Button("Save", variant="primary", id="save-button"),
+                id="button-row"
+            )
 
     def on_mount(self) -> None:
         """Called when the modal is mounted."""

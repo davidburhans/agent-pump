@@ -66,9 +66,11 @@ class ConfirmModal(ModalScreen[bool]):
     def compose(self) -> ComposeResult:
         with Container(id="dialog"):
             yield Label(self.question, id="question")
-            with Horizontal(classes="buttons"):
-                yield Button(self.cancel_label, variant="primary", id="btn-cancel")
-                yield Button(self.confirm_label, variant="error", id="btn-confirm")
+            yield Horizontal(
+                Button(self.cancel_label, variant="primary", id="btn-cancel"),
+                Button(self.confirm_label, variant="error", id="btn-confirm"),
+                classes="buttons"
+            )
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-confirm":

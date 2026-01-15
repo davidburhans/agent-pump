@@ -1,29 +1,10 @@
-# Agent Pump Host Configuration
-# Generated automatically. Edit this file to customize behavior for this project.
-
-# The AI backend to use (e.g., "gemini", "openai:gpt-4")
 backend: gemini
-
-workflow:
-  # Maximum number of autonomous iterations per run
-  max_iterations: 10
-  # Timeout in seconds for agent operations
-  timeout: 1800
-  # Git branch to isolate work (optional)
-  branch: null
-
 verification:
-  # Commands to verify code correctness.
-  # Leave empty to skip or rely on auto-detection.
-  
-  # Command to run for building the project (e.g., "npm run build", "cargo build")
   build_cmd: null
-  
-  # Command to run for linting the project (e.g., "npm run lint", "ruff check .")
   lint_cmd: null
-  
-  # Command to run for testing the project (e.g., "npm test", "pytest")
+  skip_verification: true
   test_cmd: null
-  
-  # Set to true to skip verification phase entirely
-  skip_verification: false
+workflow:
+  branch: null
+  max_iterations: 10
+  timeout: 1800

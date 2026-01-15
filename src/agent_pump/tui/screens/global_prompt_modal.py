@@ -184,12 +184,14 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
                 with TabPane("By Model", id="tab-model"):
                     with ScrollableContainer(classes="model-list"):
                         # Add model input
-                        with Horizontal(classes="add-model-row"):
-                            yield Input(
+                        yield Horizontal(
+                            Input(
                                 placeholder="Enter model name (e.g., gemini-2.5-flash)",
                                 id="new-model-input",
-                            )
-                            yield Button("+ Add Model", variant="success", id="btn-add-model")
+                            ),
+                            Button("+ Add Model", variant="success", id="btn-add-model"),
+                            classes="add-model-row"
+                        )
 
                         # Show configured models
                         yield Label("Configured Models:", classes="engine-title")
@@ -202,13 +204,14 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
                                 classes="engine-section",
                                 id=f"model-section-{self._safe_id(model_name)}",
                             ):
-                                with Horizontal():
-                                    yield Label(f"📦 {model_name}", classes="engine-title")
-                                    yield Button(
+                                yield Horizontal(
+                                    Label(f"📦 {model_name}", classes="engine-title"),
+                                    Button(
                                         "×",
                                         variant="error",
                                         id=f"remove-model-{self._safe_id(model_name)}",
                                     )
+                                )
 
                                 with Vertical(classes="textarea-row"):
                                     yield Label("Prefix:", classes="textarea-label")
@@ -226,10 +229,12 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
                                         classes="small-textarea",
                                     )
 
-            with Horizontal(classes="button-row"):
-                yield Button("Clear All", variant="warning", id="btn-clear")
-                yield Button("Cancel (Esc)", variant="error", id="btn-cancel")
-                yield Button("Save (Ctrl+S)", variant="success", id="btn-save")
+            yield Horizontal(
+                Button("Clear All", variant="warning", id="btn-clear"),
+                Button("Cancel (Esc)", variant="error", id="btn-cancel"),
+                Button("Save (Ctrl+S)", variant="success", id="btn-save"),
+                classes="button-row"
+            )
 
     def _safe_id(self, name: str) -> str:
         """Convert a name to a safe CSS ID."""

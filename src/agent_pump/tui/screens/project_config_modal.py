@@ -109,31 +109,37 @@ class ProjectConfigModal(ModalScreen[None]):
 
                     yield Label("Workflow Settings:", classes="section-label")
 
-                    with Horizontal(classes="input-row"):
-                        yield Label("Max Iterations:")
-                        yield Input(
+                    yield Horizontal(
+                        Label("Max Iterations:"),
+                        Input(
                             str(self.config.workflow.max_iterations),
                             placeholder="10",
                             id="input-max-iterations",
                             type="integer"
-                        )
+                        ),
+                        classes="input-row"
+                    )
 
-                    with Horizontal(classes="input-row"):
-                        yield Label("Timeout (seconds):")
-                        yield Input(
+                    yield Horizontal(
+                        Label("Timeout (seconds):"),
+                        Input(
                             str(self.config.workflow.timeout),
                             placeholder="1800",
                             id="input-timeout",
                             type="integer"
-                        )
+                        ),
+                        classes="input-row"
+                    )
 
-                    with Horizontal(classes="input-row"):
-                        yield Label("Git Branch:")
-                        yield Input(
+                    yield Horizontal(
+                        Label("Git Branch:"),
+                        Input(
                             self.config.workflow.branch or "",
                             placeholder="(optional branch name)",
                             id="input-branch"
-                        )
+                        ),
+                        classes="input-row"
+                    )
 
                 with TabPane("Verification", id="tab-verification"):
                     yield Checkbox(
@@ -144,33 +150,42 @@ class ProjectConfigModal(ModalScreen[None]):
 
                     yield Label("Commands (leave empty to auto-detect):", classes="section-label")
 
-                    with Horizontal(classes="input-row"):
-                        yield Label("Build Command:")
-                        yield Input(
+                    yield Horizontal(
+                        Label("Build Command:"),
+                        Input(
                             self.config.verification.build_cmd or "",
                             placeholder="e.g., npm run build",
                             id="input-build-cmd"
-                        )
+                        ),
+                        classes="input-row"
+                    )
 
-                    with Horizontal(classes="input-row"):
-                        yield Label("Lint Command:")
-                        yield Input(
+                    yield Horizontal(
+                        Label("Lint Command:"),
+                        Input(
                             self.config.verification.lint_cmd or "",
                             placeholder="e.g., npm run lint",
                             id="input-lint-cmd"
-                        )
+                        ),
+                        classes="input-row"
+                    )
 
-                    with Horizontal(classes="input-row"):
-                        yield Label("Test Command:")
-                        yield Input(
+                    yield Horizontal(
+                        Label("Test Command:"),
+                        Input(
                             self.config.verification.test_cmd or "",
                             placeholder="e.g., npm test",
                             id="input-test-cmd"
-                        )
+                        ),
+                        classes="input-row"
+                    )
 
-            with Horizontal(classes="button-row"):
-                yield Button("Cancel (Esc)", variant="error", id="btn-cancel")
-                yield Button("Save (Ctrl+S)", variant="success", id="btn-save")
+            # Button row (outside tabs)
+            yield Horizontal(
+                Button("Cancel (Esc)", variant="error", id="btn-cancel"),
+                Button("Save (Ctrl+S)", variant="success", id="btn-save"),
+                classes="button-row"
+            )
 
     def action_cancel(self) -> None:
         """Cancel and dismiss without saving."""

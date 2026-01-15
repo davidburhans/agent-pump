@@ -12,6 +12,13 @@ from transitions import Machine
 from agent_pump.backends import create_fallback_runner_from_config, get_backend
 from agent_pump.backends.base import AgentBackend
 from agent_pump.backends.gemini import GeminiBackend
+from agent_pump.events.bus import EventBus
+from agent_pump.events.models import (
+    IdeaProcessedEvent,
+    LogEntryEvent,
+    VerificationResultEvent,
+    WorkflowStateChangedEvent,
+)
 from agent_pump.models.project import Project, ProjectStatus
 from agent_pump.models.state import WorkflowState
 from agent_pump.models.workspace import PhaseBackends, ProjectConfig, PromptCustomization
@@ -23,6 +30,7 @@ from agent_pump.orchestrator.prompts import (
     build_verifying_prompt,
 )
 from agent_pump.orchestrator.verification_executor import VerificationExecutor
+from agent_pump.utils.notifier import Notifier
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +38,10 @@ logger = logging.getLogger(__name__)
 class BackendRunner(Protocol):
     """Protocol for something that can run agent prompts."""
 
-    def run(
+    @property
+    def name(self) -> str: ...
+
+    async def run(
         self,
         project_path: Path,
         prompt: str,
@@ -47,42 +58,21 @@ class ProjectWorkflow:
     Uses pytransitions for state management with visualization support.
     """
 
-    # Define states matching ProjectStatus
-    states = [
-        "idle",
-        "planning",
-        "implementing",
-        "verifying",
-        "brainstorming",
-        "committing",
-        "error",
-        "completed",
-    ]
+    state: str  # Added by pytransitions
 
-    # Define transitions
-    transitions = [
-        {"trigger": "start", "source": "idle", "dest": "planning"},
-        {"trigger": "plan_complete", "source": "planning", "dest": "implementing"},
-        {"trigger": "plan_failed", "source": "planning", "dest": "error"},
-        {"trigger": "implement_complete", "source": "implementing", "dest": "verifying"},
-        {"trigger": "implement_failed", "source": "implementing", "dest": "error"},
-        {"trigger": "verify_complete", "source": "verifying", "dest": "brainstorming"},
-        {"trigger": "verify_failed", "source": "verifying", "dest": "error"},
-        {"trigger": "brainstorm_complete", "source": "brainstorming", "dest": "committing"},
-        {"trigger": "commit_complete", "source": "committing", "dest": "planning"},
-        {"trigger": "no_more_features", "source": "committing", "dest": "completed"},
-        {"trigger": "reset", "source": "error", "dest": "idle"},
-        {"trigger": "restart", "source": "completed", "dest": "planning"},
-    ]
+    # Define states matching ProjectStatus
+
 
     def __init__(
         self,
         project: Project,
         backend: AgentBackend | None = None,
+        event_bus: EventBus | None = None,
         config: Any | None = None,  # Legacy file-based config
         project_config: ProjectConfig | None = None,  # New workspace config
         phase_backends: PhaseBackends | None = None,
         prompt_customization: PromptCustomization | None = None,
+        workflow_def: "WorkflowDefinition" = None,  # type: ignore
         idea_queue: list[str] | None = None,
         on_output: Callable[[str, str, str | None], None] | None = None,
         on_state_change: Callable[[str, str], None] | None = None,
@@ -99,13 +89,17 @@ class ProjectWorkflow:
             phase_backends: Optional phase-specific backend configuration
                             (overrides project_config if passed)
             prompt_customization: Optional per-phase prompt prefix/suffix overrides
+            workflow_def: The workflow definition to use (states, transitions, prompts)
             idea_queue: Optional list of ideas to include in brainstorming
             on_output: Callback for agent output lines
             on_state_change: Callback for state changes (old_state, new_state)
             on_ideas_processed: Callback when ideas have been processed
         """
+        from agent_pump.orchestrator.workflow_definition import DEFAULT_WORKFLOW, WorkflowDefinition
+
         self.project = project
         self.backend = backend or GeminiBackend()
+        self.event_bus = event_bus
         self.config = config
         self.project_config = project_config
         self.phase_backends = phase_backends or (
@@ -114,6 +108,12 @@ class ProjectWorkflow:
         self.prompt_customization = prompt_customization or (
             project_config.prompt_customization if project_config else PromptCustomization()
         )
+        self.workflow_def = workflow_def or DEFAULT_WORKFLOW
+        
+        # Initialize PromptLoader
+        from agent_pump.orchestrator.prompt_loader import PromptLoader
+        self.prompt_loader = PromptLoader(project.path)
+        
         self.idea_queue = idea_queue or []
         self.on_output = on_output
         self.on_state_change = on_state_change
@@ -134,8 +134,8 @@ class ProjectWorkflow:
         # Initialize state machine
         self.machine = Machine(
             model=self,
-            states=self.states,
-            transitions=self.transitions,
+            states=self.workflow_def.get_states(),
+            transitions=self.workflow_def.get_transitions(),
             initial=self.workflow_state.current_state,
             auto_transitions=False,
             after_state_change=self._after_state_change,
@@ -203,11 +203,49 @@ class ProjectWorkflow:
         # Save state
         self.workflow_state.save()
 
+        # Send notifications for important state changes if enabled
+        self._send_notification_if_enabled(old_state, new_state)
+
+        # Publish event directly if event bus is available
+        if self.event_bus:
+            event = WorkflowStateChangedEvent(
+                project_path=self.project.path,
+                old_state=old_state,
+                new_state=new_state,
+            )
+            try:
+                # We can't await easily here, use create_task
+                asyncio.create_task(self.event_bus.publish(event))
+            except RuntimeError:
+                pass  # No event loop
+
         # Notify callback
         if self.on_state_change:
             self.on_state_change(old_state, new_state)
 
         logger.info(f"State changed: {old_state} -> {new_state}")
+
+    def _send_notification_if_enabled(self, old_state: str, new_state: str) -> None:
+        """Send desktop notification if notifications are enabled in workspace config."""
+        # Check if notifications are enabled in workspace config
+        notifications_enabled = True  # Default to True
+        if self.workspace:
+            notifications_enabled = getattr(self.workspace, 'notifications_enabled', True)
+
+        if not notifications_enabled:
+            return
+
+        # Send notification based on state change
+        if new_state == "completed":
+            Notifier.send(
+                title="Workflow Completed",
+                message=f"The workflow for project '{self.project.name}' has completed successfully."
+            )
+        elif new_state == "error":
+            Notifier.send(
+                title="Workflow Failed",
+                message=f"The workflow for project '{self.project.name}' has encountered an error."
+            )
 
     def _check_task_name_file(self) -> None:
         """Check TASK_NAME file and update project state."""
@@ -254,6 +292,19 @@ class ProjectWorkflow:
     def _emit_output(self, line: str) -> None:
         """Emit output line to callback."""
         self._parse_activity(line)
+
+        if self.event_bus:
+            event = LogEntryEvent(
+                message=line,
+                project_path=self.project.path,
+                state=self.workflow_state.current_state,
+                task=self.project.current_feature,
+            )
+            try:
+                asyncio.create_task(self.event_bus.publish(event))
+            except RuntimeError:
+                pass
+
         if self.on_output:
             # Pass current state and current feature as metadata
             self.on_output(line, self.workflow_state.current_state, self.project.current_feature)
@@ -542,37 +593,59 @@ class ProjectWorkflow:
                         roadmap_content=context["roadmap_content"],
                         engineering_plan_content=context["engineering_plan_content"],
                         task_name_content=context["task_name_content"],
-                        branch=self.project.branch,
+                    branch=self.project.branch,
                     )
-                    prompt = self.prompt_customization.apply_to_prompt("planning", base_prompt)
+                    
+                    # Determine backend for prompt customization
+                    backend_runner = self._get_backend_for_phase("planning")
+                    prompt = self.prompt_loader.build_prompt(
+                        state="planning", 
+                        backend=str(backend_runner.name),
+                        default_prompt=base_prompt,
+                        context=context
+                    )
                     success = await self.run_phase(prompt, "planning")
                     if self._cancelled:
                         break
                     if success:
                         self._check_task_name_file()
-                        self.plan_complete()  # type: ignore
+                        self.planning_complete()  # type: ignore
                     else:
-                        self.plan_failed()  # type: ignore
+                        self.planning_failed()  # type: ignore
 
                 elif current_state == "implementing":
                     context = self._get_context_content()
                     base_prompt_template = build_implementing_prompt(self.project.branch)
                     base_prompt = base_prompt_template.format(**context)
-                    prompt = self.prompt_customization.apply_to_prompt("implementing", base_prompt)
+                    
+                    backend_runner = self._get_backend_for_phase("implementing")
+                    prompt = self.prompt_loader.build_prompt(
+                        state="implementing", 
+                        backend=str(backend_runner.name),
+                        default_prompt=base_prompt,
+                        context=context
+                    )
                     success = await self.run_phase(prompt, "implementing")
                     if self._cancelled:
                         break
                     if success:
-                        self.implement_complete()  # type: ignore
+                        self.implementing_complete()  # type: ignore
                     else:
-                        self.implement_failed()  # type: ignore
+                        self.implementing_failed()  # type: ignore
 
                 elif current_state == "verifying":
                     context = self._get_context_content()
                     # First run the AI verification phase
                     base_prompt_template = build_verifying_prompt(self.project.branch)
                     base_prompt = base_prompt_template.format(**context)
-                    prompt = self.prompt_customization.apply_to_prompt("verifying", base_prompt)
+                    
+                    backend_runner = self._get_backend_for_phase("verifying")
+                    prompt = self.prompt_loader.build_prompt(
+                        state="verifying", 
+                        backend=str(backend_runner.name),
+                        default_prompt=base_prompt,
+                        context=context
+                    )
                     ai_success = await self.run_phase(prompt, "verifying")
 
                     if self._cancelled:
@@ -600,14 +673,30 @@ class ProjectWorkflow:
                                 self._emit_output(f"STDERR:\n{result.stderr}")
                             self._emit_output(f"DURATION: {result.duration:.2f}s\n")
 
+                        if self.event_bus:
+                            for cmd_type, result in verification_results.items():
+                                event = VerificationResultEvent(
+                                    project_path=self.project.path,
+                                    command_type=cmd_type,
+                                    success=result.success,
+                                    command=result.command,
+                                    duration=result.duration,
+                                    stdout=result.stdout,
+                                    stderr=result.stderr,
+                                )
+                                try:
+                                    asyncio.create_task(self.event_bus.publish(event))
+                                except RuntimeError:
+                                    pass
+
                         if all_passed:
                             self._emit_output("\n[SUCCESS] All verification commands passed!\n")
-                            self.verify_complete()  # type: ignore
+                            self.verifying_complete()  # type: ignore
                         else:
                             self._emit_output("\n[ERROR] Some verification commands failed\n")
-                            self.verify_failed()  # type: ignore
+                            self.verifying_failed()  # type: ignore
                     else:
-                        self.verify_failed()  # type: ignore
+                        self.verifying_failed()  # type: ignore
 
                 elif current_state == "brainstorming":
                     context = self._get_context_content()
@@ -618,26 +707,51 @@ class ProjectWorkflow:
                         task_name_content=context["task_name_content"],
                         queued_ideas=self.idea_queue if self.idea_queue else None,
                     )
-                    prompt = self.prompt_customization.apply_to_prompt("brainstorming", base_prompt)
+
+                    
+                    backend_runner = self._get_backend_for_phase("brainstorming")
+                    prompt = self.prompt_loader.build_prompt(
+                        state="brainstorming", 
+                        backend=str(backend_runner.name),
+                        default_prompt=base_prompt,
+                        context=context
+                    )
                     success = await self.run_phase(prompt, "brainstorming")
                     # Clear ideas after they've been processed
-                    if self.idea_queue and success and self.on_ideas_processed:
-                        self.on_ideas_processed(self.project.path)
+                    if self.idea_queue and success:
+                        if self.event_bus:
+                            event = IdeaProcessedEvent(
+                                project_path=self.project.path,
+                                ideas=self.idea_queue.copy(),
+                            )
+                            try:
+                                asyncio.create_task(self.event_bus.publish(event))
+                            except RuntimeError:
+                                pass
 
-                    self.idea_queue = []
+                        if self.on_ideas_processed:
+                            self.on_ideas_processed(self.project.path)
+                    
+                    self.brainstorming_complete()  # type: ignore
 
                     if success:
                         self._check_task_name_file()
 
                     if self._cancelled:
                         break
-                    self.brainstorm_complete()  # type: ignore
 
                 elif current_state == "committing":
                     context = self._get_context_content()
                     base_prompt_template = build_committing_prompt(self.project.branch)
                     base_prompt = base_prompt_template.format(**context)
-                    prompt = self.prompt_customization.apply_to_prompt("committing", base_prompt)
+                    
+                    backend_runner = self._get_backend_for_phase("committing")
+                    prompt = self.prompt_loader.build_prompt(
+                        state="committing", 
+                        backend=str(backend_runner.name),
+                        default_prompt=base_prompt,
+                        context=context
+                    )
                     success = await self.run_phase(prompt, "committing")
                     if self._cancelled:
                         break
@@ -659,7 +773,7 @@ class ProjectWorkflow:
                             )
                             self.no_more_features()  # type: ignore
                         else:
-                            self.commit_complete()  # type: ignore
+                            self.committing_complete()  # type: ignore
 
                 elif current_state == "error":
                     self._emit_output("\n[ERROR] Workflow is in error state. Resetting...\n")
@@ -735,19 +849,20 @@ class ProjectWorkflow:
         lines = ["digraph workflow {", "    rankdir=LR;", "    node [shape=box];"]
 
         # Highlight current state
-        for state in self.states:
+        for state in self.workflow_def.get_states():
             if state == self.state:  # type: ignore
                 lines.append(f"    {state} [style=filled, fillcolor=lightblue];")
             else:
                 lines.append(f"    {state};")
 
         # Add transitions
-        for t in self.transitions:
+        for t in self.workflow_def.get_transitions():
             source = t["source"]
             dest = t["dest"]
             trigger = t["trigger"]
             if source == "*":
-                for s in self.states:
+                # Handle wildcard source if we ever use it
+                for s in self.workflow_def.get_states():
                     if s != dest:
                         lines.append(f'    {s} -> {dest} [label="{trigger}", style=dashed];')
             else:
@@ -763,29 +878,12 @@ class ProjectWorkflow:
         Returns:
             ASCII diagram string
         """
-        current = self.state  # type: ignore
-
-        diagram = """
-  IDLE ──> PLANNING ──> IMPLEMENTING
-    ^          │              │
-    │       (fail)            v
-    │          v          VERIFYING
-    └───── ERROR              │
-                              v
-                        BRAINSTORMING
-                              │
-                              v
-           COMMITTING <───────┘
-               │
-               v
-           COMPLETED
-               │
-               v
-           PLANNING (Loop)
-"""
-
-        # Add current state indicator
-        state_display = current.upper() if current else "UNKNOWN"
-        header = f"═══ Current: [{state_display}] ═══\n"
-
-        return header + diagram
+        lines = [f"═══ Current: [{self.state.upper()}] ═══\n"]  # type: ignore
+        for i, phase in enumerate(self.workflow_def.phases):
+            icon = phase.icon or "●"
+            marker = "▶" if phase.name == self.state else " "  # type: ignore
+            lines.append(f"  {marker} {icon} {phase.name.upper()}")
+            if i < len(self.workflow_def.phases) - 1:
+                lines.append("       │")
+                lines.append("       ▼")
+        return "\n".join(lines)

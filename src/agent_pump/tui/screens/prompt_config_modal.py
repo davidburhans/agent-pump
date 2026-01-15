@@ -207,14 +207,16 @@ class PromptConfigModal(ModalScreen[PromptCustomization | None]):
                                         (f"Project: {p_config.name}", f"project:{p_path_str}")
                                     )
 
-                            with Horizontal(classes="copy-row"):
-                                yield Label("Copy from:")
-                                yield Select(
+                            yield Horizontal(
+                                Label("Copy from:"),
+                                Select(
                                     copy_options,
                                     value="",
                                     allow_blank=False,
                                     id=f"{phase}-copy-from",
-                                )
+                                ),
+                                classes="copy-row"
+                            )
 
                             # Prefix
                             with Vertical(classes="textarea-container"):
@@ -236,21 +238,23 @@ class PromptConfigModal(ModalScreen[PromptCustomization | None]):
 
                             # Base prompt section (collapsible)
                             with Vertical(classes="base-prompt-section"):
-                                with Collapsible(
-                                    title="Base Prompt (click to expand)",
-                                    collapsed=True,
-                                    id=f"{phase}-base-collapsible",
-                                ):
-                                    with Horizontal(classes="override-row"):
-                                        yield Checkbox(
-                                            "Override base prompt",
-                                            value=has_override,
-                                            id=f"{phase}-override-checkbox",
-                                        )
-                                        yield Button(
-                                            "Reset to Default",
-                                            variant="warning",
-                                            id=f"{phase}-reset-base",
+                                    with Collapsible(
+                                        title="Base Prompt (click to expand)",
+                                        collapsed=True,
+                                        id=f"{phase}-base-collapsible",
+                                    ):
+                                        yield Horizontal(
+                                            Checkbox(
+                                                "Override base prompt",
+                                                value=has_override,
+                                                id=f"{phase}-override-checkbox",
+                                            ),
+                                            Button(
+                                                "Reset to Default",
+                                                variant="warning",
+                                                id=f"{phase}-reset-base",
+                                            ),
+                                            classes="override-row"
                                         )
                                     yield TextArea(
                                         base_override if has_override else default_base,
@@ -258,11 +262,13 @@ class PromptConfigModal(ModalScreen[PromptCustomization | None]):
                                         read_only=not has_override,
                                     )
 
-            with Horizontal(classes="button-row"):
-                yield Button("Clear All", variant="warning", id="btn-clear")
-                yield Button("Apply to All Projects", variant="warning", id="btn-apply-all")
-                yield Button("Cancel (Esc)", variant="error", id="btn-cancel")
-                yield Button("Save (Ctrl+S)", variant="success", id="btn-save")
+            yield Horizontal(
+                Button("Clear All", variant="warning", id="btn-clear"),
+                Button("Apply to All Projects", variant="warning", id="btn-apply-all"),
+                Button("Cancel (Esc)", variant="error", id="btn-cancel"),
+                Button("Save (Ctrl+S)", variant="success", id="btn-save"),
+                classes="button-row"
+            )
 
     def on_select_changed(self, event: Select.Changed) -> None:
         """Handle copy-from selection."""

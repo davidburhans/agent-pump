@@ -90,7 +90,7 @@ class WorkflowDefinition(BaseModel):
             # Success transition
             transitions.append(
                 {
-                    "trigger": f"{phase.name.replace('ing', '')}_complete",
+                    "trigger": f"{phase.name}_complete",
                     "source": phase.name,
                     "dest": phase.on_success,
                 }
@@ -99,7 +99,7 @@ class WorkflowDefinition(BaseModel):
             if phase.on_failure:
                 transitions.append(
                     {
-                        "trigger": f"{phase.name.replace('ing', '')}_failed",
+                        "trigger": f"{phase.name}_failed",
                         "source": phase.name,
                         "dest": phase.on_failure,
                     }
@@ -112,6 +112,16 @@ class WorkflowDefinition(BaseModel):
                     "trigger": "reset",
                     "source": "error",
                     "dest": self.initial_state,
+                }
+            )
+
+        if "completed" in self.terminal_states:
+            dest = self.phases[0].name if self.phases else self.initial_state
+            transitions.append(
+                {
+                    "trigger": "restart",
+                    "source": "completed",
+                    "dest": dest,
                 }
             )
 

@@ -246,6 +246,10 @@ class Workspace(BaseModel):
         default_factory=dict,
         description="Custom workflow definitions (name -> WorkflowDefinition as dict)",
     )
+    notifications_enabled: bool = Field(
+        default=True,
+        description="Enable desktop notifications for workflow events"
+    )
     created_at: datetime = Field(default_factory=datetime.now)
     last_modified: datetime = Field(default_factory=datetime.now)
 

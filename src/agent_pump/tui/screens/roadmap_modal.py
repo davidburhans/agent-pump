@@ -89,9 +89,11 @@ class RoadmapModal(ModalScreen[list[RoadmapFeature] | None]):
             items = [RoadmapItem(f) for f in self.uncompleted_features]
             yield ListView(*items, id="roadmap-list")
 
-            with Horizontal(classes="button-row"):
-                yield Button("Cancel", id="btn-cancel")
-                yield Button("Save", variant="success", id="btn-save")
+            yield Horizontal(
+                Button("Cancel", id="btn-cancel"),
+                Button("Save", variant="success", id="btn-save"),
+                classes="button-row"
+            )
 
     def action_move_up(self) -> None:
         """Move selected item up."""

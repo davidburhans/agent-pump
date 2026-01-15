@@ -8,19 +8,28 @@ from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import Button, Footer, Header, Static
 
-from agent_pump.backends import get_backend
-from agent_pump.backends.gemini import GeminiBackend
 from agent_pump.config import Config
+from agent_pump.events.bus import EventBus
+from agent_pump.events.models import (
+    ConfigUpdatedEvent,
+    IdeaAddedEvent,
+    IdeasClearedEvent,
+    LogEntryEvent,
+    ProjectAddedEvent,
+    ProjectRemovedEvent,
+    WorkflowStateChangedEvent,
+)
 from agent_pump.models.app_state import AppState
 from agent_pump.models.project import Project
 from agent_pump.models.workspace import (
     GlobalPromptSettings,
-    IdeaQueueItem,
     PhaseBackends,
     PromptCustomization,
-    Workspace,
 )
-from agent_pump.orchestrator.workflow import ProjectWorkflow
+from agent_pump.services.idea_service import IdeaService
+from agent_pump.services.project_service import ProjectService
+from agent_pump.services.workflow_service import WorkflowService
+from agent_pump.services.workspace_service import WorkspaceService
 from agent_pump.tui.screens import (
     AddProjectModal,
     BackendConfigModal,
@@ -28,12 +37,14 @@ from agent_pump.tui.screens import (
     ProjectConfigModal,
     PromptConfigModal,
     RoadmapModal,
+    SettingsModal,
 )
 from agent_pump.tui.screens.confirm_modal import ConfirmModal
 from agent_pump.tui.screens.log_filter_modal import LogFilterModal
 from agent_pump.tui.widgets.log_panel import LogPanel
 from agent_pump.tui.widgets.project_card import ProjectCard
 from agent_pump.tui.widgets.workflow_panel import WorkflowPanel
+from agent_pump.utils.config_migration import ConfigMigrator
 from agent_pump.utils.roadmap import RoadmapFeature
 
 
@@ -55,6 +66,7 @@ class AgentPumpApp(App):
         Binding("P", "global_prompts", "Global"),
         Binding("f", "filter_logs", "Filter"),
         Binding("o", "toggle_sort", "Order"),
+        Binding("s", "open_settings", "Settings"),
         Binding("t", "toggle_timer", "Timer"),
         Binding("W", "toggle_workflow_panel", "Flow Panel"),
     ]
@@ -68,16 +80,34 @@ class AgentPumpApp(App):
         """
         super().__init__()
         self.project_paths = project_paths or []
-        self.projects: dict[Path, Project] = {}
-        self.workflows: dict[Path, ProjectWorkflow] = {}
+
+        # Initialize services
+        self.app_state = AppState.load()
+        self.event_bus = EventBus()
+        self.workspace_service = WorkspaceService(self.event_bus, self.app_state)
+        # Using placeholder for workspace service loading; it will lazily load workspace or we can init it.
+        # But ProjectService needs workspace.
+        self.workspace = self.workspace_service.get_current_workspace()
+
+        self.project_service = ProjectService(self.event_bus, self.workspace, self.app_state)
+        self.workflow_service = WorkflowService(self.event_bus, self.project_service)
+        self.idea_service = IdeaService(self.event_bus, self.workspace)
+
         self.log_panel: LogPanel | None = None
         self.workflow_panel: WorkflowPanel | None = None
         self.selected_project: Path | None = None
-        self.app_state = AppState.load()
-        # Load workspace for backend configuration
-        self.workspace = Workspace.load(self.app_state.current_workspace)
+
         # Track project-specific bindings
         self._project_bindings_active = False
+
+    # Property delegators to maintain compatibility or ease refactor
+    @property
+    def projects(self) -> dict[Path, Project]:
+        return self.project_service.projects
+
+    @property
+    def workflows(self) -> dict:  # Type hint omitted to avoid import cycle or simplify
+        return self.project_service.workflows
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -111,7 +141,7 @@ class AgentPumpApp(App):
         )
         yield Footer()
 
-    def on_mount(self) -> None:
+    async def on_mount(self) -> None:
         """Called when app is mounted."""
         self.log_panel = self.query_one("#log-panel", LogPanel)
 
@@ -124,9 +154,37 @@ class AgentPumpApp(App):
         self._log("Press 'a' to add a project, 'q' to quit")
         self._log(f"Log sort order: {self.app_state.log_sort_order.upper()}")
 
+        # Start event loop
+        self.run_worker(self._handle_events())
+        # Yield to allow event loop to start and subscribe
+        import asyncio
+        await asyncio.sleep(0.1)
+
         # Load initial projects
         for path in self.project_paths:
-            self._add_project(path)
+            await self._add_project(path)
+
+    async def _handle_events(self) -> None:
+        """Handle incoming events from the bus."""
+        async for event in self.event_bus.subscribe():
+            if isinstance(event, ProjectAddedEvent):
+                self._on_project_added(event)
+            elif isinstance(event, ProjectRemovedEvent):
+                self._on_project_removed(event)
+            elif isinstance(event, WorkflowStateChangedEvent):
+                self._on_workflow_state_change(event.project_path, event.old_state, event.new_state)
+            elif isinstance(event, LogEntryEvent):
+                self._log(event.message, event.project_path, event.state, event.task)
+            elif isinstance(event, IdeasClearedEvent):
+                self._on_ideas_processed(event.project_path)
+            elif isinstance(event, IdeaAddedEvent):
+                if event.project_path:
+                    self._log(f"Added idea to project queue: {event.idea}", project_path=event.project_path)
+                else:
+                    self._log(f"Added idea to global queue: {event.idea}")
+            elif isinstance(event, ConfigUpdatedEvent):
+                self._log(f"Configuration updated: {event.config_type}", project_path=event.project_path)
+
 
     def _log(
         self,
@@ -184,103 +242,79 @@ class AgentPumpApp(App):
                     pass
             self._project_bindings_active = False
 
-    def _add_project(self, path: Path) -> None:
-        """Add a project to the app."""
-        path = path.resolve()
-
-        if path in self.projects:
-            self._log(f"Project already added: {path}")
-            return
-
+    async def _add_project(self, path: Path) -> None:
+        """Add a project to the app via service."""
         try:
-            project = Project.from_path(path)
-            self.projects[path] = project
-
-            # Load config
-            config = Config.load(path)
-            project.branch = config.workflow.branch
-            project.backend = config.backend
-
-            # Get phase backends from workspace if available
-            project_config = self.workspace.get_project_config(path)
-            phase_backends = project_config.phase_backends if project_config else None
-            prompt_customization = project_config.prompt_customization if project_config else None
-
-            # Get queued ideas for brainstorming from project config if available
-            idea_queue = []
-            if project_config and project_config.idea_queue:
-                idea_queue = [item.idea for item in project_config.idea_queue]
-            elif not project_config:
-                # Fallback to global queue if no project config (unlikely)
-                idea_queue = self.workspace.peek_ideas()
-
-            # Determine primary backend
-            if project_config and project_config.phase_backends.implementing.backends:
-                backend_instance = project_config.phase_backends.implementing.backends[0]
-                try:
-                    backend = get_backend(backend_instance.name)
-                except ValueError:
-                    backend = GeminiBackend()
-            else:
-                backend = GeminiBackend()
-
-            workflow = ProjectWorkflow(
-                project=project,
-                backend=backend,
-                config=config,
-                project_config=project_config,
-                phase_backends=phase_backends,
-                prompt_customization=prompt_customization,
-                idea_queue=idea_queue,
-                on_output=lambda msg, s, t, p=path: self._log(msg, project_path=p, state=s, task=t),
-                on_state_change=lambda old, new, p=path: self._on_workflow_state_change(
-                    p, old, new
-                ),
-                on_ideas_processed=lambda p=path: self._on_ideas_processed(p),
-            )
-            self.workflows[path] = workflow
-
-            # Select this project automatically
-            self.selected_project = path
-            if self.workflow_panel:
-                self.workflow_panel.set_workflow(workflow)
-            if self.log_panel:
-                self.log_panel.set_filter(path)
-            self._update_activity_log_title()
-            self._update_project_bindings()
-
-            # Add card to UI
-            project_list = self.query_one("#project-list", Container)
-            project_id = self._get_project_id(path)
-            card = ProjectCard(project, id=project_id)
-            project_list.mount(card)
-
-            self._log(f"Added project: {project.name} ({path})")
-
-            # Persist to global state
-            if self.app_state.add_project(path):
-                self.app_state.save()
-
-            # Add to workspace and save
-            self.workspace.add_project(path)
-            self.workspace.save()
-
-            if not project.has_roadmap():
-                self._log(f"  ⚠ Warning: No ROADMAP.md found in {path}")
-            if not project.has_best_practices():
-                self._log(f"  ⚠ Warning: No BEST_PRACTICES.md found in {path}")
+            await self.project_service.add_project(path)
+        # UI updates handled by _on_project_added event
         except Exception as e:
             self._log(f"[ERROR] Failed to add project {path}: {e}")
-            if path in self.projects:
-                del self.projects[path]
 
-    def _on_ideas_processed(self, path: Path) -> None:
+    def _on_project_added(self, event: ProjectAddedEvent) -> None:
+        """Handle project added event."""
+        path = event.project_path
+        project = self.projects.get(path)
+        if not project:
+            return
+
+        workflow = self.workflows.get(path)
+
+        # Select this project automatically
+        self.selected_project = path
+        if self.workflow_panel and workflow:
+            self.workflow_panel.set_workflow(workflow)
+        if self.log_panel:
+            self.log_panel.set_filter(path)
+        self._update_activity_log_title()
+        self._update_project_bindings()
+
+        # Add card to UI
+        try:
+            project_list = self.query_one("#project-list", Container)
+            project_id = self._get_project_id(path)
+            # Check if card already exists
+            try:
+                self.query_one(f"#{project_id}", ProjectCard)
+            except Exception:
+                card = ProjectCard(project, id=project_id)
+                project_list.mount(card)
+        except Exception as e:
+            self._log(f"Error mounting project card: {e}", project_path=path)
+
+        self._log(f"Added project: {project.name} ({path})")
+
+        if not project.has_best_practices():
+            self._log(f"  ⚠ Warning: No BEST_PRACTICES.md found in {path}")
+
+        # Check for config migration
+        self.run_worker(self._check_config_migration(project))
+
+    async def _check_config_migration(self, project: Project) -> None:
+        """Check for legacy config and offer migration."""
+        migrator = ConfigMigrator(project.path)
+        if migrator.needs_migration():
+            result = await self.push_screen(
+                ConfirmModal(
+                    "Legacy Configuration Detected",
+                    "Convert .agent-pump.yml to new directory structure?\n"
+                    "This enables per-phase prompt customization via markdown files.",
+                )
+            )
+            if result:
+                migrator.migrate(remove_legacy=False)  # Keep backup
+                self.notify("Config migrated to .agent-pump/ directory")
+
+    async def _on_ideas_processed(self, path: Path | None) -> None:
+        """Callback when ideas have been processed by the workflow."""
+        if path:
+             # Logic is now event driven, but we might want to log
+             self._log("Project idea queue processed and cleared", project_path=path)
         """Callback when ideas have been processed by the workflow."""
         project_config = self.workspace.get_project_config(path)
         if project_config:
             # Clear ideas from project queue
-            project_config.idea_queue = []
-            self.workspace.save()
+            # This is already handled by IdeaService/ProjectService emitting the event.
+            pass
             self._log("Project idea queue processed and cleared", project_path=path)
 
     def _on_workflow_state_change(self, path: Path, old_state: str, new_state: str) -> None:
@@ -301,27 +335,13 @@ class AgentPumpApp(App):
             if workflow and self.workflow_panel:
                 self.workflow_panel.set_workflow(workflow)
 
-    def _remove_project(self, path: Path) -> None:
-        """Remove a project from the app."""
-        if path not in self.projects:
-            return
+    async def _remove_project(self, path: Path) -> None:
+        """Remove a project from the app via service."""
+        await self.project_service.remove_project(path)
 
-        # Cancel workflow if running
-        workflow = self.workflows.get(path)
-        if workflow and workflow.is_running():
-            workflow.cancel()
-
-        # Remove from state
-        del self.projects[path]
-        del self.workflows[path]
-
-        # Persist removal
-        if self.app_state.remove_project(path):
-            self.app_state.save()
-
-        # Remove from workspace
-        if self.workspace.remove_project(path):
-            self.workspace.save()
+    def _on_project_removed(self, event: ProjectRemovedEvent) -> None:
+        """Handle project removed event."""
+        path = event.project_path
 
         # Clear workflow panel if this was selected
         if self.selected_project == path:
@@ -354,34 +374,23 @@ class AgentPumpApp(App):
 
     @work(group="workflow")
     async def _run_project(self, path: Path) -> None:
-        """Run the workflow for a project."""
-        workflow = self.workflows.get(path)
-        if not workflow:
-            return
-
-        # Prevent double-execution of the same workflow
-        if workflow.is_running():
-            return
-
-        config = Config.load(path)
-        try:
-            await workflow.run(max_iterations=config.workflow.max_iterations)
-        except Exception as e:
-            self._log(f"[ERROR] Workflow failed for {path.name}: {e}", project_path=path)
+        """Run the workflow for a project via service."""
+        await self.workflow_service.start_project(path)
 
     def action_add_project(self) -> None:
         """Handle add project action."""
 
         def handle_project_path(path: Path | None) -> None:
-            if path:
-                self._add_project(path)
+             if path:
+                 # worker task wrapper needed for async
+                 self.run_worker(self._add_project(path))
 
         self.push_screen(AddProjectModal(), handle_project_path)
 
     def action_remove_project(self) -> None:
         """Handle remove project action."""
         if self.selected_project:
-            self._remove_project(self.selected_project)
+            self.run_worker(self._remove_project(self.selected_project))
 
     def action_start_selected(self) -> None:
         """Start the selected project."""
@@ -394,32 +403,25 @@ class AgentPumpApp(App):
     def action_stop_selected(self) -> None:
         """Stop the selected project."""
         if self.selected_project:
-            workflow = self.workflows.get(self.selected_project)
-            if workflow and workflow.is_running():
-                workflow.cancel()
-                project = self.projects.get(self.selected_project)
-                if project:
-                    self._log(f"Stopped project: {project.name}")
+            self.run_worker(self.workflow_service.stop_project(self.selected_project))
 
     def action_start_all(self) -> None:
         """Start all projects."""
-        count = 0
-        for path in self.projects:
-            workflow = self.workflows.get(path)
-            # Only start if not already running
-            if workflow and not workflow.is_running():
-                self._run_project(path)
-                count += 1
-        self._log(f"Started {count} projects")
+        self.run_worker(self.workflow_service.start_all())
+        # Log handled by service? No, usage of start_all returns count
+        # But we are running worker asynchronously.
+        # We can wrap it to log count.
+        async def run_start_all():
+            count = await self.workflow_service.start_all()
+            self._log(f"Started {count} projects")
+        self.run_worker(run_start_all())
 
     def action_stop_all(self) -> None:
         """Stop all projects."""
-        count = 0
-        for workflow in self.workflows.values():
-            if workflow.is_running():
-                workflow.cancel()
-                count += 1
-        self._log(f"Stopped {count} projects")
+        async def run_stop_all():
+             count = await self.workflow_service.stop_all()
+             self._log(f"Stopped {count} projects")
+        self.run_worker(run_stop_all())
 
     def action_skip_feature(self) -> None:
         """Handle skip feature action."""
@@ -491,17 +493,11 @@ class AgentPumpApp(App):
         def handle_idea(idea: str | None) -> None:
             if idea and idea.strip():
                 if self.selected_project:
-                    project_config = self.workspace.get_project_config(self.selected_project)
-                    if project_config:
-                        project_config.idea_queue.append(IdeaQueueItem(idea=idea.strip()))
-                        self.workspace.save()
-                        self._log(f"Added idea to project queue: {idea.strip()}")
+                    self.run_worker(self.idea_service.add_idea(idea.strip(), project_path=self.selected_project))
                 else:
-                    self.workspace.add_idea(idea.strip())
-                    self.workspace.save()
-                    self._log(f"Added idea to global queue: {idea.strip()}")
+                    self.run_worker(self.idea_service.add_idea(idea.strip()))
             else:
-                self._log("No idea added")
+                 self._log("No idea added")
 
         self.push_screen(IdeaInputModal(), handle_idea)
 
@@ -559,14 +555,10 @@ class AgentPumpApp(App):
             return
 
         def handle_result(phase_backends: PhaseBackends | None) -> None:
-            if phase_backends is not None and project_config is not None:
-                project_config.phase_backends = phase_backends
-                self.workspace.save()
-                self._log(f"Backend configuration saved for {project_config.name}")
-                # Update the workflow if it exists
-                workflow = self.workflows.get(self.selected_project)  # type: ignore
-                if workflow:
-                    workflow.phase_backends = phase_backends
+            if phase_backends is not None:
+                self.run_worker(
+                    self.workspace_service.update_backend_config(self.selected_project, phase_backends)
+                )
             else:
                 self._log("Backend configuration cancelled")
 
@@ -584,14 +576,10 @@ class AgentPumpApp(App):
             return
 
         def handle_result(prompt_customization: PromptCustomization | None) -> None:
-            if prompt_customization is not None and project_config is not None:
-                project_config.prompt_customization = prompt_customization
-                self.workspace.save()
-                self._log(f"Prompt customization saved for {project_config.name}")
-                # Update the workflow if it exists
-                workflow = self.workflows.get(self.selected_project)  # type: ignore
-                if workflow:
-                    workflow.prompt_customization = prompt_customization
+            if prompt_customization is not None:
+                self.run_worker(
+                    self.workspace_service.update_prompt_config(self.selected_project, prompt_customization)
+                )
             else:
                 self._log("Prompt customization cancelled")
 
@@ -602,13 +590,23 @@ class AgentPumpApp(App):
 
         def handle_result(settings: GlobalPromptSettings | None) -> None:
             if settings is not None:
-                self.workspace.global_prompt_settings = settings
-                self.workspace.save()
-                self._log("Global prompt settings saved")
+                self.run_worker(self.workspace_service.update_global_prompts(settings))
             else:
                 self._log("Global prompt settings cancelled")
 
         self.push_screen(GlobalPromptModal(self.workspace.global_prompt_settings), handle_result)
+
+    def action_open_settings(self) -> None:
+        """Open the settings modal."""
+
+        def handle_result(saved: bool | None) -> None:
+            if saved:
+                self._log("Settings saved")
+            elif saved is False:  # Explicit False, not None
+                self._log("Settings cancelled")
+            # If None, modal was dismissed without explicit save/cancel
+
+        self.push_screen(SettingsModal(self.workspace), handle_result)
 
     def action_filter_logs(self) -> None:
         """Configure activity log filters."""
@@ -621,18 +619,6 @@ class AgentPumpApp(App):
         def handle_result(result: tuple[list[str], str | None] | None) -> None:
             if result is not None:
                 states, task = result
-                # Preserve project path filter from panel
-                current_project_path = self.log_panel.filter_path
-                # Pass explicit None for empty list if that's what we want,
-                # but set_filter expects list | None.
-                # Logic in LogPanel: if states is not None, it filters.
-                # So if user cleared filters (empty list), we should pass None or empty list?
-                # LogPanel logic: "if self.filter_states is not None: if entry.state not in self.filter_states"  # noqa: E501
-                # So if we pass [], it will show NOTHING (unless state is in []).
-                # Wait, if user unchecks all, they probably want to see ALL?
-                # Or do they want to see nothing? Usually "Clear Filters" implies see all.
-                # My Clear button returns ([], None).
-
                 # Let's adjust logic: If user selected states, use them. If empty, assume NO filter on state?  # noqa: E501
                 # The modal returns [] if nothing selected.
                 # If the user explicitly selects nothing, maybe they mean nothing.
@@ -702,15 +688,9 @@ class AgentPumpApp(App):
         if not workflow:
             return
 
-        def on_confirm(confirm: bool) -> None:
+        def on_confirm(confirm: bool | None) -> None:
             if confirm and self.selected_project:
-                wf = self.workflows.get(self.selected_project)
-                if wf:
-                    wf.reset_workflow()
-                    self._log(
-                        f"Reset workflow for {wf.project.name}",
-                        project_path=self.selected_project,
-                    )
+                self.run_worker(self.workflow_service.reset_project(self.selected_project))
 
         self.push_screen(
             ConfirmModal(
@@ -727,10 +707,8 @@ class AgentPumpApp(App):
         import asyncio
         import warnings
 
-        # Cancel all running workflows
-        for workflow in self.workflows.values():
-            if workflow.is_running():
-                workflow.cancel()
+        # Stop all workflows via service (fire and forget cancellation)
+        await self.workflow_service.stop_all()
 
         # Cancel all Textual workers (background tasks)
         self.workers.cancel_all()

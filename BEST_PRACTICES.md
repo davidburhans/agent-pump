@@ -165,6 +165,10 @@ logger.info(f"Gemini CLI completed: {line_count} lines in {elapsed:.1f}s, exit c
 - **Transient State**: Store transient detailed state (like "current tool call") in memory only; clear it on phase transitions or timeouts.
 - **Refresh Strategy**: Update the TUI immediately on activity changes, but also leverage periodic timers (like elapsed time) to pick up changes if the event stream is busy.
 
+### TUI Widget Composition
+- **Avoid MountError**: Do not call `.mount()` on a widget that hasn't been mounted itself. Instantiating a container with children (e.g., `Horizontal(child1, child2)`) is safer and cleaner than mounting children imperatively after creation.
+- **Dynamic Rebuilds**: When rebuilding dynamic UIs, collect all new children into a list and pass them to the container constructor: `container = Horizontal(*new_children)`. This avoids mounting errors during complex updates.
+
 ---
 
 ## Cross-Platform Considerations
@@ -272,6 +276,27 @@ Never commit: `.gemini/`, `__pycache__/`, `.pytest_cache/`, virtual environments
 - **Explicit Resets**: Provide a clear mechanism (e.g., `reset_workflow()`) to force a clean slate, rather than relying on manual file deletion.
 - **Context Isolation**: Prefer loading projects from `Workspace` rather than global `AppState` to ensure projects are scoped to their environment. `AppState.projects` can be used for global history, but the active session should rely on `Workspace.projects`.
 
+
+---
+
+## API Architecture
+
+### Data Transfer Objects (DTOs)
+- **Strict Boundary**: The API layer (`src/agent_pump/api`) must be the **only** contract between the server core and clients (TUI, Web).
+- **No Internal Leaks**: Never return internal domain models (e.g., `Project`, `WorkflowState`) directly to clients. Always convert to DTOs.
+- **Factory Pattern**: Use `from_internal(cls, model)` class methods on DTOs for conversion logic. This keeps the internal model clean of presentation logic.
+- **CamelCase**: All API DTOs must use `camelCase` for JSON serialization to align with JavaScript/Web standards. Use `pydantic.alias_generators.to_camel`.
+
+```python
+class ProjectStatusDTO(APIBaseModel):
+    name: str
+    time_in_state: float = Field(alias="timeInState")
+
+    @classmethod
+    def from_internal(cls, project: Project) -> Self:
+        return cls(name=project.name, ...)
+```
+
 ---
 
 ## Verification Checklist
@@ -283,3 +308,38 @@ Before committing:
 - [ ] Tested on Windows (primary dev platform)
 - [ ] Updated ROADMAP.md if feature complete
 - [ ] Updated this document with any lessons learned
+
+## Lessons Learned
+
+### Windows Command Line Output Issues
+- On Windows systems, command output may not appear in certain shell contexts due to output buffering or redirection
+- When developing on Windows, use direct Python execution or specific test runners to verify functionality
+- The absence of output doesn't necessarily indicate failure; verify functionality through direct code inspection
+
+### Feature Verification Process
+- Always check existing implementation before assuming a feature is incomplete
+- The ROADMAP.md status may already reflect completed work that was implemented in previous iterations
+- Verify functionality exists by examining the codebase thoroughly before proceeding with implementation
+
+### Roadmap Maintenance
+- Regularly review and update the roadmap to ensure accurate status of features
+- Completed features should be properly moved to the completed section to maintain clarity
+- When features are completed, ensure the roadmap reflects the current state to avoid confusion
+- The roadmap should be kept clean and up-to-date to guide future development priorities
+
+### Dynamic State Machines with pytransitions
+- When using `pytransitions.Machine`, the `state` attribute is dynamically added to the model. Declare `state: str` as a class attribute for type checker compatibility.
+- Dynamic trigger methods (e.g., `planning_complete()`) are generated at runtime. Use `# type: ignore` comments and ensure trigger names match transition definitions exactly.
+- Avoid `str.replace()` hacks for trigger naming (e.g., `"planning".replace("ing", "")` → `"plann"`). Use the full phase name directly: `f"{phase.name}_complete"`.
+
+### Protocol Definitions for Async Generators
+- When defining a `Protocol` for a class that has an async generator method, declare it as `def run(...) -> AsyncIterator[T]`, NOT `async def run(...)`.
+- `async def` in a `Protocol` implies a `Coroutine` return type, which mismatches the `AsyncIterator` returned by an actual async generator.
+
+### Multi-File Edits and Bulk Replacements
+- When making bulk replacements across many lines, prefer targeted single-line edits over large multi-chunk replacements. Large replacements are prone to errors if target content doesn't match exactly.
+- Always re-read the file after failed or partial replacements to understand the current state before attempting fixes.
+
+### API & Data Contracts
+- **Strict Separation of Concerns**: Maintain a hard boundary between server logic and client presentation. Using DTOs as the sole exchange format prevents internal refactors from breaking clients (TUI/Web).
+- **Validation in DTOs**: Moving validation and transformation logic (like calculating `time_in_state`) into DTO factory methods simplifies the core service logic.
