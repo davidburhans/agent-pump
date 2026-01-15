@@ -621,10 +621,10 @@ class AgentPumpApp(App):
         project = self.projects.get(self.selected_project)
         if not project:
             return
-            
+
         # Check migration again (force check)
         await self._check_config_migration(project)
-        
+
         # Reload config
         try:
              # Force reload of config from disk
@@ -633,15 +633,15 @@ class AgentPumpApp(App):
              project.backend = new_config.backend
              if self.selected_project in self.workflows:
                  self.workflows[self.selected_project].config = new_config
-             
+
              self._log(f"Configuration reloaded for {project.name}")
-             
+
              # Log which config file was used
              if (project.path / ".agent-pump" / "config.yml").exists():
                  self._log("  Using: .agent-pump/config.yml")
              elif (project.path / ".agent-pump.yml").exists():
                  self._log("  Using: .agent-pump.yml (Legacy)")
-                 
+
         except Exception as e:
             self._log(f"[ERROR] Failed to reload config: {e}")
 
@@ -675,6 +675,8 @@ class AgentPumpApp(App):
 
                 # Let's assume sending None means "no filter".
                 final_states = states if states else None
+                # Use self.selected_project as current_project_path
+                current_project_path = self.selected_project
 
                 self.log_panel.set_filter(
                     project_path=current_project_path, states=final_states, task=task

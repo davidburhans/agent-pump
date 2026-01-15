@@ -92,7 +92,7 @@ class Config(BaseModel):
 
             with open(new_config_file, "w") as f:
                 f.write(DEFAULT_CONFIG_TEMPLATE)
-            
+
             # Create stub prompt files
             for state in [
                 "planning",

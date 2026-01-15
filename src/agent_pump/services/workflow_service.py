@@ -48,7 +48,7 @@ class WorkflowService(BaseService):
         # For now, we create a task and let it run.
         import asyncio
 
-        config = self.project_service.projects[
+        self.project_service.projects[
             path
         ].config  # Assuming project object has config attached, wait Project model doesn't store config used by workflow init.
         # Actually workflow has config.

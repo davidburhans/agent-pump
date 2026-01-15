@@ -47,7 +47,6 @@ import subprocess
 import sys
 import time
 from collections.abc import AsyncGenerator
-from datetime import datetime
 from pathlib import Path
 
 from agent_pump.backends.base import AgentBackend

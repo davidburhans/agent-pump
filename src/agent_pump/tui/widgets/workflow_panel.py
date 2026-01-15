@@ -58,7 +58,7 @@ class WorkflowNode(Static):
         background: $primary-darken-2;
         border: solid $primary-lighten-1;
     }
-    
+
     WorkflowNode:hover {
         background: $surface-lighten-2;
     }
@@ -102,7 +102,7 @@ class WorkflowConnector(Static):
         width: 3;
         content-align: center middle;
         color: $text-muted;
-        height: 3; 
+        height: 3;
     }
     """
 
@@ -120,7 +120,7 @@ class WorkflowPanel(Middle):
         border: solid $primary;
         padding: 1;
         background: $surface;
-        align: center middle; 
+        align: center middle;
     }
 
     WorkflowPanel > Center {
