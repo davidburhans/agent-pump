@@ -28,7 +28,7 @@ class TestConfigMigrator:
         # Create new directory (but no config) -> Should STILL need migration
         (project_path / ".agent-pump").mkdir()
         assert migrator.needs_migration()
-        
+
         # Create config.yml -> Should NOT need migration
         (project_path / ".agent-pump" / "config.yml").touch()
         assert not migrator.needs_migration()

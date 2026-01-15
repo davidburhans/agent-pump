@@ -47,7 +47,6 @@ import subprocess
 import sys
 import time
 from collections.abc import AsyncGenerator
-from datetime import datetime
 from pathlib import Path
 
 from agent_pump.backends.base import AgentBackend
@@ -137,18 +136,9 @@ class OpenCodeBackend(AgentBackend):
 
         # Log command for debugging
         cmd_str = subprocess.list2cmdline(cmd)
-        log_file = project_path / ".agent-pump" / "opencode_cmd.log"
-        log_file.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            with open(log_file, "a", encoding="utf-8") as f:
-                f.write(f"\n[{datetime.now().isoformat()}]\n")
-                f.write("Command: opencode run <prompt>\n")
-                f.write(f"Prompt length: {len(prompt)} chars\n")
-                f.write(f"Working directory: {project_path}\n")
-                f.write(f"Prompt preview:\n{prompt[:200]}...\n")
-            logger.info(f"Full command logged to {log_file}")
-        except Exception as e:
-            logger.error(f"Failed to log command: {e}")
+        await self.log_command(
+            project_path, "opencode_cmd.log", "opencode run <prompt>", prompt
+        )
 
         # Prepare environment
         env = os.environ.copy()

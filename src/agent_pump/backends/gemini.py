@@ -78,21 +78,7 @@ class GeminiBackend(AgentBackend):
         cmd_str = subprocess.list2cmdline(cmd)
 
         # Log full command to file for debugging
-        log_file = project_path / ".agent-pump" / "gemini_cmd.log"
-        log_file.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            with open(log_file, "a", encoding="utf-8") as f:
-                from datetime import datetime
-
-                f.write(f"\n[{datetime.now().isoformat()}]\n")
-                f.write(f"Command: {cmd_str}\n")
-                f.write(f"Prompt length: {len(prompt)} chars\n")
-                f.write(f"Working directory: {project_path}\n")
-                # Write preview of prompt
-                f.write(f"Prompt preview:\n{prompt[:200]}...\n")
-            logger.info(f"Full command logged to {log_file}")
-        except Exception as e:
-            logger.error(f"Failed to log command: {e}")
+        await self.log_command(project_path, "gemini_cmd.log", cmd_str, prompt)
 
         import os
 

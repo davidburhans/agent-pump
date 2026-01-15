@@ -1,9 +1,13 @@
 """Abstract base class for AI coding agent backends."""
 
+import asyncio
+import logging
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -104,3 +108,39 @@ Ensure you are on this branch before making any changes.
             Installation instructions string for display to users
         """
         return f"Please install '{self.command}' and ensure it is available in your PATH."
+
+    async def log_command(
+        self,
+        project_path: Path,
+        log_filename: str,
+        command_display: str,
+        prompt: str,
+    ) -> None:
+        """
+        Log the command execution details to a file asynchronously.
+
+        Args:
+            project_path: The project directory.
+            log_filename: The name of the log file.
+            command_display: The command string to log.
+            prompt: The prompt text.
+        """
+
+        def _write_log() -> str:
+            log_file = project_path / ".agent-pump" / log_filename
+            log_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(log_file, "a", encoding="utf-8") as f:
+                from datetime import datetime
+
+                f.write(f"\n[{datetime.now().isoformat()}]\n")
+                f.write(f"Command: {command_display}\n")
+                f.write(f"Prompt length: {len(prompt)} chars\n")
+                f.write(f"Working directory: {project_path}\n")
+                f.write(f"Prompt preview:\n{prompt[:200]}...\n")
+            return str(log_file)
+
+        try:
+            log_path = await asyncio.to_thread(_write_log)
+            logger.info(f"Full command logged to {log_path}")
+        except Exception as e:
+            logger.error(f"Failed to log command: {e}")
