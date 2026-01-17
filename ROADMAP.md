@@ -11,6 +11,165 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Current Sprint
 
+### 🔴 TUI UX Compliance - Command Palette
+**Priority: High** | **Guideline: Section 5.2**
+
+Implement a Command Palette for discoverability and power user efficiency.
+
+**Why this matters:**
+The guidelines strongly recommend Command Palette as a "major trend in modern developer tools" that allows users to execute actions via fuzzy search rather than memorizing keybindings. This is flagged as a feature that "instantly elevates the perceived quality of the application."
+
+**Acceptance Criteria:**
+- Enable Textual's built-in `ENABLE_COMMAND_PALETTE = True`
+- Register all current keybindings as Command Palette actions
+- Add fuzzy search support for commands like "Toggle Dark Mode", "Add Project", "Open Settings"
+- Bind to standard `Ctrl+P` or `Ctrl+Shift+P` keybinding
+- Add unit tests for command discovery
+
+---
+
+### 🔴 TUI UX Compliance - Semantic Color Variables
+**Priority: High** | **Guideline: Section 3.2**
+
+Replace hardcoded colors with semantic TCSS variables for consistency and theming.
+
+**Why this matters:**
+The guidelines emphasize using semantic variables like `$success`, `$error`, `$primary` instead of hardcoding colors. Currently, `project_card.py` uses hardcoded color names like `"red"`, `"green"`, `"yellow"` in Python code instead of TCSS semantic variables.
+
+**Acceptance Criteria:**
+- Define semantic color variables in `app.tcss`:
+  - `$success`, `$error`, `$warning`, `$info`, `$primary`, `$secondary`
+- Refactor `STATUS_COLORS` in `project_card.py` to use TCSS classes instead of inline Rich color markup
+- Create CSS classes for each status state (`.status-idle`, `.status-planning`, `.status-error`, etc.)
+- Ensure consistent color usage across all widgets and modals
+- Support for alpha-blended backgrounds for glassmorphism effects
+- Add light/dark theme variants
+
+---
+
+### 🔴 TUI UX Compliance - Micro-interactions & Animations
+**Priority: High** | **Guideline: Sections 5.3, 6.1, 6.2**
+
+Implement micro-interactions and smooth transitions for visual feedback.
+
+**Why this matters:**
+The guidelines describe the "shake animation" for input errors as a core pattern that "communicates the error instantly, bypassing the need to read text, and adds polish." Currently, validation errors only show text notifications with no visual animation. Additionally, panel transitions "snap into existence" rather than sliding or expanding.
+
+**Acceptance Criteria:**
+- Implement shake animation for invalid input fields (AddProjectModal, IdeaInputModal, etc.):
+  - Use `animate()` with `offset-x` keyframes: `0 → -2 → 2 → -1 → 1 → 0`
+  - Pair with red border color change
+- Add smooth slide-in/out transitions for:
+  - Workflow panel show/hide (`action_toggle_workflow_panel`)
+  - Modal dialogs opening/closing
+- Use easing functions (`in_out_cubic`, `out_back`) instead of linear animations
+- Add subtle hover animations on interactive elements
+- Animate progress bar changes in project cards smoothly
+- Add unit tests for animation behaviors
+
+---
+
+### 🔴 TUI UX Compliance - Pydantic Form Validation
+**Priority: Medium** | **Guideline: Sections 2.3, 5.3**
+
+Integrate Pydantic models for form validation with visual feedback.
+
+**Why this matters:**
+The guidelines outline a clear integration pattern: "When a user interacts with a form, the input should not just be stored as a string. It should be passed to a Pydantic model for validation." Currently, modals like `AddProjectModal` use ad-hoc validation (checking if path exists) without Pydantic and without the associated visual feedback (shake, red border).
+
+**Acceptance Criteria:**
+- Create Pydantic models for form inputs:
+  - `ProjectPathInput`: validates path exists, is directory, is not already added
+  - `IdeaInput`: validates non-empty, reasonable length
+  - `PromptCustomizationInput`: validates prompt templates
+- Integrate validation into modals with visual feedback on `ValidationError`:
+  - Red border on invalid field
+  - Shake animation
+  - Context-sensitive error message below field
+- Use Textual's `Input.changed` event to provide real-time validation
+- Add unit tests for validation models and UI feedback
+
+---
+
+### 🔴 TUI UX Compliance - Accessibility Improvements
+**Priority: Medium** | **Guideline: Section 8**
+
+Improve accessibility for screen readers and keyboard navigation.
+
+**Why this matters:**
+The guidelines require "semantic DOM, ARIA-like labels" and state that "for custom widgets (e.g., a graphical chart or icon-only button), developers must explicitly provide an accessible name or description." Additionally, designs must be tested in monochrome and pair color with symbols.
+
+**Acceptance Criteria:**
+- Add `accessible_name` or `accessible_description` to all custom widgets:
+  - `WorkflowNode`: describe state and phase name
+  - `ProjectCard`: describe project name and current status
+  - `LogPanel`: describe purpose and current filter
+- Review all icon-only buttons and add accessible labels
+- Ensure all status indicators pair color with text/icon (already partially done)
+- Verify WCAG 4.5:1 contrast ratios for all color combinations
+- Ensure no keyboard navigation traps:
+  - Test Tab key flow through all modals
+  - Add escape hatches from TextArea widgets
+- Add keyboard shortcut hints to tooltips
+- Test with screen reader (NVDA) and document findings
+
+---
+
+### 🔴 TUI UX Compliance - Focus Visual Indicators
+**Priority: Medium** | **Guideline: Section 5.1**
+
+Enhance focus indicators to be more visually distinct.
+
+**Why this matters:**
+The guidelines state "The focused widget *must* be visually distinct" with `:focus` pseudo-classes. While `ProjectCard` has a `:focus` style, other widgets lack explicit focus styling, and the current `double $primary` border may not be distinct enough.
+
+**Acceptance Criteria:**
+- Review and enhance `:focus` styles for all interactive widgets
+- Consider adding a "glowing outline" effect for focused elements
+- Ensure clear visual distinction between `:focus`, `:hover`, and `.selected` states
+- Add `:focus` styles to:
+  - All buttons in modals
+  - Input fields (with distinct border color change)
+  - WorkflowNode (for keyboard navigation)
+- Verify Tab order is logical (top-left to bottom-right)
+- Add tests for focus navigation order
+
+---
+
+### 🔴 TUI UX Compliance - Worker API Communication
+**Priority: Low** | **Guideline: Section 7.3**
+
+Ensure all worker-to-UI communication uses proper message passing.
+
+**Why this matters:**
+The guidelines warn that "Workers cannot modify the UI directly because the UI is not thread-safe" and must use `post_message`. A review is needed to ensure all background workers follow this pattern correctly.
+
+**Acceptance Criteria:**
+- Audit all `@work` decorated methods for thread safety
+- Ensure workers use `self.post_message(ResultEvent(data))` pattern
+- Verify no direct UI modifications from worker threads
+- Add type-safe message classes for all worker results
+- Document worker communication patterns in `BEST_PRACTICES.md`
+
+---
+
+### 🔴 TUI UX Compliance - Rich Renderables
+**Priority: Low** | **Guideline: Section 3.4**
+
+Enhance content rendering with Rich's advanced renderables.
+
+**Why this matters:**
+The guidelines recommend Rich `Syntax`, `Table`, and `Panel` objects for professional content rendering. Currently, log output uses basic markdown formatting rather than Rich renderables.
+
+**Acceptance Criteria:**
+- Enhance log display with Rich renderables:
+  - Use `Syntax` for code/config snippets in logs
+  - Use `Table` for structured data display (project list summaries)
+  - Use `Panel` to wrap log sections (phase starts, errors)
+- Add syntax highlighting for JSON/YAML config display in modals
+- Create a "Project Summary" view using Rich Tables
+- Consider RichLog widget for enhanced log panel
+
 
 
 

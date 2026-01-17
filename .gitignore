@@ -24,9 +24,6 @@ build/
 .coverage
 htmlcov/
 
-# Agent artifacts
-.gemini/
-
 # OS
 .DS_Store
 Thumbs.db
