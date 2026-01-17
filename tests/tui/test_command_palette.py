@@ -70,36 +70,82 @@ async def test_command_palette_discovery():
         # But `app.get_commands()` is not a public API usually exposed this way?
         # Actually `App.get_possible_commands` might be useful? No.
 
-        # Let's just assert that we can find "Toggle Dark Mode" in the results if we implement it.
-        # For now, let's see what is there for "Dark".
-
-        input_widget.value = "Dark"
-
-        # Wait for results with a timeout
-        async def wait_for_results():
-            for _ in range(20):
-                await asyncio.sleep(0.1)
-                if option_list.option_count > 0:
-                    # check if it is the "No matches found" placeholder
-                    # Textual might implement this differently, but based on the print output,
-                    # we can check the prompt content.
-                    first_option = option_list.get_option_at_index(0)
-                    prompt_str = str(first_option.prompt)
+        # Helper to get result texts
+        async def get_results_texts(wait_time=0.2):
+            # Wait for search to process
+            await asyncio.sleep(wait_time)
+            results = []
+            if option_list.option_count > 0:
+                for i in range(option_list.option_count):
+                    opt = option_list.get_option_at_index(i)
+                    prompt_str = str(opt.prompt)
                     if "No matches found" in prompt_str:
-                        return False
-                    return True
-            return False
+                        continue
+                    results.append(prompt_str)
+            return results
 
-        assert await wait_for_results(), "Should find 'Dark' command"
+        # Helper to verify a command is present
+        async def assert_command_present(command_name: str, query: str | None = None):
+            if query:
+                input_widget.value = query
+            else:
+                input_widget.value = command_name
+
+            # Retry loop to handle async population
+            for _ in range(10):
+                results = await get_results_texts()
+                # Check if exact match or contains (Textual highlights might add markup, so strictly checking "in" str)
+                for res in results:
+                    if command_name in res:
+                        return
+                # If not found, wait a bit more
+                await asyncio.sleep(0.1)
+
+            # Final check
+            results = await get_results_texts(wait_time=0.5)
+            found = any(command_name in res for res in results)
+            assert found, f"Command '{command_name}' not found in results: {results}"
+
+        # Helper to verify a command is NOT present
+        async def assert_command_missing(command_name: str, query: str | None = None):
+            if query:
+                input_widget.value = query
+            else:
+                input_widget.value = command_name
+
+            # Wait for results to stabilize
+            results = await get_results_texts(wait_time=0.5)
+            found = any(command_name in res for res in results)
+            assert not found, f"Command '{command_name}' SHOULD NOT be in results: {results}"
+
 
         # Check "Toggle Dark Mode"
-        input_widget.value = "Toggle Dark Mode"
-
-        # This is expected to fail until we implement the provider
-        # But we assert it for the future
-        found = await wait_for_results()
-        assert found, "Should find 'Toggle Dark Mode' command"
+        await assert_command_present("Toggle Dark Mode")
 
         # Check "Add Project"
-        input_widget.value = "Add Project"
-        assert await wait_for_results(), "Should find 'Add Project' command"
+        await assert_command_present("Add Project")
+
+        # Check "Quit Application"
+        await assert_command_present("Quit Application")
+
+        # Check "Toggle Sort Order"
+        await assert_command_present("Toggle Sort Order")
+
+        # Verify project-specific commands are NOT present
+        # We search for "Remove Project" but assert it is NOT in the results
+        await assert_command_missing("Remove Project")
+
+        # Now simulate selecting a project
+        from pathlib import Path
+        app.selected_project = Path("/tmp/dummy-project")
+
+        # Check "Remove Project" - Force update by clearing input first
+        input_widget.value = ""
+        await asyncio.sleep(0.1)
+        await assert_command_present("Remove Project")
+
+        # Check "Start Selected"
+        await assert_command_present("Start Selected")
+
+        # Check "Reset Project"
+        await assert_command_present("Reset Project")
