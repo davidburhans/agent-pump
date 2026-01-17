@@ -39,6 +39,7 @@ from agent_pump.tui.screens import (
     RoadmapModal,
     SettingsModal,
 )
+from agent_pump.tui.commands import AgentPumpCommandProvider
 from agent_pump.tui.screens.confirm_modal import ConfirmModal
 from agent_pump.tui.screens.log_filter_modal import LogFilterModal
 from agent_pump.tui.widgets.log_panel import LogPanel
@@ -55,6 +56,9 @@ class AgentPumpApp(App):
     SUB_TITLE = "AI Coding Agent Orchestrator"
 
     CSS_PATH = "styles/app.tcss"
+
+    ENABLE_COMMAND_PALETTE = True
+    COMMANDS = {AgentPumpCommandProvider}
 
     # Base bindings always available
     BINDINGS = [
