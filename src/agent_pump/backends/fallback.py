@@ -1,7 +1,7 @@
 """Fallback backend runner - tries backends in order until one succeeds."""
 
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -111,7 +111,7 @@ class FallbackBackendRunner:
         timeout: int = 600,
         verbose: bool = False,
         extra_args: list[str] | None = None,
-    ) -> AsyncIterator[str]:
+    ) -> AsyncGenerator[str, None]:
         """
         Try each backend in order until one succeeds.
 

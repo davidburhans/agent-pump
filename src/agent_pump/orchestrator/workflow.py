@@ -2,10 +2,10 @@
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncGenerator, Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from transitions import Machine
 
@@ -41,14 +41,14 @@ class BackendRunner(Protocol):
     @property
     def name(self) -> str: ...
 
-    async def run(
+    def run(
         self,
         project_path: Path,
         prompt: str,
         timeout: int = 600,
         verbose: bool = False,
         extra_args: list[str] | None = None,
-    ) -> AsyncIterator[str]: ...
+    ) -> AsyncGenerator[str, None]: ...
 
 
 class ProjectWorkflow:
@@ -62,6 +62,9 @@ class ProjectWorkflow:
 
     # Define states matching ProjectStatus
 
+    if TYPE_CHECKING:
+        from agent_pump.orchestrator.workflow_definition import WorkflowDefinition
+
     def __init__(
         self,
         project: Project,
@@ -71,7 +74,7 @@ class ProjectWorkflow:
         project_config: ProjectConfig | None = None,  # New workspace config
         phase_backends: PhaseBackends | None = None,
         prompt_customization: PromptCustomization | None = None,
-        workflow_def: "WorkflowDefinition" = None,  # type: ignore
+        workflow_def: "WorkflowDefinition | None" = None,
         idea_queue: list[str] | None = None,
         on_output: Callable[[str, str, str | None], None] | None = None,
         on_state_change: Callable[[str, str], None] | None = None,
@@ -252,12 +255,16 @@ class ProjectWorkflow:
         if new_state == "completed":
             Notifier.send(
                 title="Workflow Completed",
-                message=f"The workflow for project '{self.project.name}' has completed successfully.",
+                message=(
+                    f"The workflow for project '{self.project.name}' has completed successfully."
+                ),
             )
         elif new_state == "error":
             Notifier.send(
                 title="Workflow Failed",
-                message=f"The workflow for project '{self.project.name}' has encountered an error.",
+                message=(
+                    f"The workflow for project '{self.project.name}' has encountered an error."
+                ),
             )
 
     def _check_task_name_file(self) -> None:
@@ -584,7 +591,8 @@ class ProjectWorkflow:
                                 if uncompleted:
                                     feature_request = uncompleted[0].title
                                     self._emit_output(
-                                        f"\n[INFO] Auto-picking next roadmap item: {feature_request}\n"
+                                        f"\n[INFO] Auto-picking next roadmap item: "
+                                        f"{feature_request}\n"
                                     )
                                     # Create TASK_NAME file to persist this choice
                                     try:
