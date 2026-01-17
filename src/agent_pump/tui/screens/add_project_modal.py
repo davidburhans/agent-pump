@@ -5,6 +5,7 @@ from pathlib import Path
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal
 from textual.screen import ModalScreen
+from textual.widget import Widget
 from textual.widgets import Button, DirectoryTree, Input, Label, Static
 
 
@@ -42,6 +43,10 @@ class AddProjectModal(ModalScreen[Path | None]):
         width: 1fr;
     }
 
+    #path-input.error {
+        border: solid $error;
+    }
+
     #btn-parent {
         margin-left: 1;
         min-width: 10;
@@ -76,7 +81,7 @@ class AddProjectModal(ModalScreen[Path | None]):
             DirectoryTree("./", id="dir-tree"),
             Horizontal(
                 Button("Cancel", variant="error", id="btn-cancel"),
-                Button("Add Project", variant="success", id="btn-add"),
+                Button("Add Project", variant="success", id="btn-submit"),
                 classes="button-row",
             ),
             id="modal-container",
@@ -90,6 +95,11 @@ class AddProjectModal(ModalScreen[Path | None]):
         """Update the input field when a directory is selected."""
         self.query_one("#path-input", Input).value = str(event.path)
 
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """Clear error state on input change."""
+        if event.input.id == "path-input":
+            event.input.remove_class("error")
+
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle input submission (Enter key)."""
         self._handle_add_project()
@@ -98,7 +108,7 @@ class AddProjectModal(ModalScreen[Path | None]):
         """Handle button presses."""
         if event.button.id == "btn-cancel":
             self.dismiss(None)
-        elif event.button.id == "btn-add":
+        elif event.button.id == "btn-submit":
             self._handle_add_project()
         elif event.button.id == "btn-parent":
             self._handle_parent_directory()
@@ -114,12 +124,19 @@ class AddProjectModal(ModalScreen[Path | None]):
 
     def _handle_add_project(self) -> None:
         """Validate and add the project."""
-        path_str = self.query_one("#path-input", Input).value
+        path_input = self.query_one("#path-input", Input)
+        path_str = path_input.value
+
         if path_str:
             path = Path(path_str).expanduser().resolve()
             if path.exists() and path.is_dir():
                 self.dismiss(path)
             else:
-                self.notify("Invalid path or not a directory", severity="error")
+                self._show_error(path_input, "Invalid path or not a directory")
         else:
-            self.notify("Please enter or select a path", severity="warning")
+            self._show_error(path_input, "Please enter or select a path")
+
+    def _show_error(self, widget: Widget, message: str) -> None:
+        """Show visual error feedback."""
+        widget.add_class("error")
+        self.notify(message, severity="error")
