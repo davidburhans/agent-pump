@@ -139,4 +139,24 @@ class AddProjectModal(ModalScreen[Path | None]):
     def _show_error(self, widget: Widget, message: str) -> None:
         """Show visual error feedback."""
         widget.add_class("error")
+        self._shake(widget)
+        widget.focus()
         self.notify(message, severity="error")
+
+    def _shake(self, widget: Widget) -> None:
+        """Shake the widget to indicate error."""
+        # Simple manual shake animation since animating tuple offsets
+        # can be tricky with blend interpolation.
+
+        # Shake sequence: right, left, right, left, reset
+        # We end with None to clear the inline style and respect CSS
+        offsets = [(2, 0), (-2, 0), (1, 0), (-1, 0), None]
+        step_duration = 0.05
+
+        def _step(i: int) -> None:
+            if i >= len(offsets):
+                return
+            widget.styles.offset = offsets[i]  # type: ignore
+            self.set_timer(step_duration, lambda: _step(i + 1))
+
+        _step(0)
