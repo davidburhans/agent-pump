@@ -121,9 +121,14 @@ async def test_command_palette_discovery():
 
         # Check "Toggle Dark Mode"
         await assert_command_present("Toggle Dark Mode")
+        # Verify fuzzy search
+        await assert_command_present("Toggle Dark Mode", query="dark")
+        await assert_command_present("Toggle Dark Mode", query="mode")
 
         # Check "Add Project"
         await assert_command_present("Add Project")
+        # Verify fuzzy search
+        await assert_command_present("Add Project", query="add proj")
 
         # Check "Quit Application"
         await assert_command_present("Quit Application")
