@@ -160,22 +160,35 @@ class ProjectWorkflow:
         # Workspace reference (optional)
         self.workspace = None
 
-    def _read_file_content(self, filename: str) -> str:
-        """Read content of a file from the project directory."""
+    async def _read_file_content(self, filename: str) -> str:
+        """Read content of a file from the project directory asynchronously."""
         try:
             file_path = self.project.path / filename
-            if file_path.exists():
-                return file_path.read_text(encoding="utf-8").strip()
+
+            def _read() -> str | None:
+                if file_path.exists():
+                    return file_path.read_text(encoding="utf-8").strip()
+                return None
+
+            content = await asyncio.to_thread(_read)
+            if content is not None:
+                return content
         except Exception as e:
             logger.warning(f"Error reading {filename}: {e}")
         return "(File not found or empty)"
 
-    def _get_context_content(self) -> dict[str, str]:
-        """Get the context content for prompts."""
+    async def _get_context_content(self) -> dict[str, str]:
+        """Get the context content for prompts asynchronously."""
+        # Run reads in parallel
+        results = await asyncio.gather(
+            self._read_file_content("ROADMAP.md"),
+            self._read_file_content("ENGINEERING_PLAN.md"),
+            self._read_file_content("TASK_NAME"),
+        )
         return {
-            "roadmap_content": self._read_file_content("ROADMAP.md"),
-            "engineering_plan_content": self._read_file_content("ENGINEERING_PLAN.md"),
-            "task_name_content": self._read_file_content("TASK_NAME"),
+            "roadmap_content": results[0],
+            "engineering_plan_content": results[1],
+            "task_name_content": results[2],
         }
 
     def _after_state_change(self, *args: Any, **kwargs: Any) -> None:
@@ -556,7 +569,7 @@ class ProjectWorkflow:
                         continue
 
                     case "planning":
-                        context = self._get_context_content()
+                        context = await self._get_context_content()
 
                         feature_request = context["task_name_content"]
                         # If TASK_NAME is empty, try to pick first item from ROADMAP.md
@@ -616,7 +629,7 @@ class ProjectWorkflow:
                             self.planning_failed()  # type: ignore
 
                     case "implementing":
-                        context = self._get_context_content()
+                        context = await self._get_context_content()
                         base_prompt_template = build_implementing_prompt(self.project.branch)
                         base_prompt = base_prompt_template.format(**context)
 
@@ -636,7 +649,7 @@ class ProjectWorkflow:
                             self.implementing_failed()  # type: ignore
 
                     case "verifying":
-                        context = self._get_context_content()
+                        context = await self._get_context_content()
                         # First run the AI verification phase
                         base_prompt_template = build_verifying_prompt(self.project.branch)
                         base_prompt = base_prompt_template.format(**context)
@@ -703,7 +716,7 @@ class ProjectWorkflow:
                             self.verifying_failed()  # type: ignore
 
                     case "brainstorming":
-                        context = self._get_context_content()
+                        context = await self._get_context_content()
                         # Include any queued ideas in the brainstorming prompt
                         base_prompt = build_brainstorming_prompt(
                             roadmap_content=context["roadmap_content"],
@@ -744,7 +757,7 @@ class ProjectWorkflow:
                             break
 
                     case "committing":
-                        context = self._get_context_content()
+                        context = await self._get_context_content()
                         base_prompt_template = build_committing_prompt(self.project.branch)
                         base_prompt = base_prompt_template.format(**context)
 
