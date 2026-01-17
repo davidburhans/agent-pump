@@ -47,7 +47,7 @@ class AgentBackend(ABC):
         ...
 
     @abstractmethod
-    async def run(
+    def run(
         self,
         project_path: Path,
         prompt: str,

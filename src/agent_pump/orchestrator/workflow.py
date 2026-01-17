@@ -2,10 +2,10 @@
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncGenerator, Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from transitions import Machine
 
@@ -41,14 +41,14 @@ class BackendRunner(Protocol):
     @property
     def name(self) -> str: ...
 
-    async def run(
+    def run(
         self,
         project_path: Path,
         prompt: str,
         timeout: int = 600,
         verbose: bool = False,
         extra_args: list[str] | None = None,
-    ) -> AsyncIterator[str]: ...
+    ) -> AsyncGenerator[str, None]: ...
 
 
 class ProjectWorkflow:
@@ -62,6 +62,9 @@ class ProjectWorkflow:
 
     # Define states matching ProjectStatus
 
+    if TYPE_CHECKING:
+        from agent_pump.orchestrator.workflow_definition import WorkflowDefinition
+
     def __init__(
         self,
         project: Project,
@@ -71,7 +74,7 @@ class ProjectWorkflow:
         project_config: ProjectConfig | None = None,  # New workspace config
         phase_backends: PhaseBackends | None = None,
         prompt_customization: PromptCustomization | None = None,
-        workflow_def: "WorkflowDefinition" = None,  # type: ignore
+        workflow_def: "WorkflowDefinition | None" = None,
         idea_queue: list[str] | None = None,
         on_output: Callable[[str, str, str | None], None] | None = None,
         on_state_change: Callable[[str, str], None] | None = None,
@@ -160,22 +163,35 @@ class ProjectWorkflow:
         # Workspace reference (optional)
         self.workspace = None
 
-    def _read_file_content(self, filename: str) -> str:
-        """Read content of a file from the project directory."""
+    async def _read_file_content(self, filename: str) -> str:
+        """Read content of a file from the project directory asynchronously."""
         try:
             file_path = self.project.path / filename
-            if file_path.exists():
-                return file_path.read_text(encoding="utf-8").strip()
+
+            def _read() -> str | None:
+                if file_path.exists():
+                    return file_path.read_text(encoding="utf-8").strip()
+                return None
+
+            content = await asyncio.to_thread(_read)
+            if content is not None:
+                return content
         except Exception as e:
             logger.warning(f"Error reading {filename}: {e}")
         return "(File not found or empty)"
 
-    def _get_context_content(self) -> dict[str, str]:
-        """Get the context content for prompts."""
+    async def _get_context_content(self) -> dict[str, str]:
+        """Get the context content for prompts asynchronously."""
+        # Run reads in parallel
+        results = await asyncio.gather(
+            self._read_file_content("ROADMAP.md"),
+            self._read_file_content("ENGINEERING_PLAN.md"),
+            self._read_file_content("TASK_NAME"),
+        )
         return {
-            "roadmap_content": self._read_file_content("ROADMAP.md"),
-            "engineering_plan_content": self._read_file_content("ENGINEERING_PLAN.md"),
-            "task_name_content": self._read_file_content("TASK_NAME"),
+            "roadmap_content": results[0],
+            "engineering_plan_content": results[1],
+            "task_name_content": results[2],
         }
 
     def _after_state_change(self, *args: Any, **kwargs: Any) -> None:
@@ -239,12 +255,16 @@ class ProjectWorkflow:
         if new_state == "completed":
             Notifier.send(
                 title="Workflow Completed",
-                message=f"The workflow for project '{self.project.name}' has completed successfully.",
+                message=(
+                    f"The workflow for project '{self.project.name}' has completed successfully."
+                ),
             )
         elif new_state == "error":
             Notifier.send(
                 title="Workflow Failed",
-                message=f"The workflow for project '{self.project.name}' has encountered an error.",
+                message=(
+                    f"The workflow for project '{self.project.name}' has encountered an error."
+                ),
             )
 
     def _check_task_name_file(self) -> None:
@@ -556,7 +576,7 @@ class ProjectWorkflow:
                         continue
 
                     case "planning":
-                        context = self._get_context_content()
+                        context = await self._get_context_content()
 
                         feature_request = context["task_name_content"]
                         # If TASK_NAME is empty, try to pick first item from ROADMAP.md
@@ -571,7 +591,8 @@ class ProjectWorkflow:
                                 if uncompleted:
                                     feature_request = uncompleted[0].title
                                     self._emit_output(
-                                        f"\n[INFO] Auto-picking next roadmap item: {feature_request}\n"
+                                        f"\n[INFO] Auto-picking next roadmap item: "
+                                        f"{feature_request}\n"
                                     )
                                     # Create TASK_NAME file to persist this choice
                                     try:
@@ -616,7 +637,7 @@ class ProjectWorkflow:
                             self.planning_failed()  # type: ignore
 
                     case "implementing":
-                        context = self._get_context_content()
+                        context = await self._get_context_content()
                         base_prompt_template = build_implementing_prompt(self.project.branch)
                         base_prompt = base_prompt_template.format(**context)
 
@@ -636,7 +657,7 @@ class ProjectWorkflow:
                             self.implementing_failed()  # type: ignore
 
                     case "verifying":
-                        context = self._get_context_content()
+                        context = await self._get_context_content()
                         # First run the AI verification phase
                         base_prompt_template = build_verifying_prompt(self.project.branch)
                         base_prompt = base_prompt_template.format(**context)
@@ -703,7 +724,7 @@ class ProjectWorkflow:
                             self.verifying_failed()  # type: ignore
 
                     case "brainstorming":
-                        context = self._get_context_content()
+                        context = await self._get_context_content()
                         # Include any queued ideas in the brainstorming prompt
                         base_prompt = build_brainstorming_prompt(
                             roadmap_content=context["roadmap_content"],
@@ -744,7 +765,7 @@ class ProjectWorkflow:
                             break
 
                     case "committing":
-                        context = self._get_context_content()
+                        context = await self._get_context_content()
                         base_prompt_template = build_committing_prompt(self.project.branch)
                         base_prompt = base_prompt_template.format(**context)
 
