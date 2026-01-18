@@ -1,5 +1,6 @@
 """Utility for parsing and reordering ROADMAP.md files."""
 
+import asyncio
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -40,12 +41,19 @@ class RoadmapParser:
         self.postamble = ""  # Content after features (if any)
         self.sections = {}  # To store different sections (Current Sprint, Future Enhancements, etc.)
 
-    def parse(self) -> list[RoadmapFeature]:
-        """Parse the ROADMAP.md file."""
-        if not self.path.exists():
-            return []
+    def parse(self, content: str | None = None) -> list[RoadmapFeature]:
+        """
+        Parse the ROADMAP.md file.
 
-        self.content = self.path.read_text(encoding="utf-8")
+        Args:
+            content: Optional content string. If provided, file I/O is skipped.
+        """
+        if content is not None:
+            self.content = content
+        elif self.path.exists():
+            self.content = self.path.read_text(encoding="utf-8")
+        else:
+            return []
 
         # Split into sections based on headers
         sections = re.split(r"\n(## [^\n]+)\n", self.content)
@@ -89,6 +97,10 @@ class RoadmapParser:
 
         self.features = current_features
         return self.features
+
+    async def parse_async(self) -> list[RoadmapFeature]:
+        """Parse the ROADMAP.md file asynchronously."""
+        return await asyncio.to_thread(self.parse)
 
     def get_uncompleted_features(self) -> list[RoadmapFeature]:
         """Return only uncompleted features."""

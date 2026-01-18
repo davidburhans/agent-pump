@@ -583,10 +583,22 @@ class ProjectWorkflow:
                         if not feature_request or feature_request == "(File not found or empty)":
                             from agent_pump.utils.roadmap import RoadmapParser
 
+                            # Optimization: reuse content already read asynchronously in _get_context_content
+                            roadmap_content = context.get("roadmap_content", "")
+                            is_valid_content = (
+                                roadmap_content and roadmap_content != "(File not found or empty)"
+                            )
+
                             roadmap_path = self.project.path / "ROADMAP.md"
-                            if roadmap_path.exists():
+                            if is_valid_content or roadmap_path.exists():
                                 parser = RoadmapParser(roadmap_path)
-                                parser.parse()
+                                # Pass content to avoid redundant synchronous read
+                                if is_valid_content:
+                                    parser.parse(content=roadmap_content)
+                                else:
+                                    # Fallback if content was missing from context but file exists
+                                    parser.parse()
+
                                 uncompleted = parser.get_uncompleted_features()
                                 if uncompleted:
                                     feature_request = uncompleted[0].title
