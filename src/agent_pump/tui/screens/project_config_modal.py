@@ -6,6 +6,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal
 from textual.screen import ModalScreen
+from textual.widget import Widget
 from textual.widgets import Button, Checkbox, Input, Label, Select, Static, TabbedContent, TabPane
 
 from agent_pump.config import Config
@@ -191,22 +192,58 @@ class ProjectConfigModal(ModalScreen[None]):
         """Cancel and dismiss without saving."""
         self.dismiss(None)
 
-    def action_save(self) -> None:
+    def _shake(self, widget: Widget) -> None:
+        """Shake the widget to indicate an error."""
+        # Manual shake animation sequence
+        offsets = [(2, 0), (-2, 0), (1, 0), (-1, 0), None]
+        step_duration = 0.05
+
+        def _step(i: int) -> None:
+            if i >= len(offsets):
+                return
+            widget.styles.offset = offsets[i]  # type: ignore
+            self.set_timer(step_duration, lambda: _step(i + 1))
+
+        _step(0)
+
+    async def action_save(self) -> None:
         """Save the configuration and dismiss."""
         try:
-            # Update config object from inputs
+            # Workflow Validation
+            max_iter_input = self.query_one("#input-max-iterations", Input)
+            max_iter_val = max_iter_input.value
+            if max_iter_val:
+                try:
+                    val = int(max_iter_val)
+                    if val <= 0:
+                        raise ValueError("Must be positive")
+                    self.config.workflow.max_iterations = val
+                except ValueError:
+                    self.notify("Max iterations must be a positive integer", severity="error")
+                    self.query_one(TabbedContent).active = "tab-general"
+                    max_iter_input.focus()
+                    self._shake(max_iter_input)
+                    return
+
+            timeout_input = self.query_one("#input-timeout", Input)
+            timeout_val = timeout_input.value
+            if timeout_val:
+                try:
+                    val = int(timeout_val)
+                    if val <= 0:
+                        raise ValueError("Must be positive")
+                    self.config.workflow.timeout = val
+                except ValueError:
+                    self.notify("Timeout must be a positive integer", severity="error")
+                    self.query_one(TabbedContent).active = "tab-general"
+                    timeout_input.focus()
+                    self._shake(timeout_input)
+                    return
+
+            # Update other config (safe fields)
             backend = self.query_one("#input-backend", Select).value
             if backend:
                 self.config.backend = str(backend)
-
-            # Workflow
-            max_iter = self.query_one("#input-max-iterations", Input).value
-            if max_iter:
-                self.config.workflow.max_iterations = int(max_iter)
-
-            timeout = self.query_one("#input-timeout", Input).value
-            if timeout:
-                self.config.workflow.timeout = int(timeout)
 
             branch = self.query_one("#input-branch", Input).value
             self.config.workflow.branch = str(branch) if branch.strip() else None
@@ -234,9 +271,9 @@ class ProjectConfigModal(ModalScreen[None]):
         except Exception as e:
             self.notify(f"Error saving configuration: {e}", severity="error")
 
-    def on_button_pressed(self, event: Button.Pressed) -> None:
+    async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
         if event.button.id == "btn-cancel":
             self.action_cancel()
         elif event.button.id == "btn-save":
-            self.action_save()
+            await self.action_save()
