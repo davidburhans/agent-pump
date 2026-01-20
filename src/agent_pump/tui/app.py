@@ -34,6 +34,7 @@ from agent_pump.tui.screens import (
     AddProjectModal,
     BackendConfigModal,
     GlobalPromptModal,
+    IdeaInputModal,
     ProjectConfigModal,
     PromptConfigModal,
     RoadmapModal,
@@ -463,46 +464,6 @@ class AgentPumpApp(App):
 
     async def action_add_idea(self) -> None:
         """Add an idea to the brainstorming queue."""
-        from textual.containers import Vertical
-        from textual.screen import ModalScreen
-        from textual.widgets import Button, Input, Label
-
-        class IdeaInputModal(ModalScreen[str | None]):
-            """Modal for entering a new idea."""
-
-            CSS = """
-            IdeaInputModal {
-                align: center middle;
-            }
-            IdeaInputModal > Vertical {
-                width: 60;
-                height: auto;
-                border: thick $primary;
-                background: $surface;
-                padding: 1 2;
-            }
-            """
-
-            def compose(self) -> ComposeResult:
-                yield Vertical(
-                    Label("Enter your idea for the brainstormer:"),
-                    Input(placeholder="e.g., Add dark mode support", id="idea-input"),
-                    Horizontal(
-                        Button("Add", id="btn-add-idea", variant="success"),
-                        Button("Cancel", id="btn-cancel", variant="default"),
-                        classes="button-row",
-                    ),
-                )
-
-            def on_button_pressed(self, event: Button.Pressed) -> None:
-                if event.button.id == "btn-add-idea":
-                    input_widget = self.query_one("#idea-input", Input)
-                    self.dismiss(input_widget.value)
-                else:
-                    self.dismiss(None)
-
-            def on_input_submitted(self, event: Input.Submitted) -> None:
-                self.dismiss(event.value)
 
         def handle_idea(idea: str | None) -> None:
             if idea and idea.strip():
