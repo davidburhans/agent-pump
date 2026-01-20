@@ -10,7 +10,7 @@ from agent_pump.tui.app import AgentPumpApp
 from agent_pump.tui.screens.project_config_modal import ProjectConfigModal
 
 
-class TestPumpApp(AgentPumpApp):
+class MockPumpApp(AgentPumpApp):
     """Test app that skips background workers to avoid race conditions/mounting errors."""
 
     # Disable loading app.tcss since we are in a test file
@@ -58,7 +58,7 @@ verification:
         real_workspace = Workspace()
         mock_ws_load.return_value = real_workspace
 
-        app = TestPumpApp(project_paths=[project_path])
+        app = MockPumpApp(project_paths=[project_path])
         async with app.run_test() as pilot:
             # Manually trigger _add_project since we disabled on_mount
             # This mimics the app behavior but in a controlled, sequential way
@@ -119,7 +119,7 @@ async def test_project_config_creation(tmp_path):
 
         mock_ws_load.return_value = Workspace()
 
-        app = TestPumpApp(project_paths=[project_path])
+        app = MockPumpApp(project_paths=[project_path])
         async with app.run_test() as pilot:
             # Manually trigger the add logic
             # This should trigger ProjectService.add_project which should invoke config loading

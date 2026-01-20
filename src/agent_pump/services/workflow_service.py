@@ -50,7 +50,9 @@ class WorkflowService(BaseService):
 
         self.project_service.projects[
             path
-        ].config  # Assuming project object has config attached, wait Project model doesn't store config used by workflow init.
+        ].config
+        # Assuming project object has config attached
+        # wait Project model doesn't store config used by workflow init.
         # Actually workflow has config.
 
         # We need max_iterations from config.

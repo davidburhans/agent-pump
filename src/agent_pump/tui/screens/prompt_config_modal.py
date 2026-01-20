@@ -1,5 +1,7 @@
 """Modal screen for configuring prompt customizations per phase."""
 
+from typing import Any, cast
+
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
@@ -279,7 +281,7 @@ class PromptConfigModal(ModalScreen[PromptCustomization | None]):
             phase = select_id.replace("-copy-from", "")
             self.call_later(self._apply_copy, phase, str(event.value))
             # Reset the select to placeholder
-            event.select.value = ""
+            cast(Any, event.select).value = ""
 
     async def _apply_copy(self, target_phase: str, source: str) -> None:
         """Copy prompt config from a phase or project."""
@@ -357,7 +359,7 @@ class PromptConfigModal(ModalScreen[PromptCustomization | None]):
     def action_apply_to_all(self) -> None:
         """Apply current configuration to all projects."""
 
-        def on_confirm(confirm: bool) -> None:
+        def on_confirm(confirm: bool | None) -> None:
             if confirm:
                 self._perform_apply_to_all()
 

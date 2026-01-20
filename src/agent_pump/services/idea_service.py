@@ -61,7 +61,8 @@ class IdeaService(BaseService):
             # Let's assume it's there.
             # For simplicity, reconstructing it or finding it.
             # Workspace.add_idea appends then sorts.
-            # We can construct it here to return it, even if exact instance reference might differ slightly if reloaded.
+            # We can construct it here to return it, even if exact instance reference
+            # might differ slightly if reloaded.
             item = IdeaQueueItem(idea=idea, priority=priority)
 
         self.workspace.save()

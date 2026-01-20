@@ -99,7 +99,8 @@ class ProjectService(BaseService):
             # Add logging adapter as a listener or handle via on_output?
             # Creating a wrapper for on_output to emit LogEntryEvent
             # But wait, LogPanel expects synchronous updates?
-            # For now, let's just initialize it. The TUI refactor will handle log integration properly.
+            # For now, let's just initialize it.
+            # The TUI refactor will handle log integration properly.
 
             self.workflows[path] = workflow
 

@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 from textual.command import Hit, Hits, Provider
 
 if TYPE_CHECKING:
-    from agent_pump.tui.app import AgentPumpApp
+    pass
 
 
 class AgentPumpCommandProvider(Provider):
@@ -29,9 +29,21 @@ class AgentPumpCommandProvider(Provider):
             ("Add Idea", "action_add_idea", "Add a new idea to the backlog"),
             ("Global Prompts", "action_global_prompts", "Configure global prompt templates"),
             ("Filter Logs", "action_filter_logs", "Filter the activity log"),
-            ("Toggle Workflow Panel", "action_toggle_workflow_panel", "Show/hide the workflow visualization"),
-            ("Toggle Timer Mode", "action_toggle_timer", "Switch between elapsed time and time remaining"),
-            ("Toggle Sort Order", "action_toggle_sort", "Toggle log sort order (oldest/newest first)"),
+            (
+                "Toggle Workflow Panel",
+                "action_toggle_workflow_panel",
+                "Show/hide the workflow visualization",
+            ),
+            (
+                "Toggle Timer Mode",
+                "action_toggle_timer",
+                "Switch between elapsed time and time remaining",
+            ),
+            (
+                "Toggle Sort Order",
+                "action_toggle_sort",
+                "Toggle log sort order (oldest/newest first)",
+            ),
             ("Start All Projects", "action_start_all", "Start workflow for all loaded projects"),
             ("Stop All Projects", "action_stop_all", "Stop workflow for all loaded projects"),
             ("Quit Application", "action_quit", "Quit the application"),
@@ -41,17 +53,49 @@ class AgentPumpCommandProvider(Provider):
         project_commands = []
         if getattr(app, "selected_project", None):
             project_commands = [
-                ("Manage Roadmap", "action_manage_roadmap", "View and manage the project roadmap"),
-                ("Configure Backends", "action_config_backends", "Configure AI backends for the project"),
-                ("Configure Prompts", "action_config_prompts", "Customize prompts for the project"),
-                ("Update Configuration", "action_update_config", "Reload configuration from disk"),
+                (
+                    "Manage Roadmap",
+                    "action_manage_roadmap",
+                    "View and manage the project roadmap",
+                ),
+                (
+                    "Configure Backends",
+                    "action_config_backends",
+                    "Configure AI backends for the project",
+                ),
+                (
+                    "Configure Prompts",
+                    "action_config_prompts",
+                    "Customize prompts for the project",
+                ),
+                (
+                    "Update Configuration",
+                    "action_update_config",
+                    "Reload configuration from disk",
+                ),
                 ("Remove Project", "action_remove_project", "Remove the selected project"),
                 ("Start Selected", "action_start_selected", "Start the selected project"),
                 ("Stop Selected", "action_stop_selected", "Stop the selected project"),
-                ("Skip Feature", "action_skip_feature", "Skip the current feature (mark as failed)"),
-                ("Show Workflow", "action_show_workflow", "Show workflow diagram for selected project"),
-                ("Configure Project", "action_config_project", "Configure selected project settings"),
-                ("Reset Project", "action_reset_project", "Reset workflow state for selected project"),
+                (
+                    "Skip Feature",
+                    "action_skip_feature",
+                    "Skip the current feature (mark as failed)",
+                ),
+                (
+                    "Show Workflow",
+                    "action_show_workflow",
+                    "Show workflow diagram for selected project",
+                ),
+                (
+                    "Configure Project",
+                    "action_config_project",
+                    "Configure selected project settings",
+                ),
+                (
+                    "Reset Project",
+                    "action_reset_project",
+                    "Reset workflow state for selected project",
+                ),
             ]
 
         for name, method_name, help_text in global_commands + project_commands:

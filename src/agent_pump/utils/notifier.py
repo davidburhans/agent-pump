@@ -22,8 +22,11 @@ class Notifier:
         try:
             from plyer import notification
 
-            notification.notify(title=title, message=message, app_name=app_name, timeout=timeout)
-            logger.debug(f"Notification sent: {title} - {message}")
+            if notification and hasattr(notification, "notify"):
+                notification.notify(  # type: ignore
+                    title=title, message=message, app_name=app_name, timeout=timeout
+                )
+                logger.debug(f"Notification sent: {title} - {message}")
         except Exception as e:
             logger.error(f"Failed to send notification: {e}")
 

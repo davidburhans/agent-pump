@@ -132,8 +132,10 @@ class TestEventBus:
         )  # Allow cleanup callback to run if there was one (not needed here but good practice)
 
         # Note: In our current implementation, cleanup happens when the generator exits.
-        # But since we cancelled the task consuming the generator, we need to ensure the generator's finally block runs.
-        # Python async generators' finally blocks run when the generator is garbage collected or aclose is called.
+        # But since we cancelled the task consuming the generator,
+        # we need to ensure the generator's finally block runs.
+        # Python async generators' finally blocks run when the generator is garbage collected
+        # or aclose is called.
         # asyncio loop usually handles this. Let's verify our implementation robustness.
 
         # Actually, our implementation has a try/finally block that removes the queue.

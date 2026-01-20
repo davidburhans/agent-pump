@@ -129,7 +129,7 @@ class WorkflowPanel(Middle):
     }
     """
 
-    workflow: ProjectWorkflow | None = reactive(None)
+    workflow: reactive[ProjectWorkflow | None] = reactive(None)
 
     def __init__(self, **kwargs):
         """Initialize the workflow panel."""
@@ -189,8 +189,10 @@ class WorkflowPanel(Middle):
         # But for linear graph, maybe just show phases?
         # The plan says "WorkflowNode (idle) ... (planning) ... (implementing) ..."
         # What about 'completed' and 'error'?
-        # If the state IS completed, we should probably highlight the last node or show a completed node?
-        # Let's add 'completed' and 'error' nodes at the end/bottom? or just change state of current nodes?
+        # If the state IS completed, we should probably highlight the last node
+        # or show a completed node?
+        # Let's add 'completed' and 'error' nodes at the end/bottom?
+        # or just change state of current nodes?
         # Actually, adding "Completed" node at end is good.
 
         widgets.append(WorkflowConnector())
@@ -267,7 +269,8 @@ class WorkflowPanel(Middle):
             # But the last phase should be completed too.
 
         if current_state == "error":
-            # Finding where we failed is tricky without history, but usually we just show Error state active
+            # Finding where we failed is tricky without history,
+            # but usually we just show Error state active
             # Or we can look at workflow.workflow_state.previous_state? (not exposed easily)
             # Maybe just highlight the error node if we added one?
             # I didn't add error node to the container above.

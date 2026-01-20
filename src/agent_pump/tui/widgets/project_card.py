@@ -141,7 +141,7 @@ class ProjectCard(Static):
         if should_run and not timer_running:
             # Start timer
             self._timer_handle = self.set_interval(1.0, self._refresh_timer)
-        elif not should_run and timer_running:
+        elif not should_run and self._timer_handle:
             # Stop timer
             self._timer_handle.stop()
             self._timer_handle = None

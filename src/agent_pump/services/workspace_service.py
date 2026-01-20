@@ -47,7 +47,9 @@ class WorkspaceService(BaseService):
 
             # Since Workspace.load takes a path, we need to know that path.
             # AppState stores recent_workspaces? Or maybe we just use a default location?
-            # app.py L156: self.workspace = Workspace.load(Path.home() / ".agent-pump" / "workspace.json")
+            # app.py L156: self.workspace = Workspace.load(
+            #    Path.home() / ".agent-pump" / "workspace.json"
+            # )
             # We should probably standardize this location or allow injection.
             # For this service, let's assume valid default if not set.
             # Use path from app_state if available, otherwise default
@@ -56,7 +58,7 @@ class WorkspaceService(BaseService):
             if not workspace_path:
                 workspace_path = Path.home() / ".agent-pump" / "workspace.json"
 
-            self._workspace = Workspace.load(workspace_path)
+            self._workspace = Workspace.load(str(workspace_path))
 
         return self._workspace
 
@@ -66,7 +68,8 @@ class WorkspaceService(BaseService):
 
     async def switch_workspace(self, name: str) -> Workspace:
         """
-        Switch to a different workspace (placeholder logic as multiple workspaces support is minimal).
+        Switch to a different workspace
+        (placeholder logic as multiple workspaces support is minimal).
 
         Args:
             name: Name or path of the workspace.
