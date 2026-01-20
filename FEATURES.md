@@ -51,6 +51,11 @@ A powerful Terminal User Interface for managing multiple projects.
 - **Log Filtering (`f`)**: Filter the log by specific states (e.g., only show "ERROR" or "planning") or task names.
 - **Log Sorting (`o`)**: Toggle between newest-first or oldest-first log order.
 
+### Command Palette
+- **Access**: Press `Ctrl+P` to open the command palette.
+- **Features**: Fuzzy search for any command, even those not bound to a key.
+- **Context Aware**: Shows project-specific commands only when a project is selected.
+
 ---
 
 ## ⚙️ Configuration & Customization
