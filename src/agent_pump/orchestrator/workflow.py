@@ -590,7 +590,15 @@ class ProjectWorkflow:
                             )
 
                             roadmap_path = self.project.path / "ROADMAP.md"
-                            if is_valid_content or roadmap_path.exists():
+                            uncompleted = []
+
+                            # Optimize: use pre-read content if available to avoid re-reading file
+                            roadmap_content = context.get("roadmap_content")
+                            if roadmap_content and roadmap_content != "(File not found or empty)":
+                                parser = RoadmapParser(roadmap_path)
+                                parser.parse(content=roadmap_content)
+                                uncompleted = parser.get_uncompleted_features()
+                            elif roadmap_path.exists():
                                 parser = RoadmapParser(roadmap_path)
                                 # Pass content to avoid redundant synchronous read
                                 if is_valid_content:
@@ -600,24 +608,25 @@ class ProjectWorkflow:
                                     parser.parse()
 
                                 uncompleted = parser.get_uncompleted_features()
-                                if uncompleted:
-                                    feature_request = uncompleted[0].title
-                                    self._emit_output(
-                                        f"\n[INFO] Auto-picking next roadmap item: "
-                                        f"{feature_request}\n"
+
+                            if uncompleted:
+                                feature_request = uncompleted[0].title
+                                self._emit_output(
+                                    f"\n[INFO] Auto-picking next roadmap item: "
+                                    f"{feature_request}\n"
+                                )
+                                # Create TASK_NAME file to persist this choice
+                                try:
+                                    (self.project.path / "TASK_NAME").write_text(
+                                        feature_request, encoding="utf-8"
                                     )
-                                    # Create TASK_NAME file to persist this choice
-                                    try:
-                                        (self.project.path / "TASK_NAME").write_text(
-                                            feature_request, encoding="utf-8"
-                                        )
-                                        self.project.current_feature = feature_request
-                                    except Exception as e:
-                                        logger.warning(f"Failed to create TASK_NAME: {e}")
-                                else:
-                                    self._emit_output(
-                                        "\n[WARNING] Roadmap is empty. No tasks to pick.\n"
-                                    )
+                                    self.project.current_feature = feature_request
+                                except Exception as e:
+                                    logger.warning(f"Failed to create TASK_NAME: {e}")
+                            elif roadmap_path.exists():
+                                self._emit_output(
+                                    "\n[WARNING] Roadmap is empty. No tasks to pick.\n"
+                                )
                             else:
                                 self._emit_output(
                                     "\n[WARNING] No TASK_NAME and no ROADMAP.md found.\n"

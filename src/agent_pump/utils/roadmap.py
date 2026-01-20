@@ -46,9 +46,9 @@ class RoadmapParser:
         Parse the ROADMAP.md file.
 
         Args:
-            content: Optional content string. If provided, file I/O is skipped.
+            content: Optional content string to parse directly without reading file.
         """
-        if content is not None:
+        if content:
             self.content = content
         elif self.path.exists():
             self.content = self.path.read_text(encoding="utf-8")
