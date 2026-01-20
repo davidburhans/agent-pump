@@ -1,8 +1,10 @@
 from pathlib import Path
+from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from agent_pump.backends.base import AgentBackend
 from agent_pump.models.workspace import (
     BackendFallback,
     BackendInstance,
@@ -62,7 +64,7 @@ def test_fallback_project_default(mock_workspace, project_config, mock_project):
 
         mock_get_backend.assert_called_with("qwen")
         assert result == mock_backend
-        assert result._extra_args == ["--model", "qwen-2.5-coder"]
+        assert cast(AgentBackend, result)._extra_args == ["--model", "qwen-2.5-coder"]
 
 
 @patch("agent_pump.orchestrator.workflow.get_backend")
@@ -88,7 +90,7 @@ def test_get_backend_for_phase_logic(
     # Assert
     mock_get_backend.assert_called_with("default_backend")
     assert result == mock_backend
-    assert result._extra_args == ["--arg1"]
+    assert cast(Any, result)._extra_args == ["--arg1"]
 
     # 2. Test Phase Override
     # Setup phase specific
@@ -100,7 +102,7 @@ def test_get_backend_for_phase_logic(
 
     # Assert
     mock_get_backend.assert_called_with("phase_backend")
-    assert result._extra_args == ["--arg2"]
+    assert cast(Any, result)._extra_args == ["--arg2"]
 
     # 3. Test Fallback to Hard Defaults (if project default is None)
     project_config.default_chain = None

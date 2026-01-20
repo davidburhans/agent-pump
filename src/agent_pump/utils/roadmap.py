@@ -39,7 +39,8 @@ class RoadmapParser:
         self.features = []
         self.preamble = ""  # Content before features
         self.postamble = ""  # Content after features (if any)
-        self.sections = {}  # To store different sections (Current Sprint, Future Enhancements, etc.)
+        # To store different sections (Current Sprint, Future Enhancements, etc.)
+        self.sections = {}
 
     def parse(self, content: str | None = None) -> list[RoadmapFeature]:
         """
@@ -160,8 +161,9 @@ class RoadmapParser:
                         new_content += f"**Priority: {f.priority}**\n\n"
                     new_content += f"{f.description}\n\n"
                     new_content += "**Acceptance Criteria:**\n"
-                    for c in f.acceptance_criteria:
-                        new_content += f"- {c}\n"
+                    if f.acceptance_criteria:
+                        for c in f.acceptance_criteria:
+                            new_content += f"- {c}\n"
                     new_content += "\n---\n"
             elif "Current Sprint" in header:
                 # Put back features that are not in the reordered list

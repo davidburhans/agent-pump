@@ -1,6 +1,8 @@
 import pytest
-from textual.widgets import Input, Button
+from textual.widgets import Input
+
 from agent_pump.tui.screens import IdeaInputModal
+
 
 @pytest.mark.asyncio
 async def test_idea_input_modal_submit_valid():
@@ -21,8 +23,9 @@ async def test_idea_input_modal_submit_valid():
         # Submit
         await pilot.press("enter")
 
-        # Since we can't easily check the return value of push_screen in a test like this without wrapping,
-        # we assume success if no error is raised and the modal is dismissed (though checking dismissal is hard in isolation).
+        # Since we can't easily check the return value of push_screen in a test like this
+        # without wrapping, we assume success if no error is raised and the modal is dismissed
+        # (though checking dismissal is hard in isolation).
         # In a real app flow, the callback would be called.
 
 @pytest.mark.asyncio
@@ -50,16 +53,17 @@ async def test_idea_input_modal_validation_error():
         # But we can assume if the code didn't crash on self.notify, it's working.
         # We can try to access _notifications if available or just skip this check if internal.
         # Let's check _notifications if it exists.
-        notifications = getattr(app, "_notifications", [])
+        # notifications = getattr(app, "_notifications", [])
         # Actually, in newer Textual, notifications are managed differently.
         # But we validated the class "error" was added, which is good enough for TUI state.
         if hasattr(app, "_notifications"):
-             assert len(app._notifications) > 0
+            assert len(app._notifications) > 0
 
         # Check shake animation (offset change)
         # Note: Animation happens over time, so we might check if offset is not None or has changed.
         # But we set it immediately in the first step of shake.
-        # Wait a tiny bit for the first timer tick if needed, but the first step is immediate in _shake?
+        # Wait a tiny bit for the first timer tick if needed, but the first step is
+        # immediate in _shake?
         # Actually _step(0) is called immediately.
         # offset is a style property.
         assert input_widget.styles.offset is not None

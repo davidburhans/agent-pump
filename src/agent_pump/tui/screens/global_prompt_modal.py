@@ -301,7 +301,7 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
     def _confirm_clear_all(self) -> None:
         """Ask for confirmation before clearing."""
 
-        def on_confirm(result: bool) -> None:
+        def on_confirm(result: bool | None) -> None:
             if result:
                 self._clear_all()
 

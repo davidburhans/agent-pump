@@ -68,7 +68,8 @@ class Config(BaseModel):
         3. User-level ~/.config/agent-pump/config.yml
         4. Defaults
 
-        If no project-level configuration exists, the new standard (.agent-pump/config.yml) is created.
+        If no project-level configuration exists, the new standard
+        (.agent-pump/config.yml) is created.
         """
         config_data: dict[str, Any] = {}
 

@@ -94,7 +94,8 @@ async def test_command_palette_discovery():
             # Retry loop to handle async population
             for _ in range(10):
                 results = await get_results_texts()
-                # Check if exact match or contains (Textual highlights might add markup, so strictly checking "in" str)
+                # Check if exact match or contains
+                # (Textual highlights might add markup, so strictly checking "in" str)
                 for res in results:
                     if command_name in res:
                         return

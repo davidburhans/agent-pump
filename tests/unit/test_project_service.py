@@ -140,7 +140,8 @@ class TestProjectService:
 
     def test_list_projects(self, service):
         """Test listing projects."""
-        # Can't use async fixture here easily without loop scope issues, mocking internals for simple sync test
+        # Can't use async fixture here easily without loop scope issues,
+        # mocking internals for simple sync test
         path1 = Path("/tmp/p1").resolve()
         path2 = Path("/tmp/p2").resolve()
 
@@ -170,7 +171,8 @@ class TestProjectService:
         mock_project.state_changed_at = None  # Handle timestamp check
 
         service.projects[path] = mock_project
-        # service.workflows[path] = mock_workflow # Not needed for from_internal which uses project only
+        # service.workflows[path] = mock_workflow # Not needed for from_internal
+        # which uses project only
 
         status = service.get_project_status(path)
 

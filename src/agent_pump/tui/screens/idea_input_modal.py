@@ -1,10 +1,10 @@
 """Modal for entering a new idea."""
 
 from textual.app import ComposeResult
-from textual.containers import Vertical, Horizontal
+from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
-from textual.widgets import Button, Input, Label
 from textual.widget import Widget
+from textual.widgets import Button, Input, Label
 
 
 class IdeaInputModal(ModalScreen[str | None]):
