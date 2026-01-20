@@ -1,8 +1,10 @@
 """Tests for ProjectConfigModal."""
 
+from typing import cast
 from unittest.mock import MagicMock, patch
 
 import pytest
+from textual.widgets import Checkbox
 
 from agent_pump.models.app_state import AppState
 from agent_pump.models.workspace import Workspace
@@ -84,7 +86,7 @@ verification:
             # src/agent_pump/tui/screens/project_config_modal.py:
             # yield Checkbox(..., id="input-skip-verification")
 
-            checkbox = modal.query_one("#input-skip-verification")
+            checkbox = cast(Checkbox, modal.query_one("#input-skip-verification"))
             assert checkbox.value is True
 
             # Change value
