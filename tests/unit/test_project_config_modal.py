@@ -3,11 +3,13 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from textual.widgets import Checkbox, Input
 
 from agent_pump.models.app_state import AppState
 from agent_pump.models.workspace import Workspace
 from agent_pump.tui.app import AgentPumpApp
 from agent_pump.tui.screens.project_config_modal import ProjectConfigModal
+from agent_pump.config import Config, WorkflowConfig, VerificationConfig
 
 
 class TestPumpApp(AgentPumpApp):
@@ -66,7 +68,6 @@ verification:
             await app._add_project(project_path)
 
             # Ensure selected_project is set (should be set by _add_project if first project)
-            # Ensure selected_project is set (should be set by _add_project if first project)
             if not app.selected_project:
                 app.selected_project = project_path
 
@@ -79,12 +80,7 @@ verification:
             modal = app.screen
 
             # Verify initial state
-            # Note: ID for checkbox was changed in refactor?
-            # ProjectConfigModal.compose yields Checkbox(id="skip-verification-checkbox")?
-            # src/agent_pump/tui/screens/project_config_modal.py:
-            # yield Checkbox(..., id="input-skip-verification")
-
-            checkbox = modal.query_one("#input-skip-verification")
+            checkbox = modal.query_one("#input-skip-verification", Checkbox)
             assert checkbox.value is True
 
             # Change value
@@ -136,3 +132,81 @@ async def test_project_config_creation(tmp_path):
             # Verify config file was created
             assert config_file.exists()
             assert "# Agent Pump Host Configuration" in config_file.read_text()
+
+
+@pytest.fixture
+def mock_config():
+    config = MagicMock(spec=Config)
+    config.workflow = MagicMock(spec=WorkflowConfig)
+    config.workflow.max_iterations = 10
+    config.workflow.timeout = 1800
+    config.workflow.branch = None
+    config.verification = MagicMock(spec=VerificationConfig)
+    config.verification.skip_verification = False
+    config.verification.build_cmd = None
+    config.verification.lint_cmd = None
+    config.verification.test_cmd = None
+    config.backend = "gemini"
+    return config
+
+@pytest.mark.asyncio
+async def test_validation_shake(tmp_path, mock_config):
+    """Test validation and shake animation in ProjectConfigModal."""
+    path = tmp_path / "test_project"
+
+    # Mock Config.load to return our mock config
+    with patch("agent_pump.config.Config.load", return_value=mock_config):
+        modal = ProjectConfigModal(path)
+
+        # We need to mount the modal to an app to test interactions
+        app = TestPumpApp()
+
+        async with app.run_test() as pilot:
+            await app.push_screen(modal)
+
+            # Find inputs
+            max_iter_input = modal.query_one("#input-max-iterations", Input)
+            timeout_input = modal.query_one("#input-timeout", Input)
+
+            # Test 1: Invalid Max Iterations (Negative)
+            max_iter_input.value = "-5"
+
+            # Mock _shake to verify it's called
+            # We monkeypatch the instance method
+            shake_mock = MagicMock()
+            modal._shake = shake_mock
+
+            # Trigger save
+            await modal.action_save()
+
+            # Verify shake was called
+            shake_mock.assert_called_with(max_iter_input)
+
+            # Verify validation failure (modal not dismissed)
+            assert app.screen is modal
+
+            # Test 2: Invalid Timeout (Zero)
+            max_iter_input.value = "10" # Fix first error
+            timeout_input.value = "0"
+
+            shake_mock.reset_mock()
+            await modal.action_save()
+
+            shake_mock.assert_called_with(timeout_input)
+             # Verify validation failure (modal not dismissed)
+            assert app.screen is modal
+
+            # Test 3: Valid Input
+            timeout_input.value = "100"
+
+            # We also need to ensure config.save is mocked or it will try to write to disk
+            mock_config.save = MagicMock()
+
+            await modal.action_save()
+
+            # Verify dismissed
+            assert app.screen is not modal
+
+            # Verify config updated
+            assert mock_config.workflow.max_iterations == 10
+            assert mock_config.workflow.timeout == 100
