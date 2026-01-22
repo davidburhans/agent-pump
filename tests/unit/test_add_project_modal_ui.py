@@ -11,7 +11,7 @@ from agent_pump.tui.app import AgentPumpApp
 from agent_pump.tui.screens.add_project_modal import AddProjectModal
 
 
-class TestPumpApp(AgentPumpApp):
+class MockPumpApp(AgentPumpApp):
     """Test app wrapper."""
     CSS_PATH = None
 
@@ -34,7 +34,7 @@ async def test_add_project_modal_validation_ui(tmp_path):
         mock_state_load.return_value = mock_app_state
         mock_ws_load.return_value = Workspace()
 
-        app = TestPumpApp()
+        app = MockPumpApp()
         async with app.run_test() as pilot:
             # Open Add Project Modal
             app.action_add_project()

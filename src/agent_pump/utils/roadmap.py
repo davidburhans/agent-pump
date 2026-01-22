@@ -1,5 +1,6 @@
 """Utility for parsing and reordering ROADMAP.md files."""
 
+import asyncio
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -38,14 +39,22 @@ class RoadmapParser:
         self.features = []
         self.preamble = ""  # Content before features
         self.postamble = ""  # Content after features (if any)
-        self.sections = {}  # To store different sections (Current Sprint, Future Enhancements, etc.)
+        # To store different sections (Current Sprint, Future Enhancements, etc.)
+        self.sections = {}
 
-    def parse(self) -> list[RoadmapFeature]:
-        """Parse the ROADMAP.md file."""
-        if not self.path.exists():
+    def parse(self, content: str | None = None) -> list[RoadmapFeature]:
+        """
+        Parse the ROADMAP.md file.
+
+        Args:
+            content: Optional content string to parse directly without reading file.
+        """
+        if content:
+            self.content = content
+        elif self.path.exists():
+            self.content = self.path.read_text(encoding="utf-8")
+        else:
             return []
-
-        self.content = self.path.read_text(encoding="utf-8")
 
         # Split into sections based on headers
         sections = re.split(r"\n(## [^\n]+)\n", self.content)
@@ -89,6 +98,10 @@ class RoadmapParser:
 
         self.features = current_features
         return self.features
+
+    async def parse_async(self) -> list[RoadmapFeature]:
+        """Parse the ROADMAP.md file asynchronously."""
+        return await asyncio.to_thread(self.parse)
 
     def get_uncompleted_features(self) -> list[RoadmapFeature]:
         """Return only uncompleted features."""
@@ -148,8 +161,9 @@ class RoadmapParser:
                         new_content += f"**Priority: {f.priority}**\n\n"
                     new_content += f"{f.description}\n\n"
                     new_content += "**Acceptance Criteria:**\n"
-                    for c in f.acceptance_criteria:
-                        new_content += f"- {c}\n"
+                    if f.acceptance_criteria:
+                        for c in f.acceptance_criteria:
+                            new_content += f"- {c}\n"
                     new_content += "\n---\n"
             elif "Current Sprint" in header:
                 # Put back features that are not in the reordered list

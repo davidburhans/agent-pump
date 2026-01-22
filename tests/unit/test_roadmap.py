@@ -72,6 +72,7 @@ def test_parse_roadmap(sample_roadmap):
     assert features[0].title == "Task 1"
     assert features[0].status == "🟡"
     assert features[0].priority == "High"
+    assert features[0].acceptance_criteria is not None
     assert len(features[0].acceptance_criteria) == 2
 
     assert features[1].title == "Task 2"

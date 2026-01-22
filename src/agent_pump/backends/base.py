@@ -46,6 +46,8 @@ class AgentBackend(ABC):
         """The command to invoke this backend (e.g., 'gemini')."""
         ...
 
+    _extra_args: list[str] | None = None
+
     @abstractmethod
     def run(
         self,

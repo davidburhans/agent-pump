@@ -11,23 +11,6 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Current Sprint
 
-### 🔴 TUI UX Compliance - Command Palette
-**Priority: High** | **Guideline: Section 5.2**
-
-Implement a Command Palette for discoverability and power user efficiency.
-
-**Why this matters:**
-The guidelines strongly recommend Command Palette as a "major trend in modern developer tools" that allows users to execute actions via fuzzy search rather than memorizing keybindings. This is flagged as a feature that "instantly elevates the perceived quality of the application."
-
-**Acceptance Criteria:**
-- Enable Textual's built-in `ENABLE_COMMAND_PALETTE = True`
-- Register all current keybindings as Command Palette actions
-- Add fuzzy search support for commands like "Toggle Dark Mode", "Add Project", "Open Settings"
-- Bind to standard `Ctrl+P` or `Ctrl+Shift+P` keybinding
-- Add unit tests for command discovery
-
----
-
 ### 🔴 TUI UX Compliance - Semantic Color Variables
 **Priority: High** | **Guideline: Section 3.2**
 

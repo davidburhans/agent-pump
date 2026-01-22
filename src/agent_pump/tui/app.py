@@ -30,16 +30,17 @@ from agent_pump.services.idea_service import IdeaService
 from agent_pump.services.project_service import ProjectService
 from agent_pump.services.workflow_service import WorkflowService
 from agent_pump.services.workspace_service import WorkspaceService
+from agent_pump.tui.commands import AgentPumpCommandProvider
 from agent_pump.tui.screens import (
     AddProjectModal,
     BackendConfigModal,
     GlobalPromptModal,
+    IdeaInputModal,
     ProjectConfigModal,
     PromptConfigModal,
     RoadmapModal,
     SettingsModal,
 )
-from agent_pump.tui.commands import AgentPumpCommandProvider
 from agent_pump.tui.screens.confirm_modal import ConfirmModal
 from agent_pump.tui.screens.log_filter_modal import LogFilterModal
 from agent_pump.tui.widgets.log_panel import LogPanel
@@ -90,7 +91,8 @@ class AgentPumpApp(App):
         self.app_state = AppState.load()
         self.event_bus = EventBus()
         self.workspace_service = WorkspaceService(self.event_bus, self.app_state)
-        # Using placeholder for workspace service loading; it will lazily load workspace or we can init it.
+        # Using placeholder for workspace service loading;
+        # it will lazily load workspace or we can init it.
         # But ProjectService needs workspace.
         self.workspace = self.workspace_service.get_current_workspace()
 
@@ -160,7 +162,7 @@ class AgentPumpApp(App):
         self._log(f"Log sort order: {self.app_state.log_sort_order.upper()}")
 
         # Start event loop
-        self.run_worker(self._handle_events())
+        _ = self.run_worker(self._handle_events())
         # Yield to allow event loop to start and subscribe
         import asyncio
 
@@ -182,7 +184,7 @@ class AgentPumpApp(App):
             elif isinstance(event, LogEntryEvent):
                 self._log(event.message, event.project_path, event.state, event.task)
             elif isinstance(event, IdeasClearedEvent):
-                self._on_ideas_processed(event.project_path)
+                await self._on_ideas_processed(event.project_path)
             elif isinstance(event, IdeaAddedEvent):
                 if event.project_path:
                     self._log(
@@ -245,11 +247,11 @@ class AgentPumpApp(App):
             self._project_bindings_active = True
         elif self.selected_project is None and self._project_bindings_active:
             # Remove project-specific bindings
+            # Textual App does not support unbind, so we just set them to not show
+            # and rely on the handlers checking for selected_project
             for key, action, description in project_bindings:
-                try:
-                    self.unbind(key)
-                except Exception:
-                    pass
+                # Overwrite with show=False to hide from footer
+                self.bind(key, action, description=description, show=False)
             self._project_bindings_active = False
 
     async def _add_project(self, path: Path) -> None:
@@ -318,13 +320,6 @@ class AgentPumpApp(App):
         """Callback when ideas have been processed by the workflow."""
         if path:
             # Logic is now event driven, but we might want to log
-            self._log("Project idea queue processed and cleared", project_path=path)
-        """Callback when ideas have been processed by the workflow."""
-        project_config = self.workspace.get_project_config(path)
-        if project_config:
-            # Clear ideas from project queue
-            # This is already handled by IdeaService/ProjectService emitting the event.
-            pass
             self._log("Project idea queue processed and cleared", project_path=path)
 
     def _on_workflow_state_change(self, path: Path, old_state: str, new_state: str) -> None:
@@ -463,46 +458,6 @@ class AgentPumpApp(App):
 
     async def action_add_idea(self) -> None:
         """Add an idea to the brainstorming queue."""
-        from textual.containers import Vertical
-        from textual.screen import ModalScreen
-        from textual.widgets import Button, Input, Label
-
-        class IdeaInputModal(ModalScreen[str | None]):
-            """Modal for entering a new idea."""
-
-            CSS = """
-            IdeaInputModal {
-                align: center middle;
-            }
-            IdeaInputModal > Vertical {
-                width: 60;
-                height: auto;
-                border: thick $primary;
-                background: $surface;
-                padding: 1 2;
-            }
-            """
-
-            def compose(self) -> ComposeResult:
-                yield Vertical(
-                    Label("Enter your idea for the brainstormer:"),
-                    Input(placeholder="e.g., Add dark mode support", id="idea-input"),
-                    Horizontal(
-                        Button("Add", id="btn-add-idea", variant="success"),
-                        Button("Cancel", id="btn-cancel", variant="default"),
-                        classes="button-row",
-                    ),
-                )
-
-            def on_button_pressed(self, event: Button.Pressed) -> None:
-                if event.button.id == "btn-add-idea":
-                    input_widget = self.query_one("#idea-input", Input)
-                    self.dismiss(input_widget.value)
-                else:
-                    self.dismiss(None)
-
-            def on_input_submitted(self, event: Input.Submitted) -> None:
-                self.dismiss(event.value)
 
         def handle_idea(idea: str | None) -> None:
             if idea and idea.strip():
@@ -594,7 +549,7 @@ class AgentPumpApp(App):
             return
 
         def handle_result(prompt_customization: PromptCustomization | None) -> None:
-            if prompt_customization is not None:
+            if prompt_customization is not None and self.selected_project:
                 self.run_worker(
                     self.workspace_service.update_prompt_config(
                         self.selected_project, prompt_customization
@@ -672,7 +627,8 @@ class AgentPumpApp(App):
         def handle_result(result: tuple[list[str], str | None] | None) -> None:
             if result is not None:
                 states, task = result
-                # Let's adjust logic: If user selected states, use them. If empty, assume NO filter on state?  # noqa: E501
+                # Let's adjust logic: If user selected states, use them.
+                # If empty, assume NO filter on state?
                 # The modal returns [] if nothing selected.
                 # If the user explicitly selects nothing, maybe they mean nothing.
                 # But the "Clear" button is distinct.
@@ -682,9 +638,10 @@ class AgentPumpApp(App):
                 # Use self.selected_project as current_project_path
                 current_project_path = self.selected_project
 
-                self.log_panel.set_filter(
-                    project_path=current_project_path, states=final_states, task=task
-                )
+                if self.log_panel:
+                    self.log_panel.set_filter(
+                        project_path=current_project_path, states=final_states, task=task
+                    )
 
                 filter_desc = []
                 if final_states:
