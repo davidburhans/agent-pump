@@ -1,16 +1,15 @@
 """Tests for ProjectConfigModal."""
 
-from typing import cast
 from unittest.mock import MagicMock, patch
 
 import pytest
 from textual.widgets import Checkbox, Input
 
+from agent_pump.config import Config, VerificationConfig, WorkflowConfig
 from agent_pump.models.app_state import AppState
 from agent_pump.models.workspace import Workspace
 from agent_pump.tui.app import AgentPumpApp
 from agent_pump.tui.screens.project_config_modal import ProjectConfigModal
-from agent_pump.config import Config, WorkflowConfig, VerificationConfig
 
 
 class MockPumpApp(AgentPumpApp):
@@ -160,9 +159,9 @@ async def test_validation_shake(tmp_path, mock_config):
         modal = ProjectConfigModal(path)
 
         # We need to mount the modal to an app to test interactions
-        app = TestPumpApp()
+        app = MockPumpApp()
 
-        async with app.run_test() as pilot:
+        async with app.run_test() as _:
             await app.push_screen(modal)
 
             # Find inputs

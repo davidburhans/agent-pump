@@ -26,10 +26,10 @@ class RoadmapParser:
     """Parses and updates ROADMAP.md files."""
 
     FEATURE_PATTERN = re.compile(
-        r"### ([\U0001f534\U0001f7e1\U0001f311\U0001f7e2]) ([^\n]+)\n"  # Status icon + Title
-        r"(?:\*\*Priority: ([^\n]+)\*\*\n\n)?"  # Optional Priority
-        r"(.*?)\n\n"  # Description
-        r"\*\*Acceptance Criteria:\*\*\n((?:- [^\n]+\n?)*)",  # Acceptance Criteria
+        r"### ([\U0001f534\U0001f7e1\U0001f311\U0001f7e2]) ([^\n]+)\n+"  # Status icon + Title
+        r"(?:\*\*Priority: ([^\n]+)\*\*\n+)?"  # Optional Priority
+        r"(.*?)\n+"  # Description
+        r"(?:\*\*Acceptance Criteria:\*\*\n+((?:- [^\n]+\n?)*))?",  # Optional Acceptance Criteria
         re.DOTALL,
     )
 
@@ -80,8 +80,11 @@ class RoadmapParser:
                 title = match.group(2).strip()
                 priority = match.group(3)
                 description = match.group(4).strip()
-                criteria_raw = match.group(5).strip()
-                criteria = [c[2:].strip() for c in criteria_raw.split("\n") if c.startswith("- ")]
+                criteria_raw = match.group(5)
+                if criteria_raw:
+                    criteria = [c[2:].strip() for c in criteria_raw.strip().split("\n") if c.startswith("- ")]
+                else:
+                    criteria = []
 
                 feature = RoadmapFeature(
                     title=title,
