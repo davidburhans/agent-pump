@@ -22,13 +22,7 @@ from agent_pump.events.models import (
 from agent_pump.models.project import Project, ProjectStatus
 from agent_pump.models.state import WorkflowState
 from agent_pump.models.workspace import PhaseBackends, ProjectConfig, PromptCustomization
-from agent_pump.orchestrator.prompts import (
-    build_brainstorming_prompt,
-    build_committing_prompt,
-    build_implementing_prompt,
-    build_planning_prompt,
-    build_verifying_prompt,
-)
+
 from agent_pump.orchestrator.verification_executor import VerificationExecutor
 from agent_pump.utils.notifier import Notifier
 
@@ -205,17 +199,11 @@ class ProjectWorkflow:
         return "(File not found or empty)"
 
     async def _get_context_content(self) -> dict[str, str]:
-        """Get the context content for prompts asynchronously."""
-        # Run reads in parallel
-        results = await asyncio.gather(
-            self._read_file_content("ROADMAP.md"),
-            self._read_file_content("ENGINEERING_PLAN.md"),
-            self._read_file_content("TASK_NAME"),
-        )
+        """Get the context content for prompts."""
+        # We only pass branch by default now. 
+        # File content is accessed via {{ read_file(...) }} in Jinja Templates.
         return {
-            "roadmap_content": results[0],
-            "engineering_plan_content": results[1],
-            "task_name_content": results[2],
+            "branch": self.project.branch,
         }
 
     def _after_state_change(self, *args: Any, **kwargs: Any) -> None:
@@ -403,6 +391,19 @@ class ProjectWorkflow:
                 backend = get_backend(instance.name)
                 if instance.args:
                     backend._extra_args = instance.args  # type: ignore
+                
+                # Wrap if concurrency limit is enforced
+                if instance.concurrency_limit > 0:
+                    from agent_pump.backends.locking import LockingBackendWrapper
+                    
+                    args_key = str(instance.args) if instance.args else "default"
+                    key = f"{instance.name}::{args_key}"
+                    
+                    backend = LockingBackendWrapper(
+                        backend,
+                        key=key,
+                        limit=instance.concurrency_limit
+                    )
                 return backend
             except ValueError:
                 logger.warning(f"Unknown backend '{instance.name}', using default")
@@ -620,269 +621,79 @@ class ProjectWorkflow:
                         self.start()  # type: ignore
                         continue
 
-                    case "planning":
-                        context = await self._get_context_content()
-
-                        feature_request = context["task_name_content"]
-                        # If TASK_NAME is empty, try to pick first item from ROADMAP.md
-                        if not feature_request or feature_request == "(File not found or empty)":
-                            from agent_pump.utils.roadmap import RoadmapParser
-
-                            # Optimization: reuse content already read asynchronously
-                            # in _get_context_content
-                            roadmap_content = context.get("roadmap_content", "")
-                            is_valid_content = (
-                                roadmap_content
-                                and roadmap_content != "(File not found or empty)"
-                            )
-
-                            roadmap_path = self.project.path / "ROADMAP.md"
-                            uncompleted = []
-
-                            # Optimize: use pre-read content if available to avoid re-reading file
-                            roadmap_content = context.get("roadmap_content")
-                            if roadmap_content and roadmap_content != "(File not found or empty)":
-                                parser = RoadmapParser(roadmap_path)
-                                parser.parse(content=roadmap_content)
-                                uncompleted = parser.get_uncompleted_features()
-                            elif roadmap_path.exists():
-                                parser = RoadmapParser(roadmap_path)
-                                # Pass content to avoid redundant synchronous read
-                                if is_valid_content:
-                                    parser.parse(content=roadmap_content)
-                                else:
-                                    # Fallback if content was missing from context but file exists
-                                    parser.parse()
-
-                                uncompleted = parser.get_uncompleted_features()
-
-                            if uncompleted:
-                                feature_request = uncompleted[0].title
-                                self._emit_output(
-                                    f"\n[INFO] Auto-picking next roadmap item: "
-                                    f"{feature_request}\n"
-                                )
-                                # Create TASK_NAME file to persist this choice
-                                try:
-                                    (self.project.path / "TASK_NAME").write_text(
-                                        feature_request, encoding="utf-8"
-                                    )
-                                    self.project.current_feature = feature_request
-                                except Exception as e:
-                                    logger.warning(f"Failed to create TASK_NAME: {e}")
-                            elif roadmap_path.exists():
-                                self._emit_output(
-                                    "\n[WARNING] Roadmap is empty. No tasks to pick.\n"
-                                )
-                            else:
-                                self._emit_output(
-                                    "\n[WARNING] No TASK_NAME and no ROADMAP.md found.\n"
-                                )
-
-                        base_prompt = build_planning_prompt(
-                            feature_request=feature_request,
-                            roadmap_content=context["roadmap_content"],
-                            engineering_plan_content=context["engineering_plan_content"],
-                            task_name_content=context["task_name_content"],
-                            branch=self.project.branch,
-                        )
-
-                        # Determine backend for prompt customization
-                        backend_runner = self._get_backend_for_phase("planning")
-                        prompt = self.prompt_loader.build_prompt(
-                            state="planning",
-                            backend=str(backend_runner.name),
-                            default_prompt=base_prompt,
-                            context=context,
-                        )
-                        success = await self.run_phase(prompt, "planning")
-                        if self._cancelled:
-                            break
-                        if success:
-                            self._check_task_name_file()
-                            self.planning_complete()  # type: ignore
-                        else:
-                            self.planning_failed()  # type: ignore
-
-                    case "implementing":
-                        context = await self._get_context_content()
-                        base_prompt_template = build_implementing_prompt(self.project.branch)
-                        base_prompt = base_prompt_template.format(**context)
-
-                        backend_runner = self._get_backend_for_phase("implementing")
-                        prompt = self.prompt_loader.build_prompt(
-                            state="implementing",
-                            backend=str(backend_runner.name),
-                            default_prompt=base_prompt,
-                            context=context,
-                        )
-                        success = await self.run_phase(prompt, "implementing")
-                        if self._cancelled:
-                            break
-                        if success:
-                            self.implementing_complete()  # type: ignore
-                        else:
-                            self.implementing_failed()  # type: ignore
-
-                    case "verifying":
-                        context = await self._get_context_content()
-                        # First run the AI verification phase
-                        base_prompt_template = build_verifying_prompt(self.project.branch)
-                        base_prompt = base_prompt_template.format(**context)
-
-                        backend_runner = self._get_backend_for_phase("verifying")
-                        prompt = self.prompt_loader.build_prompt(
-                            state="verifying",
-                            backend=str(backend_runner.name),
-                            default_prompt=base_prompt,
-                            context=context,
-                        )
-                        ai_success = await self.run_phase(prompt, "verifying")
-
-                        if self._cancelled:
-                            break
-
-                        # Then run the custom verification commands
-                        if ai_success:
-                            self._emit_output("\n[INFO] Running custom verification commands...\n")
-
-                            # Run all verification commands
-                            verification_results = await self.verification_executor.run_all()
-
-                            # Check if all verification commands passed
-                            all_passed = all(
-                                result.success for result in verification_results.values()
-                            )
-
-                            # Log verification results
-                            for cmd_type, result in verification_results.items():
-                                status = "PASSED" if result.success else "FAILED"
-                                self._emit_output(
-                                    f"\n[{status}] {cmd_type.upper()} command: {result.command or 'N/A'}"  # noqa: E501
-                                )
-                                if result.stdout:
-                                    self._emit_output(f"STDOUT:\n{result.stdout}")
-                                if result.stderr:
-                                    self._emit_output(f"STDERR:\n{result.stderr}")
-                                self._emit_output(f"DURATION: {result.duration:.2f}s\n")
-
-                            if self.event_bus:
-                                for cmd_type, result in verification_results.items():
-                                    event = VerificationResultEvent(
-                                        project_path=self.project.path,
-                                        command_type=cmd_type,
-                                        success=result.success,
-                                        command=result.command,
-                                        duration=result.duration,
-                                        stdout=result.stdout,
-                                        stderr=result.stderr,
-                                    )
-                                    try:
-                                        asyncio.create_task(self.event_bus.publish(event))
-                                    except RuntimeError:
-                                        pass
-
-                            if all_passed:
-                                self._emit_output("\n[SUCCESS] All verification commands passed!\n")
-                                self.verifying_complete()  # type: ignore
-                            else:
-                                self._emit_output("\n[ERROR] Some verification commands failed\n")
-                                self.verifying_failed()  # type: ignore
-                        else:
-                            self.verifying_failed()  # type: ignore
-
-                    case "brainstorming":
-                        context = await self._get_context_content()
-                        # Include any queued ideas in the brainstorming prompt
-                        base_prompt = build_brainstorming_prompt(
-                            roadmap_content=context["roadmap_content"],
-                            engineering_plan_content=context["engineering_plan_content"],
-                            task_name_content=context["task_name_content"],
-                            queued_ideas=self.idea_queue if self.idea_queue else None,
-                        )
-
-                        backend_runner = self._get_backend_for_phase("brainstorming")
-                        prompt = self.prompt_loader.build_prompt(
-                            state="brainstorming",
-                            backend=str(backend_runner.name),
-                            default_prompt=base_prompt,
-                            context=context,
-                        )
-                        success = await self.run_phase(prompt, "brainstorming")
-                        # Clear ideas after they've been processed
-                        if self.idea_queue and success:
-                            if self.event_bus:
-                                event = IdeaProcessedEvent(
-                                    project_path=self.project.path,
-                                    ideas=self.idea_queue.copy(),
-                                )
-                                try:
-                                    asyncio.create_task(self.event_bus.publish(event))
-                                except RuntimeError:
-                                    pass
-
-                            if self.on_ideas_processed:
-                                self.on_ideas_processed(self.project.path)
-
-                        self.brainstorming_complete()  # type: ignore
-
-                        if success:
-                            self._check_task_name_file()
-
-                        if self._cancelled:
-                            break
-
-                    case "committing":
-                        context = await self._get_context_content()
-                        base_prompt_template = build_committing_prompt(self.project.branch)
-                        base_prompt = base_prompt_template.format(**context)
-
-                        backend_runner = self._get_backend_for_phase("committing")
-                        prompt = self.prompt_loader.build_prompt(
-                            state="committing",
-                            backend=str(backend_runner.name),
-                            default_prompt=base_prompt,
-                            context=context,
-                        )
-                        success = await self.run_phase(prompt, "committing")
-                        if self._cancelled:
-                            break
-
-                        if success:
-                            if self.project.current_feature:
-                                self.project.completed_features.append(self.project.current_feature)
-                                # We don't clear current_feature here, it will be updated/cleared in next planning/brainstorming check  # noqa: E501
-                                # But technically it is "done".
-
-                            # Check if there are more features
-                            self.workflow_state.iteration_count += 1
-                            self.project.iteration_count = self.workflow_state.iteration_count
-                            iteration += 1
-
-                            if iteration >= max_iterations:
-                                self._emit_output(
-                                    f"\n[INFO] Max iterations ({max_iterations}) reached\n"
-                                )
-                                self.no_more_features()  # type: ignore
-                            else:
-                                self.committing_complete()  # type: ignore
+                    case "completed":
+                        self._emit_output("\n[DONE] Workflow completed! Restarting...\n")
+                        self.restart()  # type: ignore
+                        iteration = 0
+                        continue
 
                     case "error":
                         self._emit_output("\n[ERROR] Workflow is in error state. Resetting...\n")
                         await asyncio.sleep(5)
                         self.reset()  # type: ignore
-
-                    case "completed":
-                        self._emit_output("\n[DONE] Workflow completed! Restarting...\n")
-                        # Restart to planning phase
-                        self.restart()  # type: ignore
-                        # Reset iteration count for the new cycle
-                        iteration = 0
                         continue
 
                     case _:
-                        self._emit_output(f"\n[UNKNOWN] Unknown state: {current_state}\n")
-                        break
+                        # Generic Phase Handler
+                        phase = self.workflow_def.get_phase(current_state)
+                        if not phase:
+                            self._emit_output(f"\n[UNKNOWN] Unknown state: {current_state}\n")
+                            break
+
+                        # Get context
+                        context = await self._get_context_content()
+
+                        # Phase-specific preparation
+                        await self._prepare_phase(phase.name, context)
+
+                        # Phase-specific context updates
+                        if phase.name == "brainstorming" and self.idea_queue:
+                            context["queued_ideas"] = self.idea_queue
+
+                        # Build prompt directly from file system
+                        backend_runner = self._get_backend_for_phase(phase.name)
+                        prompt = self.prompt_loader.build_prompt(
+                            state=phase.name,
+                            backend=str(backend_runner.name),
+                            default_prompt="",  # No fallback, requires file
+                            context=context,
+                        )
+                        
+                        if not prompt.strip():
+                            self._emit_output(f"\n[ERROR] No prompt found for state '{phase.name}'. Please create .agent-pump/states/{phase.name}.md\n")
+                            success = False
+                        else:
+                            
+                            # Run Agent Phase
+                            success = await self.run_phase(prompt, phase.name)
+
+                        if self._cancelled:
+                            break
+
+                        # Post-phase hook (Verification, side effects)
+                        if success:
+                            success = await self._post_phase(phase.name, success)
+
+                        # Transitions
+                        if success:
+                            # Check iteration limits for committing/looping phases
+                            if phase.name == "committing":
+                                iteration += 1
+                                if iteration >= max_iterations:
+                                    self._emit_output(f"\n[INFO] Max iterations ({max_iterations}) reached\n")
+                                    if hasattr(self, "no_more_features"):
+                                        self.no_more_features()
+                                        continue
+
+                            trigger_name = f"{phase.name}_complete"
+                            if hasattr(self, trigger_name):
+                                getattr(self, trigger_name)()
+                            else:
+                                logger.warning(f"Trigger {trigger_name} not found.")
+                        else:
+                            trigger_name = f"{phase.name}_failed"
+                            if hasattr(self, trigger_name):
+                                getattr(self, trigger_name)()
 
         finally:
             self._running = False
@@ -1043,3 +854,142 @@ class ProjectWorkflow:
                 lines.append("       │")
                 lines.append("       ▼")
         return "\n".join(lines)
+
+    async def _prepare_phase(self, phase_name: str, context: dict[str, str]) -> None:
+        """Run preparation logic before a phase starts."""
+        if phase_name == "planning":
+            await self._prepare_planning_phase(context)
+
+    async def _post_phase(self, phase_name: str, ai_success: bool) -> bool:
+        """Run logic after a phase finishes. Returns final success status."""
+        if not ai_success:
+            return False
+            
+        if phase_name == "verifying":
+            return await self._run_custom_verification()
+            
+        if phase_name == "brainstorming":
+            if self.idea_queue:
+                if self.event_bus:
+                    from agent_pump.events.models import IdeaProcessedEvent
+                    event = IdeaProcessedEvent(
+                        project_path=self.project.path,
+                        ideas=self.idea_queue.copy(),
+                    )
+                    try:
+                        asyncio.create_task(self.event_bus.publish(event))
+                    except RuntimeError:
+                        pass
+
+                if self.on_ideas_processed:
+                    self.on_ideas_processed(self.project.path)
+                
+                # Clear queue
+                self.idea_queue = []
+                
+        if phase_name == "committing":
+            if self.project.current_feature:
+                self.project.completed_features.append(self.project.current_feature)
+            
+            # Note: Iteration count is updated in the run loop to control the loop, 
+            # but we update the persistent state here
+            self.workflow_state.iteration_count += 1
+            self.project.iteration_count = self.workflow_state.iteration_count
+
+        return True
+
+    async def _prepare_planning_phase(self, context: dict[str, str]) -> None:
+        """Logic to pick next task from roadmap if not set."""
+        # Read TASK_NAME directly
+        feature_request = await self._read_file_content("TASK_NAME")
+        
+        # If TASK_NAME is empty, try to pick first item from ROADMAP.md
+        if not feature_request or feature_request == "(File not found or empty)":
+            from agent_pump.utils.roadmap import RoadmapParser
+
+            # Read ROADMAP.md
+            roadmap_content = await self._read_file_content("ROADMAP.md")
+            roadmap_path = self.project.path / "ROADMAP.md"
+            uncompleted = []
+
+            if roadmap_content and roadmap_content != "(File not found or empty)":
+                parser = RoadmapParser(roadmap_path)
+                parser.parse(content=roadmap_content)
+                uncompleted = parser.get_uncompleted_features()
+            elif roadmap_path.exists():
+                # Fallback purely path based (shouldn't happen if _read_file worked)
+                parser = RoadmapParser(roadmap_path)
+                parser.parse()
+                uncompleted = parser.get_uncompleted_features()
+
+            if uncompleted:
+                feature_request = uncompleted[0].title
+                self._emit_output(
+                    f"\n[INFO] Auto-picking next roadmap item: "
+                    f"{feature_request}\n"
+                )
+                # Create TASK_NAME file to persist this choice
+                try:
+                    (self.project.path / "TASK_NAME").write_text(
+                        feature_request, encoding="utf-8"
+                    )
+                    self.project.current_feature = feature_request
+                    # Note: We don't need to put it in context anymore since templates use read_file("TASK_NAME")
+                    # But we maintain file state.
+                except Exception as e:
+                    logger.warning(f"Failed to create TASK_NAME: {e}")
+            elif roadmap_path.exists():
+                self._emit_output(
+                    "\n[WARNING] Roadmap is empty. No tasks to pick.\n"
+                )
+            else:
+                self._emit_output(
+                    "\n[WARNING] No TASK_NAME and no ROADMAP.md found.\n"
+                )
+
+    async def _run_custom_verification(self) -> bool:
+        """Run the custom verification commands (post-verifying phase)."""
+        self._emit_output("\n[INFO] Running custom verification commands...\n")
+
+        # Run all verification commands
+        verification_results = await self.verification_executor.run_all()
+
+        # Check if all verification commands passed
+        all_passed = all(
+            result.success for result in verification_results.values()
+        )
+
+        # Log verification results
+        for cmd_type, result in verification_results.items():
+            status = "PASSED" if result.success else "FAILED"
+            self._emit_output(
+                f"\n[{status}] {cmd_type.upper()} command: {result.command or 'N/A'}"  # noqa: E501
+            )
+            if result.stdout:
+                self._emit_output(f"STDOUT:\n{result.stdout}")
+            if result.stderr:
+                self._emit_output(f"STDERR:\n{result.stderr}")
+            self._emit_output(f"DURATION: {result.duration:.2f}s\n")
+
+        if self.event_bus:
+            for cmd_type, result in verification_results.items():
+                event = VerificationResultEvent(
+                    project_path=self.project.path,
+                    command_type=cmd_type,
+                    success=result.success,
+                    command=result.command,
+                    duration=result.duration,
+                    stdout=result.stdout,
+                    stderr=result.stderr,
+                )
+                try:
+                    asyncio.create_task(self.event_bus.publish(event))
+                except RuntimeError:
+                    pass
+
+        if all_passed:
+            self._emit_output("\n[SUCCESS] All verification commands passed!\n")
+            return True
+        else:
+            self._emit_output("\n[ERROR] Some verification commands failed\n")
+            return False

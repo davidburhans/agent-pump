@@ -19,10 +19,7 @@ class WorkflowPhase(BaseModel):
     name: str = Field(description="Phase name (e.g., 'planning', 'implementing')")
     description: str = Field(default="", description="Human-readable description")
     icon: str = Field(default="", description="Emoji icon for TUI display")
-    prompt_builder: str = Field(
-        default="",
-        description="Function name for building the prompt (e.g., 'build_planning_prompt')",
-    )
+
     on_success: str = Field(description="State to transition to on success")
     on_failure: str = Field(
         default="error",
@@ -178,7 +175,6 @@ DEFAULT_WORKFLOW = WorkflowDefinition(
             name="planning",
             description="Creates ENGINEERING_PLAN.md from ROADMAP.md",
             icon="📋",
-            prompt_builder="build_planning_prompt",
             on_success="implementing",
             on_failure="error",
         ),
@@ -186,7 +182,6 @@ DEFAULT_WORKFLOW = WorkflowDefinition(
             name="implementing",
             description="Executes tasks from ENGINEERING_PLAN.md",
             icon="🔨",
-            prompt_builder="build_implementing_prompt",
             on_success="verifying",
             on_failure="error",
         ),
@@ -194,7 +189,6 @@ DEFAULT_WORKFLOW = WorkflowDefinition(
             name="verifying",
             description="Runs verification checklist from BEST_PRACTICES.md",
             icon="✅",
-            prompt_builder="build_verifying_prompt",
             on_success="brainstorming",
             on_failure="error",
         ),
@@ -202,7 +196,6 @@ DEFAULT_WORKFLOW = WorkflowDefinition(
             name="brainstorming",
             description="Updates ROADMAP.md with new ideas",
             icon="💡",
-            prompt_builder="build_brainstorming_prompt",
             on_success="committing",
             on_failure="committing",  # Brainstorming failures don't block
         ),
@@ -210,7 +203,6 @@ DEFAULT_WORKFLOW = WorkflowDefinition(
             name="committing",
             description="Commits changes to git",
             icon="📝",
-            prompt_builder="build_committing_prompt",
             on_success="planning",  # Loop back for next feature
             on_failure="error",
         ),

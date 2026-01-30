@@ -233,6 +233,55 @@ The system includes security validation to prevent dangerous command patterns li
 | `escape` | **Quit** the application |
 
 
+
+### Dynamic Workflows & Custom Prompts
+
+Agent Pump allows you to customize the agent's behavior for each project without touching the core code.
+
+#### Directory Structure
+
+When you add a project, Agent Pump creates a `.agent-pump/` directory:
+
+```text
+my-project/
+├── .agent-pump/
+│   ├── workflow.yaml       # The state machine definition
+│   └── states/             # Markdown prompt templates
+│       ├── planning.md
+│       ├── implementing.md
+│       ├── verifying.md
+│       └── ...
+```
+
+#### Customizing Prompts
+
+To change how the agent behaves in a specific phase (e.g., to make it write stricter tests), simply edit the corresponding markdown file in `.agent-pump/states/`.
+
+**Template Variables:**
+
+The prompt system uses **Jinja2** templating. You currently have access to:
+
+*   `{{ branch }}`: The current git branch name.
+
+**Reading Files:**
+You can include any file from your project using the `read_file` helper.
+Common examples:
+
+*   `{{ read_file("ROADMAP.md") }}`
+*   `{{ read_file("ENGINEERING_PLAN.md") }}`
+*   `{{ read_file("TASK_NAME") }}`
+*   `{{ read_file("docs/architecture.md") }}`
+
+**Note:** Template variables work in the main state files (e.g., `planning.md`). Calls to `pre-` and `post-` hooks (e.g., `pre-planning.md`) are currently appended raw and do **not** support variable expansion.
+
+#### Editing the Workflow
+
+You can modify `.agent-pump/workflow.json` to add new phases or change transitions.
+
+*   **Phases**: Define new steps in the `phases` list.
+*   **Implicit Linking**: If you add a phase named `"deployment"`, the system will automatically look for `.agent-pump/states/deployment.md`. No extra configuration required!
+
+
 ## How It Works
 
 Agent Pump implements a state machine that models the software engineering lifecycle:

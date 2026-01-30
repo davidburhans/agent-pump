@@ -22,6 +22,10 @@ class BackendInstance(BaseModel):
     timeout: int | None = Field(
         default=None, description="Timeout in seconds (None = use global default)"
     )
+    concurrency_limit: int = Field(
+        default=1,
+        description="Max concurrent instances sharing this config (1 = serial execution). Set to 0 for unlimited.",
+    )
 
 
 class BackendFallback(BaseModel):

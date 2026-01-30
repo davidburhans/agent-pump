@@ -254,7 +254,7 @@ class TestProjectWorkflow:
         from unittest.mock import patch
 
         with patch(
-            "agent_pump.orchestrator.workflow.build_planning_prompt", return_value="Mocked Prompt"
+            "agent_pump.orchestrator.prompt_registry.build_planning_prompt", return_value="Mocked Prompt"
         ) as mock_build:
             # Run one iteration of the loop
             # We'll cancel it immediately after one cycle

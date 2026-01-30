@@ -77,6 +77,13 @@ Configure which AI coding agent powers each phase of your workflow.
 - **Custom Args**: Add custom CLI arguments per-backend (e.g., `--model gemini-2.5-flash`).
 - **Usage**: Press `b` in the TUI to configure backends for the selected project.
 
+### Single Backend Instance Enforcer
+Enables strict rate limit control for shared resources (e.g., Free Tier API accounts or single-instance CLIs).
+
+- **Turn-Taking**: Ensures only one workflow runs on a specific backend configuration at a time across all projects.
+- **Configurable**: Set `concurrency_limit` per backend in your workspace config. Default is `1` (serial execution). To enable parallel execution, set to `0`.
+- **Global**: Works across all loaded projects in the current workspace.
+
 ### Prompt Engineering
 - **Custom System Prompts**: Inject custom instructions into the agent's context.
 - **Prefix/Suffix Injection**: Add text before or after the standard system prompt.

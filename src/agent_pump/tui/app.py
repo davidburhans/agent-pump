@@ -572,15 +572,8 @@ class AgentPumpApp(App):
             self._log("Project not found in workspace config.")
             return
 
-        def handle_result(prompt_customization: PromptCustomization | None) -> None:
-            if prompt_customization is not None and self.selected_project:
-                self.run_worker(
-                    self.workspace_service.update_prompt_config(
-                        self.selected_project, prompt_customization
-                    )
-                )
-            else:
-                self._log("Prompt customization cancelled")
+        def handle_result(result: None) -> None:
+             pass
 
         self.push_screen(
             PromptConfigModal(project_config, self.workspace, initial_phase=initial_phase),

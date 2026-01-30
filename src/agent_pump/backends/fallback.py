@@ -89,11 +89,30 @@ class FallbackBackendRunner:
             backend_instances: List of BackendInstance with name and args
         """
         from agent_pump.backends import get_backend
+        from agent_pump.backends.locking import LockingBackendWrapper
 
         backends = []
         backend_args = []
         for instance in backend_instances:
-            backends.append(get_backend(instance.name))
+            backend = get_backend(instance.name)
+            
+            # Pre-set extra args for consistency
+            if instance.args:
+                backend._extra_args = instance.args  # type: ignore
+
+            # Wrap if concurrency limit is enforced
+            if instance.concurrency_limit > 0:
+                # Create unique key based on name + args (distinguish models)
+                args_key = str(instance.args) if instance.args else "default"
+                key = f"{instance.name}::{args_key}"
+                
+                backend = LockingBackendWrapper(
+                    backend,
+                    key=key,
+                    limit=instance.concurrency_limit
+                )
+
+            backends.append(backend)
             backend_args.append(instance.args)
 
         return cls(backends=backends, backend_args=backend_args)
