@@ -153,5 +153,8 @@ async def test_command_palette_discovery():
         # Check "Start Selected"
         await assert_command_present("Start Selected")
 
+        # Check "Toggle Project State"
+        await assert_command_present("Toggle Project State")
+
         # Check "Reset Project"
         await assert_command_present("Reset Project")

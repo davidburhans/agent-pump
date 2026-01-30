@@ -54,6 +54,11 @@ class AgentPumpCommandProvider(Provider):
         if getattr(app, "selected_project", None):
             project_commands = [
                 (
+                    "Toggle Project State",
+                    "action_toggle_project_state",
+                    "Start/Stop the selected project",
+                ),
+                (
                     "Manage Roadmap",
                     "action_manage_roadmap",
                     "View and manage the project roadmap",

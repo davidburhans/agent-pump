@@ -230,8 +230,7 @@ class AgentPumpApp(App):
         """Update key bindings based on project selection state."""
         project_bindings = [
             ("delete", "remove_project", "Remove"),
-            ("s", "start_selected", "Start"),
-            ("x", "stop_selected", "Stop"),
+            ("space", "toggle_project_state", "Start/Stop"),
             ("S", "start_all", "All▶"),
             ("X", "stop_all", "All⏹"),
             ("k", "skip_feature", "Skip"),
@@ -414,6 +413,20 @@ class AgentPumpApp(App):
         """Handle remove project action."""
         if self.selected_project:
             self.run_worker(self._remove_project(self.selected_project))
+
+    def action_toggle_project_state(self) -> None:
+        """Toggle the start/stop state of the selected project."""
+        if not self.selected_project:
+            return
+
+        workflow = self.workflows.get(self.selected_project)
+        if not workflow:
+            return
+
+        if workflow.is_running():
+            self.action_stop_selected()
+        else:
+            self.action_start_selected()
 
     def action_start_selected(self) -> None:
         """Start the selected project."""
