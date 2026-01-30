@@ -67,7 +67,7 @@ class RoadmapParser:
         # Process sections
         for i in range(1, len(sections), 2):
             header = sections[i]
-            body = sections[i + 1] if i + 1 < len(sections) else ""
+            body = (sections[i + 1] if i + 1 < len(sections) else "") + "\n\n"
 
             # Find features in this section
             # We want to keep track of where features are
