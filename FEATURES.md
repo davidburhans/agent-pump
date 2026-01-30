@@ -167,12 +167,13 @@ Each project maintains its own dedicated activity log for better organization.
 
 ---
 
-## 🎨 Dynamic Visual State Diagrams
+### Dynamic Visual State Diagrams
 
 Interactive, animated workflow visualization with real-time state tracking.
 
-### Features
+#### Features
 - **Visual Workflow Nodes**: Each phase (Planning, Implementing, etc.) renders as a styled, clickable node.
+- **Deep-Linking Configuration**: Clicking a phase node automatically opens the Prompt Configuration modal to that specific phase's tab, allowing for rapid iteration on prompts.
 - **Pulsing Active State**: The currently active node pulses to indicate activity.
 - **Color-Coded States**:
   - Active: Highlighted border and pulsing animation

@@ -45,7 +45,7 @@ from agent_pump.tui.screens.confirm_modal import ConfirmModal
 from agent_pump.tui.screens.log_filter_modal import LogFilterModal
 from agent_pump.tui.widgets.log_panel import LogPanel
 from agent_pump.tui.widgets.project_card import ProjectCard
-from agent_pump.tui.widgets.workflow_panel import WorkflowPanel
+from agent_pump.tui.widgets.workflow_panel import WorkflowNodeClicked, WorkflowPanel
 from agent_pump.utils.config_migration import ConfigMigrator
 from agent_pump.utils.roadmap import RoadmapFeature
 
@@ -74,7 +74,7 @@ class AgentPumpApp(App):
         Binding("f", "filter_logs", "Filter", show=False),
         Binding("o", "toggle_sort", "Order", show=False),
         Binding("t", "toggle_timer", "Timer", show=False),
-        Binding("W", "toggle_workflow_panel", "Flow", show=False),
+        Binding("w", "toggle_workflow_panel", "Flow"),
         Binding("escape", "quit", "Quit", show=False),
     ]
 
@@ -234,7 +234,6 @@ class AgentPumpApp(App):
             ("S", "start_all", "All▶"),
             ("X", "stop_all", "All⏹"),
             ("k", "skip_feature", "Skip"),
-            ("w", "show_workflow", "Flow"),
             ("c", "config_project", "Conf"),
             ("b", "config_backends", "Back"),
             ("p", "config_prompts", "Prmt"),
@@ -307,7 +306,7 @@ class AgentPumpApp(App):
         self._log(f"Checking migration for {project.path}")
         migrator = ConfigMigrator(project.path)
         needs_migration = migrator.needs_migration()
-        
+
         if needs_migration:
             result = await self.push_screen(
                 ConfirmModal(
@@ -320,7 +319,7 @@ class AgentPumpApp(App):
                 wait_for_dismiss=True,
             )
             self._log(f"Migration modal result: {result}")
-            
+
             if result:
                 try:
                     self._log("Starting migration...")
@@ -481,12 +480,6 @@ class AgentPumpApp(App):
         else:
             self._log("No project selected to skip feature")
 
-    def action_show_workflow(self) -> None:
-        """Force refresh of workflow diagram."""
-        if self.workflow_panel and self.selected_project:
-            workflow = self.workflows.get(self.selected_project)
-            self.workflow_panel.set_workflow(workflow)
-
     async def action_add_idea(self) -> None:
         """Add an idea to the brainstorming queue."""
 
@@ -568,7 +561,7 @@ class AgentPumpApp(App):
 
         self.push_screen(BackendConfigModal(project_config, self.workspace), handle_result)
 
-    def action_config_prompts(self) -> None:
+    def action_config_prompts(self, initial_phase: str | None = None) -> None:
         """Configure prompt customizations for the selected project."""
         if not self.selected_project:
             self._log("No project selected. Select a project first with click/arrow keys.")
@@ -589,7 +582,18 @@ class AgentPumpApp(App):
             else:
                 self._log("Prompt customization cancelled")
 
-        self.push_screen(PromptConfigModal(project_config, self.workspace), handle_result)
+        self.push_screen(
+            PromptConfigModal(project_config, self.workspace, initial_phase=initial_phase),
+            handle_result,
+        )
+
+    @on(WorkflowNodeClicked)
+    def on_workflow_node_clicked(self, event: WorkflowNodeClicked) -> None:
+        """Handle workflow node clicks."""
+        phase = event.node_name
+        # Only open config for actual phases
+        if phase in ["planning", "implementing", "verifying", "brainstorming", "committing"]:
+            self.action_config_prompts(initial_phase=phase)
 
     def action_global_prompts(self) -> None:
         """Configure global prompt prefix/suffix per engine and model."""

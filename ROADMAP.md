@@ -30,7 +30,7 @@ The guidelines emphasize using semantic variables like `$success`, `$error`, `$p
 
 ---
 
-### 🔴 TUI UX Compliance - Micro-interactions & Animations
+### 🟡 TUI UX Compliance - Micro-interactions & Animations
 **Priority: High** | **Guideline: Sections 5.3, 6.1, 6.2**
 
 Implement micro-interactions and smooth transitions for visual feedback.

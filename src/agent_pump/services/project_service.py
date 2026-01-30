@@ -63,6 +63,7 @@ class ProjectService(BaseService):
             config = Config.load(path)
             project.branch = config.workflow.branch
             project.backend = config.backend
+            project.config = config.verification
 
             # Get workspace-level config overrides
             project_config = self.workspace.get_project_config(path)

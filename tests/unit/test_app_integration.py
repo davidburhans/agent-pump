@@ -37,9 +37,9 @@ async def test_toggle_workflow_panel():
         assert right_sidebar.display is True
 
         # Toggle OFF
-        await pilot.press("W")
+        await pilot.press("w")
         assert right_sidebar.display is False
 
         # Toggle ON
-        await pilot.press("W")
+        await pilot.press("w")
         assert right_sidebar.display is True

@@ -424,3 +424,7 @@ Before committing:
 ### API & Data Contracts
 - **Strict Separation of Concerns**: Maintain a hard boundary between server logic and client presentation. Using DTOs as the sole exchange format prevents internal refactors from breaking clients (TUI/Web).
 - **Validation in DTOs**: Moving validation and transformation logic (like calculating `time_in_state`) into DTO factory methods simplifies the core service logic.
+
+### TUI Interactivity & Events
+- **Decoupled Business Logic**: When adding interactivity to complex visualizations (like workflow diagrams), use custom `Message` classes and the `@on` decorator in the parent `App` or `Screen` to handle events. This decouples the visual widget from the underlying business logic.
+- **Deep Linking**: Support passing initial state (like `initial_phase`) to modals to allow "deep linking" from other parts of the UI, improving user workflow efficiency.

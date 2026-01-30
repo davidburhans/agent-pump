@@ -31,7 +31,7 @@ class WorkflowNode(Static):
         min-width: 14;
         padding: 1 2;
         border: solid $surface-lighten-2;
-        margin: 1 0;
+        margin: 1;
         text-align: center;
         background: $surface;
         color: $text-muted;
@@ -182,7 +182,7 @@ class WorkflowPanel(Middle):
 
         # Add Idle state
         idle_node = WorkflowNode("idle", id="node-idle")
-        widgets.append(idle_node)
+        widgets.append(Center(idle_node))
         self.nodes["idle"] = idle_node
 
         c = WorkflowConnector()
@@ -193,7 +193,7 @@ class WorkflowPanel(Middle):
         phases = self.workflow.workflow_def.phases
         for i, phase in enumerate(phases):
             node = WorkflowNode(phase, id=f"node-{phase.name}")
-            widgets.append(node)
+            widgets.append(Center(node))
             self.nodes[phase.name] = node
 
             if i < len(phases) - 1:
@@ -207,7 +207,7 @@ class WorkflowPanel(Middle):
         self.connectors.append(c)
 
         completed_node = WorkflowNode("completed", id="node-completed")
-        widgets.append(completed_node)
+        widgets.append(Center(completed_node))
         self.nodes["completed"] = completed_node
 
         nodes_container = Vertical(*widgets, id="workflow-nodes")

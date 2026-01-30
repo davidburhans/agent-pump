@@ -157,13 +157,23 @@ class PromptConfigModal(ModalScreen[PromptCustomization | None]):
         name: str | None = None,
         id: str | None = None,
         classes: str | None = None,
+        initial_phase: str | None = None,
     ):
         super().__init__(name=name, id=id, classes=classes)
         self.project_config = project_config
         self.workspace = workspace
+        self.initial_phase = initial_phase
         # Make a copy to edit
         self.prompt_customization = project_config.prompt_customization.model_copy(deep=True)
         self.prompt_manager = get_base_prompt_manager()
+
+    def on_mount(self) -> None:
+        """Handle mount event."""
+        if self.initial_phase:
+            try:
+                self.query_one(TabbedContent).active = f"tab-{self.initial_phase}"
+            except Exception:
+                pass  # Tab might not exist if phase name is invalid
 
     def compose(self) -> ComposeResult:
         """Compose the modal's widgets."""

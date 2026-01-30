@@ -87,11 +87,6 @@ class AgentPumpCommandProvider(Provider):
                     "Skip the current feature (mark as failed)",
                 ),
                 (
-                    "Show Workflow",
-                    "action_show_workflow",
-                    "Show workflow diagram for selected project",
-                ),
-                (
                     "Configure Project",
                     "action_config_project",
                     "Configure selected project settings",
