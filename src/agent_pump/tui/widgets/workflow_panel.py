@@ -2,7 +2,7 @@
 
 import logging
 
-from textual.containers import Center, Horizontal, Middle
+from textual.containers import Center, Middle, Vertical
 from textual.message import Message
 from textual.reactive import reactive
 from textual.widgets import Static
@@ -31,7 +31,7 @@ class WorkflowNode(Static):
         min-width: 14;
         padding: 1 2;
         border: solid $surface-lighten-2;
-        margin: 0 1;
+        margin: 1 0;
         text-align: center;
         background: $surface;
         color: $text-muted;
@@ -56,7 +56,8 @@ class WorkflowNode(Static):
 
     WorkflowNode.pulse {
         background: $primary-darken-2;
-        border: solid $primary-lighten-1;
+        border: solid $accent;
+        color: $text;
     }
 
     WorkflowNode:hover {
@@ -82,7 +83,7 @@ class WorkflowNode(Static):
             self.label = "Idle"
         elif self.node_name == "completed":
             self.icon = "🏁"
-            self.label = "Completed"
+            self.label = "Done"
         elif self.node_name == "error":
             self.icon = "❌"
             self.label = "Error"
@@ -99,15 +100,25 @@ class WorkflowConnector(Static):
 
     DEFAULT_CSS = """
     WorkflowConnector {
-        width: 3;
+        width: 100%;
         content-align: center middle;
         color: $text-muted;
-        height: 3;
+        height: 1;
+    }
+
+    WorkflowConnector.completed {
+        color: $success;
+        text-style: bold;
+    }
+
+    WorkflowConnector.active {
+        color: $primary;
+        text-style: bold;
     }
     """
 
     def render(self) -> str:
-        return " → "
+        return "↓"
 
 
 class WorkflowPanel(Middle):
@@ -116,16 +127,17 @@ class WorkflowPanel(Middle):
     DEFAULT_CSS = """
     WorkflowPanel {
         width: 100%;
-        height: 100%;
+        height: 1fr;
         border: solid $primary;
         padding: 1;
         background: $surface;
-        align: center middle;
+        overflow-y: auto;
     }
 
-    WorkflowPanel > Center {
-        width: auto;
+    #workflow-nodes {
+        width: 100%;
         height: auto;
+        align: center top;
     }
     """
 
@@ -135,13 +147,14 @@ class WorkflowPanel(Middle):
         """Initialize the workflow panel."""
         super().__init__(**kwargs)
         self.nodes: dict[str, WorkflowNode] = {}
+        self.connectors: list[WorkflowConnector] = []
         self.timer = None
 
-    def watch_workflow(
+    async def watch_workflow(
         self, old_workflow: ProjectWorkflow | None, new_workflow: ProjectWorkflow | None
     ) -> None:
         """Rebuild diagram when workflow changes."""
-        self.rebuild_diagram()
+        await self.rebuild_diagram()
 
     def set_workflow(self, workflow: ProjectWorkflow | None) -> None:
         """Set the workflow to display (helper for app.py)."""
@@ -150,20 +163,20 @@ class WorkflowPanel(Middle):
         else:
             self.refresh_visuals()
 
-    def rebuild_diagram(self) -> None:
+    async def rebuild_diagram(self) -> None:
         """Rebuild the node structure."""
-        self.query("Center").remove()
+        await self.remove_children()
         self.nodes.clear()
+        self.connectors.clear()
 
         if self.timer:
             self.timer.stop()
             self.timer = None
 
         if not self.workflow:
-            self.mount(Center(Static("No active project selected")))
+            await self.mount(Static("No active project selected", id="workflow-nodes"))
             return
 
-        # Build nodes list
         # Build nodes list
         widgets = []
 
@@ -172,7 +185,9 @@ class WorkflowPanel(Middle):
         widgets.append(idle_node)
         self.nodes["idle"] = idle_node
 
-        widgets.append(WorkflowConnector())
+        c = WorkflowConnector()
+        widgets.append(c)
+        self.connectors.append(c)
 
         # Add phases
         phases = self.workflow.workflow_def.phases
@@ -182,32 +197,21 @@ class WorkflowPanel(Middle):
             self.nodes[phase.name] = node
 
             if i < len(phases) - 1:
-                widgets.append(WorkflowConnector())
+                c = WorkflowConnector()
+                widgets.append(c)
+                self.connectors.append(c)
 
-        # Logic for terminal states?
-        # Usually completed/error are outcomes.
-        # But for linear graph, maybe just show phases?
-        # The plan says "WorkflowNode (idle) ... (planning) ... (implementing) ..."
-        # What about 'completed' and 'error'?
-        # If the state IS completed, we should probably highlight the last node
-        # or show a completed node?
-        # Let's add 'completed' and 'error' nodes at the end/bottom?
-        # or just change state of current nodes?
-        # Actually, adding "Completed" node at end is good.
+        # Connector to completed
+        c = WorkflowConnector()
+        widgets.append(c)
+        self.connectors.append(c)
 
-        widgets.append(WorkflowConnector())
         completed_node = WorkflowNode("completed", id="node-completed")
         widgets.append(completed_node)
         self.nodes["completed"] = completed_node
 
-        # Error state usually jumps from anywhere, hard to visualize linearly.
-        # Maybe display it separately if active?
-        # For now, let's keep it simple. If state is error, we highlight the node that failed?
-        # Or we can add an Error node. Let's add it.
-        # But where? Maybe not in the linear flow.
-
-        nodes_container = Horizontal(*widgets)
-        self.mount(Center(nodes_container))
+        nodes_container = Vertical(*widgets, id="workflow-nodes")
+        await self.mount(nodes_container)
 
         # Start pulse timer
         self.timer = self.set_interval(0.8, self.pulse_active_node)
@@ -228,53 +232,61 @@ class WorkflowPanel(Middle):
             node.remove_class("error")
             node.remove_class("pulse")
 
-        # Highlight logic
-        # If in a phase, everything before it is "completed"
-        # If IDLE, nothing is completed.
-        # If COMPLETED, everything is completed.
+        # Reset connectors
+        for conn in self.connectors:
+            conn.remove_class("active")
+            conn.remove_class("completed")
 
+        # Highlight logic
         phases = [p.name for p in self.workflow.workflow_def.phases]
 
-        # Determine index of current state
+        # Build ordered list of states for linear visualization: idle -> phases -> completed
+        ordered_states = ["idle"] + phases + ["completed"]
+
+        # Determine index of current state in this linear view
         current_idx = -1
-        if current_state in phases:
-            current_idx = phases.index(current_state)
-        elif current_state == "completed":
-            current_idx = len(phases)  # All phases done
-        elif current_state == "idle":
-            current_idx = -1
+        if current_state in ordered_states:
+            current_idx = ordered_states.index(current_state)
 
-        # Mark previous phases as completed
-        # Handle 'idle' node
-        if current_state != "idle":
-            self.nodes["idle"].add_class("completed")
-        else:
-            self.nodes["idle"].add_class("active")
+        # If active state is NOT in the linear path (e.g. error, or unknown),
+        # we might just highlight specific nodes or error state.
+        # But 'error' is not in our ordered list yet.
+        # If error, we might want to highlight the phase that failed?
+        # For now, if 'error', let's assume we show the last successful state?
+        # Or just don't highlight progress beyond what's done.
 
-        # Handle phases
-        for i, phase_name in enumerate(phases):
-            node = self.nodes.get(phase_name)
+        # If state is 'error', we assume the workflow stopped.
+        # We can't easily visualize "where" it failed without extra info.
+        # But usually state remains in the phase where it failed, OR it transitions to 'error'.
+        # If it transitions to 'error', we lose the "phase".
+        # Assuming 'current_state' is exactly what's in the workflow object.
+
+        # Mark nodes and connectors
+        for i, state_name in enumerate(ordered_states):
+            node = self.nodes.get(state_name)
             if not node:
                 continue
 
-            if i < current_idx:
+            if current_idx > i:
                 node.add_class("completed")
-            elif i == current_idx:
+                # Also highlight connector AFTER this node, if it exists
+                if i < len(self.connectors):
+                    self.connectors[i].add_class("completed")
+
+            elif current_idx == i:
                 node.add_class("active")
+                # Connector leading TO this node is completed (handled by previous loop iteration)
+                # But connector LEADING FROM this node might be "active" (pulsing)?
+                # Or just standard. Let's make it standard.
 
-        # Handle completed/error state specifically
-        if current_state == "completed":
-            self.nodes["completed"].add_class("completed")
-            # Also mark it active/pulsing? Usually completed is static success.
-            # But the last phase should be completed too.
-
+        # Handle Error state specifically if current_state is 'error'
         if current_state == "error":
-            # Finding where we failed is tricky without history,
-            # but usually we just show Error state active
-            # Or we can look at workflow.workflow_state.previous_state? (not exposed easily)
-            # Maybe just highlight the error node if we added one?
-            # I didn't add error node to the container above.
-            pass
+             # Maybe highlight the last active node as error?
+             # Since we don't know which one, we might just not highlight any specific 'active'
+             # and rely on the log.
+             # OR if there is an explicit 'error' node, show it.
+             # We didn't add an explicit Error node to the linear graph because it's non-linear.
+             pass
 
     def pulse_active_node(self) -> None:
         """Toggle pulse class on active node."""
@@ -282,6 +294,13 @@ class WorkflowPanel(Middle):
             return
 
         current_state = self.workflow.state
+
+        # Check if running - if not, ensure no pulse
+        if not self.workflow.is_running():
+            if current_state in self.nodes:
+                self.nodes[current_state].remove_class("pulse")
+            return
+
         # Only pulse if it's a phase (not idle/completed/error)
         is_phase = any(p.name == current_state for p in self.workflow.workflow_def.phases)
 

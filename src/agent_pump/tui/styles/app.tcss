@@ -64,6 +64,7 @@
 /* General */
 Screen {
     background: $background;
+    layers: base above;
 }
 
 Header {
@@ -82,4 +83,26 @@ Header {
 
 Footer {
     background: $surface;
+}
+
+#quit-button {
+    background: $error;
+    color: white;
+    text-style: bold;
+    padding: 0 1;
+    width: 11;
+    height: 1;
+    position: absolute;
+    offset: 100% 0;
+    margin-left: -11;
+    layer: above;
+}
+
+#quit-indicator {
+    background: $error;
+    color: white;
+    text-style: bold;
+    padding: 0 1;
+    width: auto;
+    height: 1;
 }

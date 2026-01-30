@@ -65,13 +65,12 @@ class TestWorkflowService:
         """Test stopping a project."""
         path = Path("/tmp/p1").resolve()
         mock_workflow = MagicMock()
-        mock_workflow.is_running.return_value = True
         service.project_service.workflows[path] = mock_workflow
 
         result = await service.stop_project(path)
 
         assert result is True
-        mock_workflow.cancel.assert_called()
+        mock_workflow.pause_workflow.assert_called()
 
     @pytest.mark.asyncio
     async def test_reset_project(self, service):

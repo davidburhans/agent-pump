@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from textual import on, work
+from textual import events, on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
@@ -63,18 +63,19 @@ class AgentPumpApp(App):
 
     # Base bindings always available
     BINDINGS = [
-        Binding("q", "quit", "Quit"),
+        Binding("ctrl+p", "command_palette", "Cmds"),
         Binding("a", "add_project", "Add"),
-        Binding("d", "toggle_dark", "Dark"),
         Binding("i", "add_idea", "Idea"),
         Binding("m", "manage_roadmap", "Roadmap"),
-        Binding("P", "global_prompts", "Global"),
-        Binding("f", "filter_logs", "Filter"),
-        Binding("o", "toggle_sort", "Order"),
         Binding("s", "open_settings", "Settings"),
-        Binding("t", "toggle_timer", "Timer"),
-        Binding("W", "toggle_workflow_panel", "Flow Panel"),
-        Binding("u", "update_config", "Reload Conf"),
+        Binding("u", "update_config", "Reload"),
+        Binding("d", "toggle_dark", "Dark", show=False),
+        Binding("P", "global_prompts", "Global", show=False),
+        Binding("f", "filter_logs", "Filter", show=False),
+        Binding("o", "toggle_sort", "Order", show=False),
+        Binding("t", "toggle_timer", "Timer", show=False),
+        Binding("W", "toggle_workflow_panel", "Flow", show=False),
+        Binding("escape", "quit", "Quit", show=False),
     ]
 
     def __init__(self, project_paths: list[Path] | None = None):
@@ -147,6 +148,7 @@ class AgentPumpApp(App):
             id="app-container",
         )
         yield Footer()
+        yield Static("Quit [Esc]", id="quit-button")
 
     async def on_mount(self) -> None:
         """Called when app is mounted."""
@@ -158,7 +160,7 @@ class AgentPumpApp(App):
 
         self.workflow_panel = self.query_one("#workflow-panel", WorkflowPanel)
         self._log("Agent Pump started")
-        self._log("Press 'a' to add a project, 'q' to quit")
+        self._log("Press 'a' to add a project, 'escape' to quit")
         self._log(f"Log sort order: {self.app_state.log_sort_order.upper()}")
 
         # Start event loop
@@ -227,7 +229,7 @@ class AgentPumpApp(App):
     def _update_project_bindings(self) -> None:
         """Update key bindings based on project selection state."""
         project_bindings = [
-            ("r", "remove_project", "Remove"),
+            ("delete", "remove_project", "Remove"),
             ("s", "start_selected", "Start"),
             ("x", "stop_selected", "Stop"),
             ("S", "start_all", "All▶"),
@@ -303,18 +305,34 @@ class AgentPumpApp(App):
 
     async def _check_config_migration(self, project: Project) -> None:
         """Check for legacy config and offer migration."""
+        self._log(f"Checking migration for {project.path}")
         migrator = ConfigMigrator(project.path)
-        if migrator.needs_migration():
+        needs_migration = migrator.needs_migration()
+        
+        if needs_migration:
             result = await self.push_screen(
                 ConfirmModal(
-                    "Legacy Configuration Detected",
+                    question="Legacy Configuration Detected\n\n"
                     "Convert .agent-pump.yml to new directory structure?\n"
                     "This enables per-phase prompt customization via markdown files.",
-                )
+                    confirm_label="Convert",
+                    cancel_label="Cancel",
+                ),
+                wait_for_dismiss=True,
             )
+            self._log(f"Migration modal result: {result}")
+            
             if result:
-                migrator.migrate(remove_legacy=False)  # Keep backup
-                self.notify("Config migrated to .agent-pump/ directory")
+                try:
+                    self._log("Starting migration...")
+                    migrator.migrate(remove_legacy=False)  # Keep backup
+                    self._log("Migration completed.")
+                    self.notify("Config migrated to .agent-pump/ directory")
+                except Exception as e:
+                    self._log(f"Migration failed: {e}")
+                    import traceback
+                    self._log(f"Traceback: {traceback.format_exc()}")
+                    self.notify(f"Migration failed: {e}", severity="error")
 
     async def _on_ideas_processed(self, path: Path | None) -> None:
         """Callback when ideas have been processed by the workflow."""
@@ -751,6 +769,16 @@ class AgentPumpApp(App):
     def action_stop_all_button(self) -> None:
         """Handle stop all button."""
         self.action_stop_all()
+
+    def on_click(self, event: events.Click) -> None:
+        """Handle click events."""
+        # Check if we clicked the quit indicator
+        try:
+            widget, _ = self.get_widget_at(event.screen_x, event.screen_y)
+            if widget and widget.id == "quit-button":
+                self.run_worker(self.action_quit())
+        except Exception:
+            pass
 
     @on(ProjectCard.Selected)
     def handle_project_card_selected(self, event: ProjectCard.Selected) -> None:

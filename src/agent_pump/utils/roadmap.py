@@ -82,7 +82,11 @@ class RoadmapParser:
                 description = match.group(4).strip()
                 criteria_raw = match.group(5)
                 if criteria_raw:
-                    criteria = [c[2:].strip() for c in criteria_raw.strip().split("\n") if c.startswith("- ")]
+                    criteria = [
+                        c[2:].strip()
+                        for c in criteria_raw.strip().split("\n")
+                        if c.startswith("- ")
+                    ]
                 else:
                     criteria = []
 

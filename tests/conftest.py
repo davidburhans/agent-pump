@@ -1,6 +1,14 @@
 """Tests configuration."""
 
+import os
 import pytest
+
+
+@pytest.fixture(autouse=True, scope="session")
+def disable_notifications():
+    """Disable desktop notifications during tests by default."""
+    if "AGENT_PUMP_NO_NOTIFY" not in os.environ:
+        os.environ["AGENT_PUMP_NO_NOTIFY"] = "1"
 
 
 @pytest.fixture

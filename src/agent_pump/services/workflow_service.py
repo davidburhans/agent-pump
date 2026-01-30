@@ -89,18 +89,15 @@ class WorkflowService(BaseService):
             path: Path to the project.
 
         Returns:
-            True if stopped, False if not running or not found.
+            True if stopped, False if not found.
         """
         path = path.resolve()
         workflow = self.project_service.workflows.get(path)
         if not workflow:
             return False
 
-        if not workflow.is_running():
-            return False
-
-        workflow.cancel()
-        logger.info(f"Stopped workflow for {path}")
+        workflow.pause_workflow()
+        logger.info(f"Stopped/Paused workflow for {path}")
         return True
 
     async def reset_project(self, path: Path) -> bool:

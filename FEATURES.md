@@ -40,7 +40,7 @@ A powerful Terminal User Interface for managing multiple projects.
 
 ### Project Management
 - **Add Project (`a`)**: Open a file dialog to add a new local project to the dashboard.
-- **Remove Project (`r`)**: Remove the selected project from the dashboard (does not delete files).
+- **Remove Project (`delete`)**: Remove the selected project from the dashboard (does not delete files).
 - **Start/Stop (`s` / `x`)**: Start or stop the workflow for the selected project.
 - **Start All / Stop All (`S` / `X`)**: Control all projects simultaneously.
 

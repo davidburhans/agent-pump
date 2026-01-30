@@ -99,6 +99,38 @@ class TestProjectWorkflow:
         workflow.cancel()
         assert workflow.state == "implementing"
 
+    def test_pause_workflow(self, workflow):
+        """Test that pause_workflow sets status to PAUSED but preserves state."""
+        from agent_pump.models.project import ProjectStatus
+
+        workflow.start()
+        workflow.planning_complete()
+        assert workflow.state == "implementing"
+        assert workflow.project.status == ProjectStatus.IMPLEMENTING
+
+        workflow.pause_workflow()
+        assert workflow.state == "implementing"
+        assert workflow.project.status == ProjectStatus.PAUSED
+
+    def test_state_persistence_pauses_on_load(self, project):
+        """Test that active state is saved and loaded as PAUSED."""
+        from agent_pump.models.project import ProjectStatus
+
+        # Create first workflow and advance state
+        workflow = ProjectWorkflow(project=project)
+        workflow.start()
+        workflow.planning_complete()
+        assert workflow.state == "implementing"
+        assert workflow.project.status == ProjectStatus.IMPLEMENTING
+
+        # Create second workflow instance for same project
+        workflow2 = ProjectWorkflow(project=project)
+        # Should auto-load the state
+        assert workflow2.state == "implementing"
+        # BUT project status should be PAUSED for UI/timer purposes
+        assert workflow2.project.status == ProjectStatus.PAUSED
+        assert workflow2.workflow_state.current_state == "implementing"
+
     def test_state_persistence(self, project):
         """Test that state is saved and loaded correctly."""
         # Create first workflow and advance state

@@ -226,11 +226,11 @@ The system includes security validation to prevent dangerous command patterns li
 | Key | Action |
 | :--- | :--- |
 | `a` | **Add** a new project |
-| `r` | **Remove** the selected project |
-| `p` | **Pause/Resume** all workflows |
-| `s` | **Start** workflows (or Resume specific) |
+| `delete` | **Remove** the selected project |
+| `s` | **Start** selected project |
+| `x` | **Stop** selected project |
 | `k` | **Skip** current feature (mark as failed) |
-| `q` | **Quit** the application |
+| `escape` | **Quit** the application |
 
 
 ## How It Works
@@ -298,6 +298,9 @@ uv run pytest tests/ -v
 
 # Run unit tests only
 uv run pytest tests/unit/ -v
+
+# Run tests without desktop notifications
+AGENT_PUMP_NO_NOTIFY=1 uv run pytest tests/ -v
 ```
 
 ### Pre-commit Checklist

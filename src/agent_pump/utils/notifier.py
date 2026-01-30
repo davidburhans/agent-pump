@@ -1,6 +1,7 @@
 """Notification utility using plyer."""
 
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,11 @@ class Notifier:
             app_name: Name of the application sending the notification
             timeout: Duration in seconds to show the notification
         """
+        # Check for environment variable to disable notifications (e.g., during tests)
+        if os.environ.get("AGENT_PUMP_NO_NOTIFY", "").lower() in ("true", "1", "yes"):
+            logger.debug("Notifications disabled via AGENT_PUMP_NO_NOTIFY")
+            return
+
         try:
             from plyer import notification
 

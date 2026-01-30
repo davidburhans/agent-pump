@@ -165,7 +165,17 @@ class ProjectWorkflow:
 
         # Sync project status from loaded state
         try:
-            self.project.status = ProjectStatus(self.workflow_state.current_state)
+            loaded_status = ProjectStatus(self.workflow_state.current_state)
+            # If loaded state is active, default to PAUSED so timer doesn't run
+            if loaded_status not in (
+                ProjectStatus.IDLE,
+                ProjectStatus.COMPLETED,
+                ProjectStatus.ERROR,
+                ProjectStatus.PAUSED,
+            ):
+                self.project.status = ProjectStatus.PAUSED
+            else:
+                self.project.status = loaded_status
         except ValueError:
             logger.warning(f"Invalid state in workflow state: {self.workflow_state.current_state}")
             self.project.status = ProjectStatus.IDLE
@@ -576,6 +586,27 @@ class ProjectWorkflow:
         self._cancelled = False
 
         try:
+            # Sync visible status to current machine state if it was paused
+            if self.project.status == ProjectStatus.PAUSED and self.state != "idle":
+                try:
+                    self.project.status = ProjectStatus(self.state)
+                    # Notify UI of the status change (resuming)
+                    if self.on_state_change:
+                        self.on_state_change("paused", self.state)
+
+                    if self.event_bus:
+                        event = WorkflowStateChangedEvent(
+                            project_path=self.project.path,
+                            old_state="paused",
+                            new_state=self.state,  # type: ignore
+                        )
+                        try:
+                            asyncio.create_task(self.event_bus.publish(event))
+                        except RuntimeError:
+                            pass
+                except ValueError:
+                    pass
+
             # Start if idle
             if self.state == "idle":  # type: ignore
                 self.start()  # type: ignore
@@ -856,9 +887,73 @@ class ProjectWorkflow:
         finally:
             self._running = False
 
+            # If stopped and still in an active state, force to PAUSED to stop the timer.
+            # This handles cancellation, unexpected exits, and errors that didn't reach
+            # the machine's error state.
+            if self.project.status not in (
+                ProjectStatus.IDLE,
+                ProjectStatus.COMPLETED,
+                ProjectStatus.ERROR,
+                ProjectStatus.PAUSED,
+            ):
+                old_status = self.project.status.value
+                self.project.status = ProjectStatus.PAUSED
+
+                # Notify UI
+                if self.on_state_change:
+                    self.on_state_change(old_status, "paused")
+
+                if self.event_bus:
+                    event = WorkflowStateChangedEvent(
+                        project_path=self.project.path,
+                        old_state=old_status,
+                        new_state="paused",
+                    )
+                    try:
+                        asyncio.create_task(self.event_bus.publish(event))
+                    except RuntimeError:
+                        pass
+
     def cancel(self) -> None:
         """Cancel the running workflow."""
         self._cancelled = True
+
+    def pause_workflow(self) -> None:
+        """
+        Force the workflow to PAUSED status.
+
+        This stops the timer without changing the underlying machine state,
+        allowing the workflow to be resumed later from the same step.
+        """
+        if self._running:
+            self.cancel()
+            return
+
+        # If not running, ensure status is PAUSED if it was active
+        if self.project.status not in (
+            ProjectStatus.IDLE,
+            ProjectStatus.PAUSED,
+            ProjectStatus.COMPLETED,
+            ProjectStatus.ERROR,
+        ):
+            old_status = self.project.status.value
+            self.project.status = ProjectStatus.PAUSED
+
+            if self.on_state_change:
+                self.on_state_change(old_status, "paused")
+
+            if self.event_bus:
+                event = WorkflowStateChangedEvent(
+                    project_path=self.project.path,
+                    old_state=old_status,
+                    new_state="paused",
+                )
+                try:
+                    asyncio.create_task(self.event_bus.publish(event))
+                except RuntimeError:
+                    pass
+
+            logger.info(f"Workflow {self.project.name} forced to PAUSED")
 
     def reset_workflow(self) -> None:
         """
