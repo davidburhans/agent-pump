@@ -1,6 +1,7 @@
 """Tests configuration."""
 
 import os
+
 import pytest
 
 

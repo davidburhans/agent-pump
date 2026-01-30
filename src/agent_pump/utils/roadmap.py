@@ -166,12 +166,14 @@ class RoadmapParser:
                     new_content += f"\n### {f.status} {f.title}\n"
                     if f.priority:
                         new_content += f"**Priority: {f.priority}**\n\n"
-                    new_content += f"{f.description}\n\n"
-                    new_content += "**Acceptance Criteria:**\n"
+                    if f.description:
+                        new_content += f"{f.description}\n\n"
                     if f.acceptance_criteria:
+                        new_content += "**Acceptance Criteria:**\n"
                         for c in f.acceptance_criteria:
                             new_content += f"- {c}\n"
-                    new_content += "\n---\n"
+                        new_content += "\n"
+                    new_content += "---\n"
             elif "Current Sprint" in header:
                 # Put back features that are not in the reordered list
                 # (e.g. completed ones if they were here)

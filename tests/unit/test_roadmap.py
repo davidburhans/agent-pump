@@ -109,3 +109,29 @@ def test_save_reordered_roadmap(sample_roadmap):
     assert [f.title for f in new_uncompleted] == ["Task 3", "Task 1", "Task 2"]
     # Ensure Task 0 is still there
     assert any(f.title == "Task 0" for f in new_features)
+
+
+def test_add_new_feature_to_roadmap(sample_roadmap):
+    from agent_pump.utils.roadmap import RoadmapFeature
+
+    parser = RoadmapParser(sample_roadmap)
+    parser.parse()
+    uncompleted = parser.get_uncompleted_features()
+
+    new_feature = RoadmapFeature(
+        title="New Feature",
+        status="🔴",
+        priority="High",
+    )
+    uncompleted.insert(0, new_feature)
+
+    parser.save_with_order(uncompleted)
+
+    # Reload and check
+    new_parser = RoadmapParser(sample_roadmap)
+    new_features = new_parser.parse()
+    new_uncompleted = new_parser.get_uncompleted_features()
+
+    assert new_uncompleted[0].title == "New Feature"
+    assert new_uncompleted[0].priority == "High"
+    assert new_uncompleted[0].status == "🔴"

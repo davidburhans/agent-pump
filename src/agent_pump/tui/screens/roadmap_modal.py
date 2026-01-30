@@ -8,6 +8,7 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, Label, ListItem, ListView, Static
 
+from agent_pump.tui.screens.add_roadmap_item_modal import AddRoadmapItemModal
 from agent_pump.utils.roadmap import RoadmapFeature, RoadmapParser
 
 
@@ -34,6 +35,7 @@ class RoadmapModal(ModalScreen[list[RoadmapFeature] | None]):
         Binding("down", "move_down", "Move Down", show=False),
         Binding("K", "move_up", "Move Up"),
         Binding("J", "move_down", "Move Down"),
+        Binding("a", "add_item", "Add Item"),
         Binding("enter", "save", "Save"),
     ]
 
@@ -90,10 +92,27 @@ class RoadmapModal(ModalScreen[list[RoadmapFeature] | None]):
             yield ListView(*items, id="roadmap-list")
 
             yield Horizontal(
+                Button("Add", id="btn-add", variant="primary"),
                 Button("Cancel", id="btn-cancel"),
                 Button("Save", variant="success", id="btn-save"),
                 classes="button-row",
             )
+
+    def action_add_item(self) -> None:
+        """Open modal to add a new roadmap item."""
+
+        def _on_item_added(result: tuple[str, str | None] | None) -> None:
+            if result:
+                title, priority = result
+                new_feature = RoadmapFeature(
+                    title=title,
+                    status="🔴",
+                    priority=priority,
+                )
+                self.uncompleted_features.insert(0, new_feature)
+                self._refresh_list(0)
+
+        self.app.push_screen(AddRoadmapItemModal(), _on_item_added)
 
     def action_move_up(self) -> None:
         """Move selected item up."""
@@ -139,5 +158,7 @@ class RoadmapModal(ModalScreen[list[RoadmapFeature] | None]):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-save":
             self.action_save()
+        elif event.button.id == "btn-add":
+            self.action_add_item()
         elif event.button.id == "btn-cancel":
             self.action_cancel()

@@ -168,12 +168,12 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
                     with TabPane(f"{engine_name.capitalize()}", id=f"tab-{engine_name}"):
                         # Wrapper to hold scrollable area + fixed footer
                         with Vertical(classes="tab-content-wrapper"):
-                            
+
                             # Scrollable Area (1fr)
                             with ScrollableContainer(classes="settings-scroll-container"):
                                 # 1. Engine Level Settings
                                 yield Label(f"🔧 {engine_name.capitalize()} Global Settings", classes="engine-title")
-                                
+
                                 e_prefix = self.settings.engine_prefixes.get(engine_name, "")
                                 e_suffix = self.settings.engine_suffixes.get(engine_name, "")
 
@@ -187,10 +187,10 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
 
                                 # 2. Model Level Settings for this engine
                                 yield Label(f"📦 {engine_name.capitalize()} Models", classes="engine-title", id=f"models-title-{engine_name}")
-                                
+
                                 # Filter models relevant to this engine
                                 relevant_models = self._get_models_for_engine(engine_name)
-                                
+
                                 with Vertical(id=f"model-list-{engine_name}", classes="model-list"):
                                     for model_name in sorted(relevant_models):
                                         yield from self._compose_model_section(model_name)
@@ -220,14 +220,14 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
             if model_name in KNOWN_MODELS.get(engine_name, []):
                 models.append(model_name)
                 continue
-            
+
             # Check implicit naming convention
             if model_name.lower().startswith(engine_name.lower()):
                 models.append(model_name)
                 continue
-                
-            # Fallback for "other" or unclassified? 
-            # For now, simplistic matching. 
+
+            # Fallback for "other" or unclassified?
+            # For now, simplistic matching.
             # If opencode, everything might be opencode if not matched elsewhere?
             # Let's keep it strict for now to avoid duplication.
         return models
@@ -237,17 +237,17 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
         m_prefix = self.settings.model_prefixes.get(model_name, "")
         m_suffix = self.settings.model_suffixes.get(model_name, "")
         safe_id = self._safe_id(model_name)
-        
+
         with Vertical(classes="engine-section", id=f"model-section-{safe_id}"):
             yield Horizontal(
                 Label(f"🔹 {model_name}", classes="engine-title"),
                 Button("Remove", variant="error", id=f"remove-model-{safe_id}"),
             )
-            
+
             with Vertical(classes="textarea-row"):
                 yield Label("Prefix:", classes="textarea-label")
                 yield TextArea(m_prefix, id=f"model-{safe_id}-prefix", classes="small-textarea")
-                
+
             with Vertical(classes="textarea-row"):
                 yield Label("Suffix:", classes="textarea-label")
                 yield TextArea(m_suffix, id=f"model-{safe_id}-suffix", classes="small-textarea")
@@ -261,7 +261,7 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
         button_id = event.button.id
         if not button_id:
             return
-            
+
         if button_id == "btn-cancel":
             self.action_cancel()
         elif button_id == "btn-save":
@@ -307,7 +307,7 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
             if self._safe_id(model_name) == model_id:
                 target_name = model_name
                 break
-        
+
         if target_name:
             self.configured_models.discard(target_name)
             try:
@@ -343,28 +343,28 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
         # Clear fields currently in UI
         for note in self.query(TextArea):
             note.text = ""
-            
+
         self.notify("Cleared all visible settings. Save to apply.", severity="information")
 
     def _save_config(self) -> None:
         """Save the configuration and dismiss."""
         # Re-construct settings from UI state
-        
+
         # 1. Engine Settings
         self.settings.engine_prefixes = {}
         self.settings.engine_suffixes = {}
-        
+
         for engine_name in BACKEND_REGISTRY:
             try:
                 p_widget = self.query_one(f"#engine-{engine_name}-prefix", TextArea)
                 s_widget = self.query_one(f"#engine-{engine_name}-suffix", TextArea)
-                
+
                 if p_widget.text.strip():
                     self.settings.engine_prefixes[engine_name] = p_widget.text
                 if s_widget.text.strip():
                     self.settings.engine_suffixes[engine_name] = s_widget.text
             except Exception:
-                # Might not be rendered if tab not visited? 
+                # Might not be rendered if tab not visited?
                 # Textual usually keeps tab content in DOM but hidden.
                 # If lazy loading is involved, this might be risky, but TabbedContent usually keeps it.
                 pass
@@ -372,14 +372,14 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
         # 2. Model Settings
         self.settings.model_prefixes = {}
         self.settings.model_suffixes = {}
-        
+
         for model_name in self.configured_models:
             safe_id = self._safe_id(model_name)
             try:
                 # We search globally because we don't know which tab exactly without logic
                 p_widget = self.query_one(f"#model-{safe_id}-prefix", TextArea)
                 s_widget = self.query_one(f"#model-{safe_id}-suffix", TextArea)
-                
+
                 if p_widget.text.strip():
                     self.settings.model_prefixes[model_name] = p_widget.text
                 if s_widget.text.strip():
