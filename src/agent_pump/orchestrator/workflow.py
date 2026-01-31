@@ -21,6 +21,11 @@ from agent_pump.events.models import (
 )
 from agent_pump.models.project import Project, ProjectStatus
 from agent_pump.models.state import WorkflowState
+from agent_pump.models.workflow_snapshot import (
+    EdgeSnapshot,
+    NodeSnapshot,
+    WorkflowSnapshot,
+)
 from agent_pump.models.workspace import PhaseBackends, ProjectConfig, PromptCustomization
 
 from agent_pump.orchestrator.verification_executor import VerificationExecutor
@@ -854,6 +859,121 @@ class ProjectWorkflow:
                 lines.append("       │")
                 lines.append("       ▼")
         return "\n".join(lines)
+
+    def get_snapshot(self) -> WorkflowSnapshot:
+        """
+        Generate a snapshot of the current workflow state for visualization.
+
+        Returns:
+            WorkflowSnapshot object
+        """
+        nodes: list[NodeSnapshot] = []
+        edges: list[EdgeSnapshot] = []
+        current_state = self.state  # type: ignore
+
+        # 1. Add Idle Node
+        idle_status = "completed" if current_state != "idle" else "active"
+        nodes.append(
+            NodeSnapshot(
+                id="idle",
+                label="Idle",
+                status=idle_status,  # type: ignore
+                icon="⏹",
+                is_active=(current_state == "idle"),
+            )
+        )
+
+        # 2. Add Phase Nodes
+        # Determine active index
+        phase_names = [p.name for p in self.workflow_def.phases]
+        ordered_states = ["idle"] + phase_names + ["completed"]
+        
+        current_idx = -1
+        if current_state in ordered_states:
+            current_idx = ordered_states.index(current_state)
+        
+        # Build phases
+        for i, phase in enumerate(self.workflow_def.phases):
+            # Calculate linear index (idle is 0, so phases start at 1)
+            phase_idx = i + 1
+            
+            status = "pending"
+            if current_idx > phase_idx:
+                status = "completed"
+            elif current_idx == phase_idx:
+                status = "active"
+            elif current_state == "error" and current_idx == -1:
+                # If in error state, we might want to show the last active phase as error?
+                # Or just keep pending. For now, pending.
+                pass
+
+            nodes.append(
+                NodeSnapshot(
+                    id=phase.name,
+                    label=phase.name.title(),
+                    status=status, # type: ignore
+                    icon=phase.icon or "●",
+                    is_active=(status == "active"),
+                )
+            )
+
+        # 3. Add Completed Node
+        completed_idx = len(ordered_states) - 1
+        comp_status = "active" if current_state == "completed" else "pending"
+        if current_state == "completed":
+            comp_status = "completed" # Actually it's both active and completed in a way? 
+            # Let's say active for visualization highlight
+            comp_status = "active"
+        
+        nodes.append(
+            NodeSnapshot(
+                id="completed",
+                label="Done",
+                status=comp_status, # type: ignore
+                icon="🏁",
+                is_active=(current_state == "completed"),
+            )
+        )
+
+        # 4. Build Edges (Linear flow)
+        # From Idle to first phase
+        edges.append(EdgeSnapshot(source="idle", target=phase_names[0]))
+        
+        # Between phases
+        for i in range(len(phase_names) - 1):
+            edges.append(EdgeSnapshot(source=phase_names[i], target=phase_names[i+1]))
+            
+        # Last phase to completed
+        edges.append(EdgeSnapshot(source=phase_names[-1], target="completed"))
+
+        # Determine edge activity (simple logic: active if source is completed or active)
+        # Actually, edge is active if flow has passed it.
+        # Edge 0 (Idle -> Phase 1) is active if state index >= 1
+        
+        # Idle -> P1
+        edges[0] = edges[0].model_copy(update={"active": current_idx >= 1})
+        
+        # Phases -> Phases
+        for i in range(len(phase_names) - 1):
+            # edge index is i + 1
+            # Edge P(i) -> P(i+1) is active if state index > i+1 (meaning P(i) is done)
+            # P(i) is at ordered_states[i+1]
+            edges[i+1] = edges[i+1].model_copy(update={"active": current_idx > (i + 1)})
+            
+        # Last Phase -> Completed
+        # edge index is len(phase_names)
+        # Active if last phase is done (current_idx > len(phase_names))
+        edges[len(phase_names)] = edges[len(phase_names)].model_copy(
+            update={"active": current_idx > len(phase_names)}
+        )
+
+        return WorkflowSnapshot(
+            project_path=str(self.project.path),
+            project_name=self.project.name,
+            current_state=current_state,
+            nodes=nodes,
+            edges=edges,
+        )
 
     async def _prepare_phase(self, phase_name: str, context: dict[str, str]) -> None:
         """Run preparation logic before a phase starts."""

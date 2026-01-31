@@ -7,8 +7,8 @@ from textual.message import Message
 from textual.reactive import reactive
 from textual.widgets import Static
 
+from agent_pump.models.workflow_snapshot import WorkflowSnapshot, NodeSnapshot
 from agent_pump.orchestrator.workflow import ProjectWorkflow
-from agent_pump.orchestrator.workflow_definition import WorkflowPhase
 
 logger = logging.getLogger(__name__)
 
@@ -64,35 +64,38 @@ class WorkflowNode(Static):
         background: $surface-lighten-2;
     }
     """
+    
+    # Accessible name attribute for screen readers
+    accessible_name: str | None
 
-    def __init__(self, phase: WorkflowPhase | str, **kwargs):
-        """Initialize the node."""
+    def __init__(self, snapshot: NodeSnapshot, **kwargs):
+        """Initialize the node from a snapshot."""
         super().__init__(**kwargs)
-        if isinstance(phase, str):
-            self.node_name = phase
-            self.icon = "●"
-            self.label = phase.title()
-        else:
-            self.node_name = phase.name
-            self.icon = phase.icon or "●"
-            self.label = phase.name.title()
-
-        # Idle/Completed/Error nodes might need custom labels/icons
-        if self.node_name == "idle":
-            self.icon = "⏹"
-            self.label = "Idle"
-        elif self.node_name == "completed":
-            self.icon = "🏁"
-            self.label = "Done"
-        elif self.node_name == "error":
-            self.icon = "❌"
-            self.label = "Error"
+        self.node_id = snapshot.id
+        self.icon = snapshot.icon
+        self.label = snapshot.label
+        self.status = snapshot.status
+        self.is_active = snapshot.is_active
 
         self.update(f"{self.icon} {self.label}")
+        
+        # Apply initial status styles
+        if self.status == "active":
+            self.add_class("active")
+        elif self.status == "completed":
+            self.add_class("completed")
+        elif self.status == "error":
+            self.add_class("error")
+            
+        # Enable focus for keyboard navigation
+        self.can_focus = True
+        
+        # Initial accessible name
+        self.accessible_name = f"{self.label} Phase: {self.status.title()}"
 
     def on_click(self) -> None:
         """Handle click event."""
-        self.post_message(WorkflowNodeClicked(self.node_name))
+        self.post_message(WorkflowNodeClicked(self.node_id))
 
 
 class WorkflowConnector(Static):
@@ -141,7 +144,10 @@ class WorkflowPanel(Middle):
     }
     """
 
+    # We keep 'workflow' reactive for backward compat with app.py setting it,
+    # but internally we drive from snapshot.
     workflow: reactive[ProjectWorkflow | None] = reactive(None)
+    snapshot: reactive[WorkflowSnapshot | None] = reactive(None)
 
     def __init__(self, **kwargs):
         """Initialize the workflow panel."""
@@ -153,18 +159,34 @@ class WorkflowPanel(Middle):
     async def watch_workflow(
         self, old_workflow: ProjectWorkflow | None, new_workflow: ProjectWorkflow | None
     ) -> None:
-        """Rebuild diagram when workflow changes."""
+        """Update snapshot when workflow object changes."""
+        if new_workflow:
+            self.snapshot = new_workflow.get_snapshot()
+        else:
+            self.snapshot = None
+
+    async def watch_snapshot(
+        self, old_snapshot: WorkflowSnapshot | None, new_snapshot: WorkflowSnapshot | None
+    ) -> None:
+        """Rebuild diagram when snapshot changes."""
         await self.rebuild_diagram()
 
     def set_workflow(self, workflow: ProjectWorkflow | None) -> None:
         """Set the workflow to display (helper for app.py)."""
         if self.workflow != workflow:
             self.workflow = workflow
+        elif workflow:
+            # If same workflow object but state changed, force snapshot update
+            self.snapshot = workflow.get_snapshot()
         else:
-            self.refresh_visuals()
+            self.snapshot = None
+
+    def set_snapshot(self, snapshot: WorkflowSnapshot | None) -> None:
+        """Directly set the snapshot to display."""
+        self.snapshot = snapshot
 
     async def rebuild_diagram(self) -> None:
-        """Rebuild the node structure."""
+        """Rebuild the node structure based on snapshot."""
         await self.remove_children()
         self.nodes.clear()
         self.connectors.clear()
@@ -173,42 +195,32 @@ class WorkflowPanel(Middle):
             self.timer.stop()
             self.timer = None
 
-        if not self.workflow:
+        if not self.snapshot:
             await self.mount(Static("No active project selected", id="workflow-nodes"))
             return
 
         # Build nodes list
         widgets = []
-
-        # Add Idle state
-        idle_node = WorkflowNode("idle", id="node-idle")
-        widgets.append(Center(idle_node))
-        self.nodes["idle"] = idle_node
-
-        c = WorkflowConnector()
-        widgets.append(c)
-        self.connectors.append(c)
-
-        # Add phases
-        phases = self.workflow.workflow_def.phases
-        for i, phase in enumerate(phases):
-            node = WorkflowNode(phase, id=f"node-{phase.name}")
+        
+        # Iterate through nodes in snapshot
+        for i, node_data in enumerate(self.snapshot.nodes):
+            node = WorkflowNode(node_data, id=f"node-{node_data.id}")
             widgets.append(Center(node))
-            self.nodes[phase.name] = node
+            self.nodes[node_data.id] = node
 
-            if i < len(phases) - 1:
+            # Check for edge to next node
+            # We assume edges are sequential for vertical layout
+            # Logic: If there is an edge starting from this node, add a connector.
+            # Find edge where source == node_data.id
+            edge = next((e for e in self.snapshot.edges if e.source == node_data.id), None)
+            
+            if edge:
                 c = WorkflowConnector()
+                if edge.active:
+                    # If edge is active, usually means source is completed
+                    c.add_class("completed")
                 widgets.append(c)
                 self.connectors.append(c)
-
-        # Connector to completed
-        c = WorkflowConnector()
-        widgets.append(c)
-        self.connectors.append(c)
-
-        completed_node = WorkflowNode("completed", id="node-completed")
-        widgets.append(Center(completed_node))
-        self.nodes["completed"] = completed_node
 
         nodes_container = Vertical(*widgets, id="workflow-nodes")
         await self.mount(nodes_container)
@@ -216,93 +228,27 @@ class WorkflowPanel(Middle):
         # Start pulse timer
         self.timer = self.set_interval(0.8, self.pulse_active_node)
 
-        self.refresh_visuals()
-
-    def refresh_visuals(self) -> None:
-        """Update node styles based on current state."""
-        if not self.workflow:
-            return
-
-        current_state = self.workflow.state
-
-        # Reset all nodes
-        for node in self.nodes.values():
-            node.remove_class("active")
-            node.remove_class("completed")
-            node.remove_class("error")
-            node.remove_class("pulse")
-
-        # Reset connectors
-        for conn in self.connectors:
-            conn.remove_class("active")
-            conn.remove_class("completed")
-
-        # Highlight logic
-        phases = [p.name for p in self.workflow.workflow_def.phases]
-
-        # Build ordered list of states for linear visualization: idle -> phases -> completed
-        ordered_states = ["idle"] + phases + ["completed"]
-
-        # Determine index of current state in this linear view
-        current_idx = -1
-        if current_state in ordered_states:
-            current_idx = ordered_states.index(current_state)
-
-        # If active state is NOT in the linear path (e.g. error, or unknown),
-        # we might just highlight specific nodes or error state.
-        # But 'error' is not in our ordered list yet.
-        # If error, we might want to highlight the phase that failed?
-        # For now, if 'error', let's assume we show the last successful state?
-        # Or just don't highlight progress beyond what's done.
-
-        # If state is 'error', we assume the workflow stopped.
-        # We can't easily visualize "where" it failed without extra info.
-        # But usually state remains in the phase where it failed, OR it transitions to 'error'.
-        # If it transitions to 'error', we lose the "phase".
-        # Assuming 'current_state' is exactly what's in the workflow object.
-
-        # Mark nodes and connectors
-        for i, state_name in enumerate(ordered_states):
-            node = self.nodes.get(state_name)
-            if not node:
-                continue
-
-            if current_idx > i:
-                node.add_class("completed")
-                # Also highlight connector AFTER this node, if it exists
-                if i < len(self.connectors):
-                    self.connectors[i].add_class("completed")
-
-            elif current_idx == i:
-                node.add_class("active")
-                # Connector leading TO this node is completed (handled by previous loop iteration)
-                # But connector LEADING FROM this node might be "active" (pulsing)?
-                # Or just standard. Let's make it standard.
-
-        # Handle Error state specifically if current_state is 'error'
-        if current_state == "error":
-             # Maybe highlight the last active node as error?
-             # Since we don't know which one, we might just not highlight any specific 'active'
-             # and rely on the log.
-             # OR if there is an explicit 'error' node, show it.
-             # We didn't add an explicit Error node to the linear graph because it's non-linear.
-             pass
-
     def pulse_active_node(self) -> None:
         """Toggle pulse class on active node."""
-        if not self.workflow:
+        if not self.snapshot:
             return
 
-        current_state = self.workflow.state
+        # Find active node
+        active_node_id = None
+        for node in self.snapshot.nodes:
+            if node.is_active:
+                active_node_id = node.id
+                break
+        
+        # Check if running - if paused/error, maybe don't pulse?
+        # Snapshot doesn't explicitly have "is_running", but we can infer from state or
+        # passed workflow. For now, if active, pulse.
+        # Maybe check if state is "paused" or "error"?
+        if self.snapshot.current_state in ["paused", "error", "completed", "idle"]:
+             # Don't pulse
+             if active_node_id and active_node_id in self.nodes:
+                 self.nodes[active_node_id].remove_class("pulse")
+             return
 
-        # Check if running - if not, ensure no pulse
-        if not self.workflow.is_running():
-            if current_state in self.nodes:
-                self.nodes[current_state].remove_class("pulse")
-            return
-
-        # Only pulse if it's a phase (not idle/completed/error)
-        is_phase = any(p.name == current_state for p in self.workflow.workflow_def.phases)
-
-        if is_phase and current_state in self.nodes:
-            self.nodes[current_state].toggle_class("pulse")
+        if active_node_id and active_node_id in self.nodes:
+            self.nodes[active_node_id].toggle_class("pulse")
