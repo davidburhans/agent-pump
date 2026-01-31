@@ -60,6 +60,10 @@ A powerful Terminal User Interface for managing multiple projects.
 - **Semantic Colors**: The TUI uses a consistent semantic color scheme (Primary, Secondary, Success, Error, Warning) defined in TCSS variables.
 - **Themes**: Built-in support for Dark (default) and Light themes.
 - **Visual Feedback**: Consistent use of color to indicate status (e.g., Green for success/completed, Red for error).
+- **Form Validation**: Real-time validation with visual feedback (shake animation, error labels) powered by Pydantic models for data integrity.
+- **Accessibility**: Enhanced screen reader support with `accessible_name` on custom widgets, improved color contrast, and keyboard navigation support (tooltips, tab flow).
+- **Focus Indicators**: Distinct "glowing" border styles for focused elements (Buttons, Inputs, Cards) to improve keyboard navigation visibility.
+- **Rich Content**: Enhanced log display using Tables for data, Panels for phase transitions/errors, and Syntax highlighting, replacing basic text output.
 
 ---
 
@@ -233,7 +237,12 @@ Customize prompts per-phase using markdown files:
     - **Event Types**: Strongly typed Pydantic models for `WorkflowStateChanged`, `LogEntry`, `ProjectAdded`, etc.
     - **Async Support**: Native asyncio support with iterator-based subscription.
 
-
+### Log Streaming Service
+- **Description**: A unified service for managing log storage and streaming across the platform.
+- **Capabilities**:
+    - **Buffered Storage**: In-memory circular buffer for recent log history.
+    - **Streaming API**: Async iterator support for real-time log streaming to web clients.
+    - **Multi-Tenant**: Manages separate log buffers for each project.
 
 ## 🔌 API & Architecture
 

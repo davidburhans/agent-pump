@@ -171,6 +171,25 @@ logger.info(f"Gemini CLI completed: {line_count} lines in {elapsed:.1f}s, exit c
 - **Avoid MountError**: Do not call `.mount()` on a widget that hasn't been mounted itself. Instantiating a container with children (e.g., `Horizontal(child1, child2)`) is safer and cleaner than mounting children imperatively after creation.
 - **Dynamic Rebuilds**: When rebuilding dynamic UIs, collect all new children into a list and pass them to the container constructor: `container = Horizontal(*new_children)`. This avoids mounting errors during complex updates.
 
+### Form Validation
+- **Input Models**: Use Pydantic models for verifying form input correctness (e.g., path existence, string length) to separate validation logic from UI code.
+- **Visual Feedback**: Provide immediate feedback using classes (e.g., `.error`), animations (shake), and context-sensitive labels below fields.
+- **Clear on Change**: Always clear error states immediately when the user modifies the input to signal "editing in progress". Do not re-validate on every keystroke if validation is expensive or noisy; wait for submit or debounce.
+
+### Accessibility
+- **Accessible Names**: All custom widgets must define an `accessible_name` attribute that describes their purpose and current state for screen readers.
+- **Tooltips**: Use tooltips on icon-only buttons to provide both a description and keyboard shortcut hint (e.g., "Add Project (a)").
+- **Contrast**: Ensure all text colors meet WCAG 4.5:1 contrast ratio against their background. Test with `$text-muted` on dark backgrounds.
+
+### Focus Management
+- **Visual Indicators**: Always define explicit `:focus` styles for interactive elements (buttons, inputs, cards). Use distinct border colors (e.g., `$accent`, `$text-inverse`) or background shifts to make the focused element unmistakable.
+- **Tab Order**: Ensure logical tab order (top-left to bottom-right) in modals and forms. Verify that no "focus traps" exist where keyboard users cannot exit a widget.
+
+### Rich Renderables
+- **Use Rich Objects**: Prefer Rich `Table`, `Panel`, and `Syntax` objects over raw text or markdown for structured data and logs.
+- **RichLog vs TextArea**: Use `RichLog` for append-only logs that require rich formatting (colors, tables). Use `TextArea` only for editable content or when selection/copying is the primary interaction (though RichLog supports selection too).
+- **Filtering**: When using `RichLog`, you cannot "hide" lines. You must maintain a source list of renderables and clear/rewrite the log to implement filtering.
+
 ---
 
 ## Cross-Platform Considerations
@@ -296,6 +315,11 @@ class StatusPanel(Widget):
         self.update(f"Status: {new_status}")
 ```
 
+### Worker Thread Safety
+- **Async over Threads**: Prefer `async def` methods with `run_worker()` over threaded workers (`@work(thread=True)`) whenever possible. Async workers run on the main thread and can safely modify the UI.
+- **Event-Based Updates**: If a worker must run in a separate thread (e.g. blocking I/O), strictly avoid modifying UI widgets directly. Instead, publish events to an `EventBus` or use `self.post_message()` to send data back to the main thread.
+- **Message Passing**: Ensure all worker-to-UI communication uses typed `Message` or `Event` classes to maintain type safety and avoid race conditions.
+
 ---
 
 ## Python 3.12+ Control Flow
@@ -410,6 +434,19 @@ Before committing:
 - When features are completed, ensure the roadmap reflects the current state to avoid confusion
 - The roadmap should be kept clean and up-to-date to guide future development priorities
 
+### Git Strategy & Maintenance
+- **Logical Commits**: When committing large batches of changes, group them into logical commits based on feature boundaries (e.g., "Validation & Animations", "Accessibility", "Log Service") rather than one giant commit. This makes the project history easier to follow and revert if needed.
+- **Context Preservation**: Keep separate "engineering plans" and "task names" for the current session, but remove or archive them once the task is fully committed to keep the root directory clean.
+
+### Micro-interactions & Animations
+- **Visual Feedback**: Small animations like shaking an input field on error or pulsing an active node significantly improve the user experience.
+- **Implementation**: Simple timer-based animations (`set_timer` with incremental offsets or `set_interval` for pulsing) are often more than enough for TUI polish without needing heavy animation engines.
+
+### UI Snapshot Pattern
+- **Decoupling**: Using a dedicated `Snapshot` model (e.g., `WorkflowSnapshot`) for UI visualization decouples the UI widgets from the complex internal state machines.
+- **Consistency**: A snapshot ensures that different UI implementations (TUI, Web, Mobile) all render the same state consistently using the same data contract.
+- **Testability**: Snapshots are easy to unit test and mock, allowing for testing UI rendering without running the full background logic.
+
 ### Dynamic State Machines with pytransitions
 - When using `pytransitions.Machine`, the `state` attribute is dynamically added to the model. Declare `state: str` as a class attribute for type checker compatibility.
 - Dynamic trigger methods (e.g., `planning_complete()`) are generated at runtime. Use `# type: ignore` comments and ensure trigger names match transition definitions exactly.
@@ -430,3 +467,12 @@ Before committing:
 ### TUI Interactivity & Events
 - **Decoupled Business Logic**: When adding interactivity to complex visualizations (like workflow diagrams), use custom `Message` classes and the `@on` decorator in the parent `App` or `Screen` to handle events. This decouples the visual widget from the underlying business logic.
 - **Deep Linking**: Support passing initial state (like `initial_phase`) to modals to allow "deep linking" from other parts of the UI, improving user workflow efficiency.
+
+### Textual Widget Testing
+- **Label Content**: Textual's `Label` widget does not strictly expose a public `renderable` or `text` attribute in all versions. For testing, checking for side effects (like visibility classes) or using specific query selectors is often more robust than inspecting internal renderables.
+- **Mocking App Context**: When unit testing widgets that rely on an active `App` context (e.g., scrolling methods like `scroll_home()`), mock these methods (`widget.scroll_home = MagicMock()`) to test logic in isolation without spinning up a full `App` instance.
+
+### RichLog Migration
+- **API Differences**: Moving from `TextArea` to `RichLog` requires API updates. `TextArea` uses `text` property and `insert()`, while `RichLog` uses `write()`.
+- **Scrolling**: Both widgets use `scroll_home()` / `scroll_end()`, but these methods require an active `App` context (animator), which can break unit tests if not mocked.
+- **Renderables**: `RichLog` can accept any Rich renderable (Panel, Table) directly, whereas `TextArea` only accepts strings. This makes `RichLog` superior for logs but harder to filter (requires rebuild) compared to just hiding lines (if that were supported).
