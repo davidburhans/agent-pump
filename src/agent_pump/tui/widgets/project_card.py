@@ -8,17 +8,6 @@ from textual.widgets import Static
 
 from agent_pump.models.project import Project, ProjectStatus
 
-STATUS_COLORS = {
-    ProjectStatus.IDLE: "white",
-    ProjectStatus.PLANNING: "yellow",
-    ProjectStatus.IMPLEMENTING: "cyan",
-    ProjectStatus.BRAINSTORMING: "magenta",
-    ProjectStatus.COMMITTING: "green",
-    ProjectStatus.PAUSED: "dim",
-    ProjectStatus.ERROR: "red",
-    ProjectStatus.COMPLETED: "green bold",
-}
-
 STATUS_ICONS = {
     ProjectStatus.IDLE: "⏸",
     ProjectStatus.PLANNING: "📋",
@@ -113,7 +102,11 @@ class ProjectCard(Static):
     def compose(self) -> ComposeResult:
         """Create the card content."""
         yield Static(self.project.name, classes="project-name")
-        yield Static(self._format_status(), classes="project-status")
+
+        status_widget = Static(self._format_status(), classes="project-status")
+        status_widget.add_class(f"status-{self.project.status.value}")
+        yield status_widget
+
         yield Static(self._format_feature(), classes="project-feature")
         yield Static(self._format_progress(), classes="project-progress")
 
@@ -147,9 +140,8 @@ class ProjectCard(Static):
             self._timer_handle = None
 
     def _format_status(self) -> str:
-        """Format the status line with icon and color."""
+        """Format the status line with icon."""
         icon = STATUS_ICONS.get(self.project.status, "•")
-        color = STATUS_COLORS.get(self.project.status, "white")
         status_text = self.project.status.value.capitalize()
 
         # Add verification indicator if verification commands are configured
@@ -165,9 +157,7 @@ class ProjectCard(Static):
         elapsed = self._format_elapsed_time()
         elapsed_display = f" ({elapsed})" if elapsed else ""
 
-        status_line = (
-            f"[{color}]{icon} {status_text}{verification_indicator}{elapsed_display}[/{color}]"
-        )
+        status_line = f"{icon} {status_text}{verification_indicator}{elapsed_display}"
 
         # Add granular activity if available
         if self.project.current_activity and self._is_active_state():
@@ -276,6 +266,8 @@ class ProjectCard(Static):
         status_widget = self.query_one(".project-status", Static)
         status_widget.update(self._format_status())
 
+        self._update_status_class(status_widget)
+
         # Update feature
         feature_widget = self.query_one(".project-feature", Static)
         feature_widget.update(self._format_feature())
@@ -292,6 +284,12 @@ class ProjectCard(Static):
         except Exception:
             # Widget may not be mounted yet
             pass
+
+    def _update_status_class(self, widget: Static) -> None:
+        """Update the status class on the widget."""
+        for status in ProjectStatus:
+            widget.remove_class(f"status-{status.value}")
+        widget.add_class(f"status-{self.project.status.value}")
 
     def on_click(self) -> None:
         """Handle click events."""
