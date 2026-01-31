@@ -28,7 +28,7 @@ class ProjectConfigModal(ModalScreen[None]):
     #modal-container {
         width: 80%;
         height: 80%;
-        background: $surface;
+        background: $glass-surface;
         border: thick $primary;
         padding: 1 2;
     }

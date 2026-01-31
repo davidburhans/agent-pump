@@ -52,3 +52,43 @@ A test feature to implement.
     )
 
     return project_path
+
+
+@pytest.fixture(autouse=True)
+def patch_css_variables():
+    """Patch TUI widgets to replace unknown CSS variables during tests."""
+    # We import inside the fixture to avoid circular imports or early import issues
+    from agent_pump.tui.screens.add_project_modal import AddProjectModal
+    from agent_pump.tui.screens.add_roadmap_item_modal import AddRoadmapItemModal
+    from agent_pump.tui.screens.backend_config_modal import BackendConfigModal
+    from agent_pump.tui.screens.confirm_modal import ConfirmModal
+    from agent_pump.tui.screens.global_prompt_modal import GlobalPromptModal
+    from agent_pump.tui.screens.idea_input_modal import IdeaInputModal
+    from agent_pump.tui.screens.log_filter_modal import LogFilterModal
+    from agent_pump.tui.screens.project_config_modal import ProjectConfigModal
+    from agent_pump.tui.screens.prompt_config_modal import PromptConfigModal
+    from agent_pump.tui.screens.roadmap_modal import RoadmapModal
+
+    modals = [
+        AddProjectModal,
+        AddRoadmapItemModal,
+        BackendConfigModal,
+        ConfirmModal,
+        GlobalPromptModal,
+        IdeaInputModal,
+        LogFilterModal,
+        ProjectConfigModal,
+        PromptConfigModal,
+        RoadmapModal,
+    ]
+
+    original_css = {}
+    for modal in modals:
+        if hasattr(modal, "DEFAULT_CSS"):
+            original_css[modal] = modal.DEFAULT_CSS
+            modal.DEFAULT_CSS = modal.DEFAULT_CSS.replace("$glass-surface", "$surface")
+
+    yield
+
+    for modal, css in original_css.items():
+        modal.DEFAULT_CSS = css

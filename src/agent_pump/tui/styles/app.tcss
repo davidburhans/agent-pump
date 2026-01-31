@@ -17,6 +17,13 @@ $glass-background: rgba(26, 37, 47, 0.8);
 $primary-background: #1a252f;
 $primary-darken-2: #8e44ad;
 
+/* New Semantic Variables */
+$text-inverse: #ffffff;
+$text-on-error: #ffffff;
+$text-main-light: #000000;
+$primary-muted: $surface-lighten-2;
+$glass-surface: rgba(44, 62, 80, 0.95);
+
 /* Light Theme Variables */
 $surface-light: #ecf0f1;
 $surface-accent-1-light: #bdc3c7;
@@ -25,6 +32,7 @@ $background-light: #ffffff;
 $glass-background-light: rgba(255, 255, 255, 0.8);
 $primary-background-light: #ffffff;
 $text-muted-light: #7f8c8d;
+$glass-surface-light: rgba(236, 240, 241, 0.95);
 
 /* Status Classes */
 .status-idle { color: $text-muted; }
@@ -123,7 +131,7 @@ Screen {
 
 .light {
     background: $background-light;
-    color: black;
+    color: $text-main-light;
 }
 
 Header {
@@ -155,7 +163,7 @@ Footer {
 
 #quit-button {
     background: $error;
-    color: white;
+    color: $text-on-error;
     text-style: bold;
     padding: 0 1;
     width: 11;
@@ -168,7 +176,7 @@ Footer {
 
 #quit-indicator {
     background: $error;
-    color: white;
+    color: $text-on-error;
     text-style: bold;
     padding: 0 1;
     width: auto;

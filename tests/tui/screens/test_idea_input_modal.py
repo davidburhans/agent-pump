@@ -4,6 +4,8 @@ from textual.widgets import Input
 from agent_pump.tui.screens import IdeaInputModal
 
 
+
+
 @pytest.mark.asyncio
 async def test_idea_input_modal_submit_valid():
     """Test submitting a valid idea."""
