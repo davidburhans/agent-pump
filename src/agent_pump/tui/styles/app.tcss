@@ -1,5 +1,29 @@
 /* Agent Pump TUI Styles */
 
+/* Semantic Variables */
+$success: #2ecc71;
+$warning: #f1c40f;
+$error: #e74c3c;
+$info: #3498db;
+$primary: #9b59b6;
+$secondary: #8e44ad;
+$accent: #e67e22;
+$text-muted: #7f8c8d;
+$surface: #2c3e50;
+$background: #1a252f;
+$primary-background: #1a252f;
+$primary-darken-2: #8e44ad;
+
+/* Status Classes */
+.status-idle { color: $text-muted; }
+.status-planning { color: $warning; }
+.status-implementing { color: $info; }
+.status-brainstorming { color: $accent; }
+.status-committing { color: $success; }
+.status-paused { color: $text-muted; }
+.status-error { color: $error; }
+.status-completed { color: $success; text-style: bold; }
+
 /* Main Layout */
 #app-container {
     height: 100%;

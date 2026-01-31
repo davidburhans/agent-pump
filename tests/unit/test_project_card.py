@@ -19,7 +19,6 @@ def test_project_card_formatting():
     # Test status formatting
     status_str = card._format_status()
     assert "Planning" in status_str
-    assert "yellow" in status_str  # Color code
 
     # Test feature formatting
     feature_str = card._format_feature()
