@@ -62,24 +62,44 @@ class WorkspaceService(BaseService):
 
         return self._workspace
 
+    async def get_current_workspace_async(self) -> Workspace:
+        """
+        Get the current workspace asynchronously. Initializes it if necessary.
+
+        Returns:
+             The current Workspace object.
+        """
+        if self._workspace is None:
+            workspace_path = self.app_state.current_workspace
+            if not workspace_path:
+                workspace_path = Path.home() / ".agent-pump" / "workspace.json"
+            self._workspace = await Workspace.load_async(str(workspace_path))
+        return self._workspace
+
     # Allow injection for dependency injection / testing
     def set_current_workspace(self, workspace: Workspace) -> None:
         self._workspace = workspace
 
     async def switch_workspace(self, name: str) -> Workspace:
         """
-        Switch to a different workspace
-        (placeholder logic as multiple workspaces support is minimal).
+        Switch to a different workspace.
 
         Args:
-            name: Name or path of the workspace.
+            name: Name of the workspace.
         """
-        # Placeholder implementation
-        logger.info(f"Switching to workspace: {name}")
+        old_workspace = self.app_state.current_workspace
+        logger.info(f"Switching workspace from {old_workspace} to {name}")
+
+        self.app_state.current_workspace = name
+        self.app_state.save()
+
+        # Force load the new workspace asynchronously
+        self._workspace = await Workspace.load_async(name)
+
         await self.event_bus.publish(
-            WorkspaceSwitchedEvent(old_workspace="default", new_workspace=name)
+            WorkspaceSwitchedEvent(old_workspace=old_workspace, new_workspace=name)
         )
-        return self.get_current_workspace()
+        return self._workspace
 
     async def update_backend_config(self, path: Path | None, config: PhaseBackends) -> None:
         """
