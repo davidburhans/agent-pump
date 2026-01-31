@@ -1,5 +1,6 @@
 """Workspace configuration models for agent-pump."""
 
+import asyncio
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -282,6 +283,11 @@ class Workspace(BaseModel):
                 logger.error(f"Failed to load workspace '{name}' from {workspace_path}: {e}")
                 return cls(name=name)
         return cls(name=name)
+
+    @classmethod
+    async def load_async(cls, name: str = "default") -> "Workspace":
+        """Load a workspace from disk asynchronously."""
+        return await asyncio.to_thread(cls.load, name)
 
     @classmethod
     def list_workspaces(cls) -> list[str]:
