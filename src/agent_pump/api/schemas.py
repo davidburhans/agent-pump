@@ -101,17 +101,106 @@ class WorkflowStateDTO(APIBaseModel):
         if hasattr(workflow, "machine"):
             transitions = workflow.machine.get_triggers(workflow.state)
 
-        # TODO: Implement node/edge extraction from workflow definition
-        # For now, return empty lists or basic mocked structure if needed
-        # real implementation will require introspecting the state machine graph
+        # Implement node/edge extraction from workflow definition
+        nodes: list[NodeSnapshot] = []
+        edges: list[EdgeSnapshot] = []
+
+        if hasattr(workflow, "workflow_def") and workflow.workflow_def:
+            wd = workflow.workflow_def
+
+            # Map phases to order for position and completion logic
+            phase_map = {p.name: i for i, p in enumerate(wd.phases)}
+            current_phase_index = phase_map.get(workflow.state, -1)
+
+            # 1. Extract Nodes
+            # Idle node (always present as start)
+            is_idle_active = workflow.state == "idle"
+            # Idle is "completed" if we have moved past it (active phase or terminal)
+            is_idle_completed = (
+                current_phase_index >= 0 or workflow.state in wd.terminal_states
+            )
+            nodes.append(
+                NodeSnapshot(
+                    name="idle",
+                    is_active=is_idle_active,
+                    is_completed=is_idle_completed,
+                    position=(0, 0),
+                )
+            )
+
+            # Phase nodes
+            for i, phase in enumerate(wd.phases):
+                is_active = workflow.state == phase.name
+                # Completed if current index > this index, OR if state is 'completed'
+                is_completed = False
+                if workflow.state == "completed":
+                    is_completed = True
+                elif current_phase_index >= 0:
+                    is_completed = current_phase_index > i
+                elif workflow.state == "error":
+                    # Heuristic: Check workflow.workflow_state.phase_logs if available
+                    if (
+                        hasattr(workflow, "workflow_state")
+                        and hasattr(workflow.workflow_state, "phase_logs")
+                        and workflow.workflow_state.phase_logs
+                    ):
+                        last_phase_name = workflow.workflow_state.phase_logs[-1].phase
+                        last_phase_idx = phase_map.get(last_phase_name, -1)
+                        if last_phase_idx > i:
+                            is_completed = True
+
+                nodes.append(
+                    NodeSnapshot(
+                        name=phase.name,
+                        is_active=is_active,
+                        is_completed=is_completed,
+                        position=((i + 1) * 200, 0),
+                    )
+                )
+
+            # Terminal states
+            terminals_start_x = (len(wd.phases) + 1) * 200
+
+            if "completed" in wd.terminal_states:
+                nodes.append(
+                    NodeSnapshot(
+                        name="completed",
+                        is_active=(workflow.state == "completed"),
+                        is_completed=(
+                            workflow.state == "completed"
+                        ),  # It is completed when we are there
+                        position=(terminals_start_x, 0),
+                    )
+                )
+
+            if "error" in wd.terminal_states:
+                nodes.append(
+                    NodeSnapshot(
+                        name="error",
+                        is_active=(workflow.state == "error"),
+                        is_completed=False,
+                        position=(terminals_start_x, 100),  # Offset Y
+                    )
+                )
+
+            # 2. Extract Edges
+            transitions_def = wd.get_transitions()
+            for t in transitions_def:
+                edges.append(
+                    EdgeSnapshot(
+                        source=t["source"],
+                        target=t["dest"],
+                        is_active=(t["source"] == workflow.state),
+                    )
+                )
 
         return cls(
             current_state=workflow.state,
             iteration=workflow.project.iteration_count,
             time_in_state=time_in_state,
             available_transitions=transitions,
-            nodes=[],  # Placeholder
-            edges=[],  # Placeholder
+            nodes=nodes,
+            edges=edges,
         )
 
 

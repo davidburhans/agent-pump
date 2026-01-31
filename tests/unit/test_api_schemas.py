@@ -25,12 +25,36 @@ class MockProject:
         self.state_changed_at = datetime.now()
 
 
+class MockPhase:
+    def __init__(self, name):
+        self.name = name
+        self.on_success = "next"
+        self.on_failure = "error"
+
+
+class MockWorkflowDefinition:
+    def __init__(self):
+        self.phases = [MockPhase("planning"), MockPhase("implementing")]
+        self.initial_state = "idle"
+        self.terminal_states = ["completed", "error"]
+
+    def get_states(self):
+        return ["idle", "planning", "implementing", "completed", "error"]
+
+    def get_transitions(self):
+        return [
+            {"source": "idle", "dest": "planning", "trigger": "start"},
+            {"source": "planning", "dest": "implementing", "trigger": "planning_complete"},
+        ]
+
+
 class MockWorkflow:
     def __init__(self, project=None, state="idle"):
         self.project = project or MockProject()
         self.state = state
         self.machine = MagicMock()
         self.machine.get_triggers.return_value = ["plan", "stop"]
+        self.workflow_def = MockWorkflowDefinition()
 
 
 class MockLogEntry:
@@ -75,13 +99,33 @@ def test_workflow_state_dto_structure():
 
 def test_workflow_state_from_internal():
     """Test conversion from internal workflow."""
-    workflow = MockWorkflow()
+    workflow = MockWorkflow(state="planning")
     dto = WorkflowStateDTO.from_internal(workflow)
 
-    assert dto.current_state == "idle"
+    assert dto.current_state == "planning"
     assert "plan" in dto.available_transitions
-    # Nodes/edges are empty placeholders for now
-    assert isinstance(dto.nodes, list)
+
+    # Verify nodes
+    assert len(dto.nodes) > 0
+    node_names = [n.name for n in dto.nodes]
+    assert "idle" in node_names
+    assert "planning" in node_names
+    assert "implementing" in node_names
+    assert "completed" in node_names
+
+    # Check active state
+    active_node = next(n for n in dto.nodes if n.is_active)
+    assert active_node.name == "planning"
+
+    # Check completed state (idle should be completed as we are in planning)
+    idle_node = next(n for n in dto.nodes if n.name == "idle")
+    assert idle_node.is_completed
+
+    # Verify edges
+    assert len(dto.edges) > 0
+    sources = [e.source for e in dto.edges]
+    assert "idle" in sources
+    assert "planning" in sources
 
 
 def test_log_entry_level_inference():
