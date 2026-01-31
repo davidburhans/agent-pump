@@ -27,7 +27,7 @@ class ConfirmModal(ModalScreen[bool]):
         width: 60;
         height: 11;
         border: thick $background 80%;
-        background: $surface;
+        background: $glass-surface;
     }
 
     #question {

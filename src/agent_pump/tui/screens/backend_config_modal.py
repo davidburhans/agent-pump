@@ -38,7 +38,7 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
     #modal-container {
         width: 90%;
         height: 90%;
-        background: $surface;
+        background: $glass-surface;
         border: thick $primary;
         padding: 1 2;
     }
