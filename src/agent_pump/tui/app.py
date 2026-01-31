@@ -27,6 +27,7 @@ from agent_pump.models.workspace import (
     PromptCustomization,
 )
 from agent_pump.services.idea_service import IdeaService
+from agent_pump.services.log_service import LogService
 from agent_pump.services.project_service import ProjectService
 from agent_pump.services.workflow_service import WorkflowService
 from agent_pump.services.workspace_service import WorkspaceService
@@ -40,6 +41,7 @@ from agent_pump.tui.screens import (
     PromptConfigModal,
     RoadmapModal,
     SettingsModal,
+    ProjectSummaryModal,
 )
 from agent_pump.tui.screens.confirm_modal import ConfirmModal
 from agent_pump.tui.screens.log_filter_modal import LogFilterModal
@@ -75,6 +77,7 @@ class AgentPumpApp(App):
         Binding("o", "toggle_sort", "Order", show=False),
         Binding("t", "toggle_timer", "Timer", show=False),
         Binding("w", "toggle_workflow_panel", "Flow"),
+        Binding("y", "show_summary", "Summary", show=False),
         Binding("escape", "quit", "Quit", show=False),
     ]
 
@@ -100,6 +103,7 @@ class AgentPumpApp(App):
         self.project_service = ProjectService(self.event_bus, self.workspace, self.app_state)
         self.workflow_service = WorkflowService(self.event_bus, self.project_service)
         self.idea_service = IdeaService(self.event_bus, self.workspace)
+        self.log_service = LogService(self.event_bus)
 
         self.log_panel: LogPanel | None = None
         self.workflow_panel: WorkflowPanel | None = None
@@ -120,33 +124,25 @@ class AgentPumpApp(App):
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
         yield Header()
-        yield Container(
-            Horizontal(
-                Vertical(
-                    Static("Projects", classes="section-title"),
-                    Container(id="project-list"),
-                    Horizontal(
-                        Button("+ Add", id="btn-add", variant="success"),
-                        Button("▶ Start All", id="btn-start-all", variant="primary"),
-                        Button("⏹ Stop All", id="btn-stop-all", variant="error"),
-                        classes="button-row",
-                    ),
-                    id="sidebar",
-                ),
-                Vertical(
-                    Static("Activity Log", id="activity-log-title", classes="section-title"),
-                    LogPanel(id="log-panel"),
-                    id="main-content",
-                ),
-                Vertical(
-                    Static("Workflow State", classes="section-title"),
-                    WorkflowPanel(id="workflow-panel"),
-                    id="right-sidebar",
-                ),
-                id="main-layout",
-            ),
-            id="app-container",
-        )
+        with Container(id="app-container"):
+            with Horizontal(id="main-layout"):
+                with Vertical(id="sidebar"):
+                    yield Static("Projects", classes="section-title")
+                    yield Container(id="project-list")
+                    with Horizontal(classes="button-row"):
+                        yield Button("+ Add", id="btn-add", variant="success", tooltip="Add a new project (a)")
+                        yield Button("▶ Start All", id="btn-start-all", variant="primary", tooltip="Start all projects (S)")
+                        yield Button("⏹ Stop All", id="btn-stop-all", variant="error", tooltip="Stop all projects (X)")
+                        yield Label("v0.1.0", classes="dim")
+                
+                with Vertical(id="main-content"):
+                    yield Static("Activity Log", id="activity-log-title", classes="section-title")
+                    yield LogPanel(id="log-panel")
+                
+                with Vertical(id="right-sidebar"):
+                    yield Static("Workflow State", classes="section-title")
+                    yield WorkflowPanel(id="workflow-panel")
+
         yield Footer()
         yield Static("Quit [Esc]", id="quit-button")
 
@@ -162,6 +158,9 @@ class AgentPumpApp(App):
         self._log("Agent Pump started")
         self._log("Press 'a' to add a project, 'escape' to quit")
         self._log(f"Log sort order: {self.app_state.log_sort_order.upper()}")
+
+        # Start log service
+        await self.log_service.start()
 
         # Start event loop
         _ = self.run_worker(self._handle_events())
@@ -237,6 +236,7 @@ class AgentPumpApp(App):
             ("c", "config_project", "Conf"),
             ("b", "config_backends", "Back"),
             ("p", "config_prompts", "Prmt"),
+            ("y", "show_summary", "Summ"),
             ("R", "reset_project", "Reset"),
         ]
 
@@ -517,6 +517,18 @@ class AgentPumpApp(App):
                 self._log("Roadmap management cancelled")
 
         self.push_screen(RoadmapModal(roadmap_path), handle_result)
+
+    def action_show_summary(self) -> None:
+        """Show the project summary modal."""
+        if not self.selected_project:
+            self._log("No project selected.")
+            return
+        
+        project = self.projects.get(self.selected_project)
+        if not project:
+            return
+            
+        self.push_screen(ProjectSummaryModal(project))
 
     def action_config_project(self) -> None:
         """Configure project settings."""
