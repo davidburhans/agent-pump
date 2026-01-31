@@ -12,6 +12,7 @@ STATUS_ICONS = {
     ProjectStatus.IDLE: "⏸",
     ProjectStatus.PLANNING: "📋",
     ProjectStatus.IMPLEMENTING: "🔨",
+    ProjectStatus.VERIFYING: "🧪",
     ProjectStatus.BRAINSTORMING: "💡",
     ProjectStatus.COMMITTING: "📤",
     ProjectStatus.PAUSED: "⏸",
