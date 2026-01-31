@@ -1,10 +1,14 @@
 """Modal for entering a new idea."""
 
+from pydantic import ValidationError
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widget import Widget
 from textual.widgets import Button, Input, Label
+
+from agent_pump.models.validation import IdeaInput
+from agent_pump.tui.animation import shake
 
 
 class IdeaInputModal(ModalScreen[str | None]):
@@ -21,6 +25,19 @@ class IdeaInputModal(ModalScreen[str | None]):
         background: $surface;
         padding: 1 2;
     }
+    
+    #error-label {
+        color: $error;
+        height: auto;
+        min-height: 1;
+        margin-top: 0;
+        margin-bottom: 0;
+        display: none;
+    }
+    
+    #error-label.visible {
+        display: block;
+    }
 
     .button-row {
         margin-top: 1;
@@ -35,7 +52,8 @@ class IdeaInputModal(ModalScreen[str | None]):
     def compose(self) -> ComposeResult:
         yield Vertical(
             Label("Enter your idea for the brainstormer:"),
-            Input(placeholder="e.g., Add dark mode support", id="idea-input"),
+            Input(placeholder="e.g., Add dark mode support (min 5 chars)", id="idea-input"),
+            Label("", id="error-label"),
             Horizontal(
                 Button("Cancel", id="btn-cancel", variant="default"),
                 Button("Add", id="btn-add-idea", variant="success"),
@@ -59,33 +77,34 @@ class IdeaInputModal(ModalScreen[str | None]):
     def on_input_changed(self, event: Input.Changed) -> None:
         """Clear error state when user types."""
         event.input.remove_class("error")
+        self._clear_error()
 
     def _validate_and_submit(self) -> None:
         input_widget = self.query_one("#idea-input", Input)
         value = input_widget.value.strip()
 
-        if not value:
-            self._show_error(input_widget, "Idea cannot be empty")
-            return
-
-        self.dismiss(value)
+        try:
+            validated = IdeaInput(idea=value)
+            self.dismiss(validated.idea)
+        except ValidationError as e:
+            msg = e.errors()[0]["msg"]
+            if msg.startswith("Value error, "):
+                msg = msg.replace("Value error, ", "")
+            self._show_error(input_widget, msg)
 
     def _show_error(self, widget: Widget, message: str) -> None:
         """Show error feedback with shake animation."""
         widget.add_class("error")
-        self._shake(widget)
-        self.notify(message, severity="error")
+        shake(widget)
+        
+        error_label = self.query_one("#error-label", Label)
+        error_label.update(message)
+        error_label.add_class("visible")
+        
         widget.focus()
 
-    def _shake(self, widget: Widget) -> None:
-        """Shake the widget to indicate error."""
-        offsets = [(2, 0), (-2, 0), (1, 0), (-1, 0), None]
-        step_duration = 0.05
-
-        def _step(i: int) -> None:
-            if i >= len(offsets):
-                return
-            widget.styles.offset = offsets[i]  # type: ignore
-            self.set_timer(step_duration, lambda: _step(i + 1))
-
-        _step(0)
+    def _clear_error(self) -> None:
+        """Clear error message."""
+        error_label = self.query_one("#error-label", Label)
+        error_label.update("")
+        error_label.remove_class("visible")

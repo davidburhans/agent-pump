@@ -50,17 +50,10 @@ async def test_idea_input_modal_validation_error():
         # Check for error class
         assert "error" in input_widget.classes
 
-        # Check notification
-        # Textual's notification system has changed or it's _notifications internally.
-        # But we can assume if the code didn't crash on self.notify, it's working.
-        # We can try to access _notifications if available or just skip this check if internal.
-        # Let's check _notifications if it exists.
-        # notifications = getattr(app, "_notifications", [])
-        # Actually, in newer Textual, notifications are managed differently.
-        # But we validated the class "error" was added, which is good enough for TUI state.
-        if hasattr(app, "_notifications"):
-            assert len(app._notifications) > 0
-
+        # Check error label visibility and content
+        error_label = modal.query_one("#error-label")
+        assert "visible" in error_label.classes
+        
         # Check shake animation (offset change)
         # Note: Animation happens over time, so we might check if offset is not None or has changed.
         # But we set it immediately in the first step of shake.

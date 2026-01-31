@@ -311,7 +311,14 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
                 id=f"{phase}-args-{rc}-{idx}",
             )
         )
-        row.compose_add_child(Button("✕", id=f"{phase}-remove-{rc}-{idx}", variant="error"))
+        row.compose_add_child(
+            Button(
+                "✕",
+                id=f"{phase}-remove-{rc}-{idx}",
+                variant="error",
+                tooltip="Remove backend"
+            )
+        )
         return row
 
     def on_select_changed(self, event: Select.Changed) -> None:
