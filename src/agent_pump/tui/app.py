@@ -813,3 +813,15 @@ class AgentPumpApp(App):
             self.log_panel.set_filter(event.project.path)
         self._update_activity_log_title()
         self._update_project_bindings()
+
+    @on(ProjectCard.BackendConfigRequested)
+    def on_project_card_backend_config_requested(
+        self, event: ProjectCard.BackendConfigRequested
+    ) -> None:
+        """Handle backend config request from project card."""
+        # Ensure project is selected
+        if self.selected_project != event.project.path:
+            self.handle_project_card_selected(ProjectCard.Selected(event.project, event.card))
+
+        # Open backend config
+        self.action_config_backends()

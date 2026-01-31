@@ -21,8 +21,9 @@ $primary-darken-2: #8e44ad;
 $text-inverse: #ffffff;
 $text-on-error: #ffffff;
 $text-main-light: #000000;
-$primary-muted: $surface-lighten-2;
-$glass-surface: rgba(44, 62, 80, 0.95);
+$primary-muted: #496077;
+$surface-darken-1: #233140;
+
 
 /* Light Theme Variables */
 $surface-light: #ecf0f1;
@@ -32,7 +33,7 @@ $background-light: #ffffff;
 $glass-background-light: rgba(255, 255, 255, 0.8);
 $primary-background-light: #ffffff;
 $text-muted-light: #7f8c8d;
-$glass-surface-light: rgba(236, 240, 241, 0.95);
+
 
 /* Status Classes */
 .status-idle { color: $text-muted; }

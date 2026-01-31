@@ -18,7 +18,7 @@ class IdeaInputModal(ModalScreen[str | None]):
         width: 60;
         height: auto;
         border: thick $primary;
-        background: $glass-surface;
+        background: $surface;
         padding: 1 2;
     }
 

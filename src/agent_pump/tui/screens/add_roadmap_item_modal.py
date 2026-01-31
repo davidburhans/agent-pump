@@ -25,7 +25,7 @@ class AddRoadmapItemModal(ModalScreen[tuple[str, str | None] | None]):
         width: 60;
         height: auto;
         border: thick $primary;
-        background: $glass-surface;
+        background: $surface;
         padding: 1 2;
     }
 

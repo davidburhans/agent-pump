@@ -35,7 +35,7 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
     #modal-container {
         width: 90%;
         height: 90%;
-        background: $glass-surface;
+        background: $surface;
         border: thick $primary;
         padding: 1 2;
     }

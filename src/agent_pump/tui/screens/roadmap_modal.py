@@ -48,7 +48,7 @@ class RoadmapModal(ModalScreen[list[RoadmapFeature] | None]):
         width: 80;
         height: 80%;
         border: thick $primary;
-        background: $glass-surface;
+        background: $surface;
         padding: 1 2;
     }
 

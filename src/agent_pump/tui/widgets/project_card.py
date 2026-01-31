@@ -2,9 +2,12 @@
 
 from datetime import datetime
 
+from textual import events, on
+
 from textual.app import ComposeResult
+from textual.containers import Horizontal
 from textual.message import Message
-from textual.widgets import Static
+from textual.widgets import Label, Static
 
 from agent_pump.models.project import Project, ProjectStatus
 
@@ -76,10 +79,38 @@ class ProjectCard(Static):
         color: $text-muted;
         margin-top: 1;
     }
+
+    ProjectCard .card-header {
+        height: auto;
+        align: left top;
+    }
+
+    ProjectCard .project-name {
+        width: 1fr;
+    }
+
+    ProjectCard .config-label {
+        width: auto;
+        height: 1;
+        color: $text-muted;
+        text-style: underline;
+    }
+
+    ProjectCard .config-label:hover {
+        color: $accent;
+    }
     """
 
     class Selected(Message):
         """Message emitted when card is selected."""
+
+        def __init__(self, project: Project, card: "ProjectCard") -> None:
+            self.project = project
+            self.card = card
+            super().__init__()
+
+    class BackendConfigRequested(Message):
+        """Message emitted when the backend config button is pressed."""
 
         def __init__(self, project: Project, card: "ProjectCard") -> None:
             self.project = project
@@ -102,7 +133,9 @@ class ProjectCard(Static):
 
     def compose(self) -> ComposeResult:
         """Create the card content."""
-        yield Static(self.project.name, classes="project-name")
+        with Horizontal(classes="card-header"):
+            yield Static(self.project.name, classes="project-name")
+            yield Label("backend config", id="btn-config", classes="config-label")
 
         status_widget = Static(self._format_status(), classes="project-status")
         status_widget.add_class(f"status-{self.project.status.value}")
@@ -292,6 +325,10 @@ class ProjectCard(Static):
             widget.remove_class(f"status-{status.value}")
         widget.add_class(f"status-{self.project.status.value}")
 
-    def on_click(self) -> None:
+    def on_click(self, event: events.Click) -> None:
         """Handle click events."""
-        self.post_message(self.Selected(self.project, self))
+        if event.widget.id == "btn-config":
+            event.stop()
+            self.post_message(self.BackendConfigRequested(self.project, self))
+        else:
+            self.post_message(self.Selected(self.project, self))

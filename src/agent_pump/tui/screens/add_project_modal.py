@@ -20,7 +20,7 @@ class AddProjectModal(ModalScreen[Path | None]):
     #modal-container {
         width: 60%;
         height: 70%;
-        background: $glass-surface;
+        background: $surface;
         border: thick $primary;
         padding: 1 2;
     }
