@@ -4,15 +4,16 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from rich.console import RenderableType
 from rich.text import Text
-from textual.widgets import TextArea
+from rich.panel import Panel
+from textual.widgets import RichLog
 
 
 @dataclass(slots=True)
 class LogEntry:
     """
     Optimized storage for log entries.
-    Using slots=True saves ~15-20% memory for large lists (e.g. 10k items).
     """
 
     timestamp: str
@@ -20,28 +21,33 @@ class LogEntry:
     project_path: Path | None
     state: str
     task: str | None
-    formatted_line: str
+    renderable: RenderableType
 
 
-class LogPanel(TextArea):
-    """A scrolling log panel for displaying agent output."""
+class LogPanel(RichLog):
+    """A scrolling log panel for displaying agent output using Rich renderables."""
 
     # Maximum number of log entries to keep in memory
     MAX_LOG_ENTRIES = 10000
+    
+    # Accessible name for screen readers
+    accessible_name: str = "Activity Log Panel"
 
     DEFAULT_CSS = """
     LogPanel {
         background: $surface;
         border: solid $primary;
         padding: 0 1;
+        overflow-y: scroll;
     }
     """
 
     def __init__(self, **kwargs):
         """Initialize the log panel."""
         super().__init__(
-            language="markdown",
-            read_only=True,
+            wrap=True,
+            highlight=True,
+            markup=True,
             **kwargs,
         )
         self.log_entries: list[LogEntry] = []
@@ -52,79 +58,108 @@ class LogPanel(TextArea):
 
     def write(
         self,
-        content: str | Text,
+        content: RenderableType,
         project_path: Path | None = None,
         state: str = "unknown",
         task: str | None = None,
         **kwargs,
     ) -> None:
         """
-        Write a message to the log.
+        Write a message or renderable to the log.
 
         Args:
-            content: The message to log
+            content: The message or renderable to log
             project_path: Optional path to the project this log belongs to
         """
-        message = str(content)
+        message_str = str(content)
         timestamp = datetime.now().strftime("%H:%M:%S")
 
-        # Simple formatting for key message types
-        prefix = ""
-        suffix = "\n"
-
-        if "[ERROR]" in message:
-            prefix = "**"
-            suffix = "**\n"
-        elif "Starting" in message and "phase" in message:
-            prefix = "### "
-
-        formatted_line = f"[{timestamp}] {prefix}{message.strip()}{suffix}"
+        # Create timestamp prefix
+        timestamp_text = Text(f"[{timestamp}] ", style="dim")
+        
+        final_renderable = content
+        
+        # If content is a string/text, check for special formatting needs
+        if isinstance(content, (str, Text)):
+            text_content = str(content)
+            if "Starting" in text_content and "phase..." in text_content:
+                # Wrap phase start in a blue panel
+                final_renderable = Panel(
+                    Text(text_content.strip(), style="bold white"),
+                    title=f"[{timestamp}] Phase Change",
+                    style="blue",
+                    border_style="blue"
+                )
+            elif "[ERROR]" in text_content:
+                # Wrap errors in a red panel
+                final_renderable = Panel(
+                    Text(text_content.replace("[ERROR]", "").strip(), style="white"),
+                    title=f"[{timestamp}] Error",
+                    style="red",
+                    border_style="red"
+                )
+            elif "[SUCCESS]" in text_content:
+                # Wrap success in a green panel
+                final_renderable = Panel(
+                    Text(text_content.replace("[SUCCESS]", "").strip(), style="bold white"),
+                    title=f"[{timestamp}] Success",
+                    style="green",
+                    border_style="green"
+                )
+            else:
+                if isinstance(content, str):
+                    content = Text.from_markup(content)
+                final_renderable = Text.assemble(timestamp_text, content)
 
         entry = LogEntry(
             timestamp=timestamp,
-            message=message,
+            message=message_str,
             project_path=project_path,
             state=state,
             task=task,
-            formatted_line=formatted_line,
+            renderable=final_renderable,
         )
         self.log_entries.append(entry)
 
-        # Trim old entries to prevent unbounded memory growth
+        # Trim old entries
         trimmed = False
         if len(self.log_entries) > self.MAX_LOG_ENTRIES:
-            # Remove oldest 10% when limit exceeded
             trim_count = self.MAX_LOG_ENTRIES // 10
             self.log_entries = self.log_entries[trim_count:]
             trimmed = True
 
-        # If we trimmed, we MUST refresh the display to remove old lines and sync state.
         if trimmed:
             self._refresh_display()
             return
 
-        # Optimization: Use direct insertion instead of property update or full refresh
-        # This provides ~20-30x speedup for high-frequency logging
         if self._should_show(entry):
-            if self.sort_order == "asc":
-                # Optimize: insert at end
-                # self.text += ... is slow because it rebuilds the document
-                self.move_cursor(self.document.end)
-                self.insert(formatted_line)
-                self.scroll_end()
+            if self.sort_order == "desc":
+                # RichLog writes to the end by default. 
+                # For "desc" (newest first), we want the NEWEST item at the TOP?
+                # Actually, standard terminal logs are "asc" (newest at bottom).
+                # Previous implementation:
+                # asc -> append to end (scroll end)
+                # desc -> insert at top (0,0) (scroll home)
+                
+                # RichLog doesn't support "insert at top" easily without clearing.
+                # It behaves like a terminal.
+                # So if we want "newest first", we effectively have to rewrite everything 
+                # or use a widget that supports reverse list.
+                # BUT, given we are refactoring, maybe we should stick to standard "asc" 
+                # (newest at bottom) as default for RichLog, and only support "desc" via full refresh?
+                # Yes, "desc" will be expensive for RichLog as we have to clear and re-render reverse list.
+                self._refresh_display()
             else:
-                # Optimize: insert at beginning (desc)
-                # _refresh_display() is O(N), this is O(L) where L is line length
-                self.move_cursor((0, 0))
-                self.insert(formatted_line)
-                self.scroll_home()
+                # "asc" is natural for RichLog
+                super().write(final_renderable)
 
     def set_filter(
-        self, project_path: Path | None, states: list[str] | None = None, task: str | None = None
+        self,
+        project_path: Path | None,
+        states: list[str] | None = None,
+        task: str | None = None
     ) -> None:
-        """
-        Filter logs by project, states, and task.
-        """
+        """Filter logs by project, states, and task."""
         if (
             self.filter_path == project_path
             and self.filter_states == states
@@ -136,25 +171,23 @@ class LogPanel(TextArea):
         self.filter_states = states
         self.filter_task = task
         self._refresh_display()
+        
+        filter_desc = "All Projects"
+        if self.filter_path:
+            filter_desc = f"Project {self.filter_path.name}"
+        self.accessible_name = f"Activity Log Panel: {filter_desc}"
 
     def _should_show(self, entry: LogEntry) -> bool:
         """Check if an entry should be shown based on current filter."""
-        # 1. Project filter
         if self.filter_path is not None:
             if entry.project_path != self.filter_path and entry.project_path is not None:
                 return False
 
-        # 2. State filter
         if self.filter_states is not None:
-            # If filter is set, only show matching states
-            # We assume "unknown" state passes if no strict filter,
-            # but here we want strict filtering if enabled.
             if entry.state not in self.filter_states:
                 return False
 
-        # 3. Task filter
         if self.filter_task:
-            # loose match for task name
             if not entry.task or self.filter_task.lower() not in entry.task.lower():
                 return False
 
@@ -176,29 +209,20 @@ class LogPanel(TextArea):
         return self.sort_order
 
     def _refresh_display(self) -> None:
-        """Refresh the text area with filtered logs."""
-        # Filter entries first
+        """Refresh the log with filtered entries."""
+        self.clear()
+        
         visible_entries = [entry for entry in self.log_entries if self._should_show(entry)]
 
-        # Sort based on order
-        # Since entries are appended in chronological order, "desc" means reverse list
         if self.sort_order == "desc":
             visible_entries.reverse()
 
-        # Optimize: Use join instead of string concatenation in loop (O(N) vs O(N^2))
-        # This provides ~1000x speedup for 10k log entries
-        self.text = "".join(entry.formatted_line for entry in visible_entries)
-
-        # If desc (newest first), we usually want to be at the top?
-        # But standard log view is "tail".
-        # If "desc", newest is at TOP. Textual TextArea specific:
-        # If we are displaying logs in reverse chronological order (newest top),
-        # we probably want to see the top?
-        # If "asc" (oldest top), we usually want to auto-scroll to bottom.
-
-        # Let's assume user wants to see the "newest" information.
-        # If desc (newest at top), scroll to home (top).
-        # If asc (newest at bottom), scroll to end (bottom).
+        for entry in visible_entries:
+            super().write(entry.renderable)
+            
+        # Scroll to match sort order intent
+        # If desc (newest at top), scroll top
+        # If asc (newest at bottom), scroll bottom
         if self.sort_order == "desc":
             self.scroll_home()
         else:
