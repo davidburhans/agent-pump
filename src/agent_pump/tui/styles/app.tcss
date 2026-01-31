@@ -8,11 +8,11 @@ $info: #3498db;
 $primary: #9b59b6;
 $secondary: #8e44ad;
 $accent: #e67e22;
-$text-muted: #7f8c8d;
+$text-muted: #95a5a6; /* Lightened from #7f8c8d for better contrast on dark */
 $text: #ecf0f1; /* Default text color */
 $surface: #2c3e50;
 $surface-lighten-1: #3a4f64;
-$surface-lighten-2: #496077;
+$surface-lighten-2: #5d7a96; /* Lightened for better visibility */
 $background: #1a252f;
 $glass-background: rgba(26, 37, 47, 0.8);
 $primary-background: #1a252f;
@@ -252,4 +252,56 @@ Footer {
 
 .light WorkflowNode.active {
     background: $surface-accent-1-light;
+}
+
+/* --- Focus & Visual Indicators --- */
+
+/* General Focus Ring */
+:focus {
+    outline: none; /* Textual uses borders mostly, but just in case */
+}
+
+/* Buttons */
+Button:focus {
+    border: double $text-inverse;
+    text-style: bold;
+}
+
+Button.-primary:focus {
+    border: double $text-inverse;
+    background: $primary-darken-2;
+}
+
+Button.-success:focus {
+    border: double $text-inverse;
+    background: #27ae60;
+}
+
+Button.-error:focus {
+    border: double $text-inverse;
+    background: #c0392b;
+}
+
+/* Input Fields */
+Input:focus {
+    border: double $accent;
+    background: $surface-lighten-1;
+}
+
+/* Directory Tree */
+DirectoryTree:focus {
+    border: double $accent;
+}
+
+/* Workflow Nodes */
+WorkflowNode:focus {
+    border: double $accent;
+    background: $surface-lighten-1;
+    text-style: bold;
+}
+
+/* Project Card */
+ProjectCard:focus {
+    border: double $accent;
+    background: $surface-lighten-1;
 }

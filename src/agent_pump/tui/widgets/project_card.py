@@ -1,4 +1,4 @@
-"""Project card widget for displaying project status."""
+"Project card widget for displaying project status."
 
 from datetime import datetime
 
@@ -100,6 +100,9 @@ class ProjectCard(Static):
         color: $accent;
     }
     """
+    
+    # Accessible name for screen readers
+    accessible_name: str | None
 
     class Selected(Message):
         """Message emitted when card is selected."""
@@ -130,6 +133,9 @@ class ProjectCard(Static):
         self.timeout = timeout or self.DEFAULT_TIMEOUT
         self.can_focus = True
         self._timer_handle = None  # Track timer for cleanup
+        
+        # Initial accessible name
+        self._update_accessible_name()
 
     def compose(self) -> ComposeResult:
         """Create the card content."""
@@ -290,11 +296,19 @@ class ProjectCard(Static):
             f"🔄 {self.project.iteration_count} iterations | "
             f"{verification_info}"
         )
+        
+    def _update_accessible_name(self) -> None:
+        """Update the accessible name based on current state."""
+        status = self.project.status.value.lower()
+        self.accessible_name = f"Project {self.project.name}: {status}"
 
     def refresh_content(self) -> None:
         """Refresh the card content."""
         # Update timer state based on project status
         self._update_timer_state()
+        
+        # Update accessible name
+        self._update_accessible_name()
 
         # Update status
         status_widget = self.query_one(".project-status", Static)
