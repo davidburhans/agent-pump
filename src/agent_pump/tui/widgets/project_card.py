@@ -199,7 +199,7 @@ class ProjectCard(Static):
             activity = self.project.current_activity
             if len(activity) > 50:
                 activity = activity[:47] + "..."
-            status_line += f"\n[dim]   ↳ {activity}[/dim]"
+            status_line += f"\n[.dim]   ↳ {activity}[/.dim]"
 
         return status_line
 

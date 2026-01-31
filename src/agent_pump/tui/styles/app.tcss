@@ -9,6 +9,7 @@ $primary: #9b59b6;
 $secondary: #8e44ad;
 $accent: #e67e22;
 $text-muted: #7f8c8d;
+$text: #ecf0f1; /* Default text color */
 $surface: #2c3e50;
 $surface-lighten-1: #3a4f64;
 $surface-lighten-2: #496077;
@@ -35,6 +36,40 @@ $primary-background-light: #ffffff;
 $text-muted-light: #7f8c8d;
 
 
+/* Button Overrides */
+Button.-primary {
+    background: $primary;
+    color: $text-inverse;
+}
+Button.-primary:hover {
+    background: $primary-darken-2;
+}
+
+Button.-success {
+    background: $success;
+    color: $text-inverse;
+}
+Button.-success:hover {
+    background: #27ae60; /* Darker success */
+}
+
+Button.-error {
+    background: $error;
+    color: $text-on-error;
+}
+Button.-error:hover {
+    background: #c0392b; /* Darker error */
+}
+
+Button.-warning {
+    background: $warning;
+    color: $background; /* Dark text on warning */
+}
+Button.-warning:hover {
+    background: #f39c12; /* Darker warning */
+}
+
+
 /* Status Classes */
 .status-idle { color: $text-muted; }
 .status-planning { color: $warning; }
@@ -45,6 +80,13 @@ $text-muted-light: #7f8c8d;
 .status-paused { color: $text-muted; }
 .status-error { color: $error; }
 .status-completed { color: $success; text-style: bold; }
+
+/* Global Utilities */
+.dim { color: $text-muted; }
+
+Input.error {
+    border: solid $error;
+}
 
 /* Main Layout */
 #app-container {

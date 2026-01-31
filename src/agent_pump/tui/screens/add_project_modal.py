@@ -31,7 +31,6 @@ class AddProjectModal(ModalScreen[Path | None]):
         margin-bottom: 1;
         text-style: bold;
         background: $primary;
-        color: $text;
     }
 
     .input-row {
@@ -41,10 +40,6 @@ class AddProjectModal(ModalScreen[Path | None]):
 
     #path-input {
         width: 1fr;
-    }
-
-    #path-input.error {
-        border: solid $error;
     }
 
     #btn-parent {

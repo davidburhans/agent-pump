@@ -22,10 +22,6 @@ class IdeaInputModal(ModalScreen[str | None]):
         padding: 1 2;
     }
 
-    IdeaInputModal Input.error {
-        border: solid $error;
-    }
-
     .button-row {
         margin-top: 1;
         align: right middle;

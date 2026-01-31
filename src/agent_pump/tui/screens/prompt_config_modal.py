@@ -38,9 +38,6 @@ class PromptConfigModal(ModalScreen[None]):
         margin-bottom: 1;
         text-style: bold;
         background: $primary;
-        color: $text;
-        height: 1;
-        dock: top;
     }
 
     VerticalScroll {

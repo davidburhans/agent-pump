@@ -137,7 +137,9 @@ logger.info(f"Gemini CLI completed: {line_count} lines in {elapsed:.1f}s, exit c
 
 ### Accessibility
 - Support keyboard navigation for all features
-- Use semantic colors (success=green, error=red)
+- **Semantic Colors**: Always use semantic variables (`$success`, `$error`, `$primary`, `$text`) instead of hardcoded colors.
+- **Buttons**: Use standard variants that map to semantic colors (`variant="success"`, `variant="error"`).
+- **Text Styles**: Use utility classes like `.dim` or `.error` instead of inline styles or markup.
 - Ensure contrast ratios are readable
 
 ### Layout
@@ -149,7 +151,7 @@ logger.info(f"Gemini CLI completed: {line_count} lines in {elapsed:.1f}s, exit c
 
 | Topic | Guidance |
 |-------|----------|
-| **CSS Variables** | Only use standard Textual variables (`$primary`, `$surface`, `$text`, `$background`). `$on-primary` does NOT exist. |
+| **CSS Variables** | Only use standard Textual variables (`$primary`, `$surface`, `$text`, `$background`) and defined semantic variables. Forbidden: hardcoded hex/names in Python. |
 | **Widget IDs** | Use kebab-case (e.g., `workflow-panel`). Ensure `compose()` IDs match `query_one()` selectors. |
 | **TextArea vs RichLog** | Use `TextArea(read_only=True)` for selectable logs. Use `RichLog` when styling > selection. |
 | **@work Decorator** | Methods return `Worker` immediately. Mock with `MagicMock`, not `AsyncMock`. |

@@ -56,6 +56,11 @@ A powerful Terminal User Interface for managing multiple projects.
 - **Features**: Fuzzy search for any command, even those not bound to a key.
 - **Context Aware**: Shows project-specific commands only when a project is selected.
 
+### UX & Theming
+- **Semantic Colors**: The TUI uses a consistent semantic color scheme (Primary, Secondary, Success, Error, Warning) defined in TCSS variables.
+- **Themes**: Built-in support for Dark (default) and Light themes.
+- **Visual Feedback**: Consistent use of color to indicate status (e.g., Green for success/completed, Red for error).
+
 ---
 
 ## ⚙️ Configuration & Customization

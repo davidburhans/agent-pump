@@ -14,25 +14,6 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 
 
-### 🔴 TUI UX Compliance - Semantic Color Variables
-**Priority: High** | **Guideline: Section 3.2**
-
-Replace hardcoded colors with semantic TCSS variables for consistency and theming.
-
-**Why this matters:**
-The guidelines emphasize using semantic variables like `$success`, `$error`, `$primary` instead of hardcoding colors. Currently, `project_card.py` uses hardcoded color names like `"red"`, `"green"`, `"yellow"` in Python code instead of TCSS semantic variables.
-
-**Acceptance Criteria:**
-- Define semantic color variables in `app.tcss`:
-  - `$success`, `$error`, `$warning`, `$info`, `$primary`, `$secondary`
-- Refactor `STATUS_COLORS` in `project_card.py` to use TCSS classes instead of inline Rich color markup
-- Create CSS classes for each status state (`.status-idle`, `.status-planning`, `.status-error`, etc.)
-- Ensure consistent color usage across all widgets and modals
-- Support for alpha-blended backgrounds for glassmorphism effects
-- Add light/dark theme variants
-
----
-
 ### 🟡 TUI UX Compliance - Micro-interactions & Animations
 **Priority: High** | **Guideline: Sections 5.3, 6.1, 6.2**
 

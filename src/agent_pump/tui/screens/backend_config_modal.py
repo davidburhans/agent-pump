@@ -49,7 +49,6 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
         margin-bottom: 1;
         text-style: bold;
         background: $primary;
-        color: $text;
     }
 
     .help-text {

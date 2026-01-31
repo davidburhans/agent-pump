@@ -39,7 +39,6 @@ class ProjectConfigModal(ModalScreen[None]):
         margin-bottom: 1;
         text-style: bold;
         background: $primary;
-        color: $text;
     }
 
     .section-label {
@@ -188,6 +187,10 @@ class ProjectConfigModal(ModalScreen[None]):
                 classes="button-row",
             )
 
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """Clear error state when user types."""
+        event.input.remove_class("error")
+
     def action_cancel(self) -> None:
         """Cancel and dismiss without saving."""
         self.dismiss(None)
@@ -222,6 +225,7 @@ class ProjectConfigModal(ModalScreen[None]):
                     self.notify("Max iterations must be a positive integer", severity="error")
                     self.query_one(TabbedContent).active = "tab-general"
                     max_iter_input.focus()
+                    max_iter_input.add_class("error")
                     self._shake(max_iter_input)
                     return
 
@@ -237,6 +241,7 @@ class ProjectConfigModal(ModalScreen[None]):
                     self.notify("Timeout must be a positive integer", severity="error")
                     self.query_one(TabbedContent).active = "tab-general"
                     timeout_input.focus()
+                    timeout_input.add_class("error")
                     self._shake(timeout_input)
                     return
 
