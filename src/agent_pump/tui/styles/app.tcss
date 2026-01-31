@@ -38,6 +38,7 @@ $glass-surface-light: rgba(236, 240, 241, 0.95);
 .status-idle { color: $text-muted; }
 .status-planning { color: $warning; }
 .status-implementing { color: $info; }
+.status-verifying { color: $primary; }
 .status-brainstorming { color: $accent; }
 .status-committing { color: $success; }
 .status-paused { color: $text-muted; }
