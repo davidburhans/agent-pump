@@ -6,7 +6,7 @@ from textual import events, on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
-from textual.widgets import Button, Footer, Header, Static
+from textual.widgets import Button, Footer, Header, Label, Static
 
 from agent_pump.config import Config
 from agent_pump.events.bus import EventBus
@@ -18,16 +18,22 @@ from agent_pump.events.models import (
     ProjectAddedEvent,
     ProjectRemovedEvent,
     WorkflowStateChangedEvent,
+    WorkspaceSwitchedEvent,
 )
+from agent_pump.keybindings import KEYBINDINGS
 from agent_pump.models.app_state import AppState
 from agent_pump.models.project import Project
 from agent_pump.models.workspace import (
     GlobalPromptSettings,
     PhaseBackends,
-    PromptCustomization,
+)
+from agent_pump.orchestrator.workflow_definition import (
+    WorkflowDefinition,
+    get_workflow,
 )
 from agent_pump.services.idea_service import IdeaService
 from agent_pump.services.log_service import LogService
+from agent_pump.services.metrics_service import MetricsService
 from agent_pump.services.project_service import ProjectService
 from agent_pump.services.workflow_service import WorkflowService
 from agent_pump.services.workspace_service import WorkspaceService
@@ -37,18 +43,20 @@ from agent_pump.tui.screens import (
     BackendConfigModal,
     GlobalPromptModal,
     IdeaInputModal,
+    MetricsModal,
     ProjectConfigModal,
+    ProjectSummaryModal,
     PromptConfigModal,
     RoadmapModal,
     SettingsModal,
-    ProjectSummaryModal,
+    WorkflowEditorModal,
+    WorkspaceSwitcherModal,
 )
 from agent_pump.tui.screens.confirm_modal import ConfirmModal
 from agent_pump.tui.screens.log_filter_modal import LogFilterModal
 from agent_pump.tui.widgets.log_panel import LogPanel
 from agent_pump.tui.widgets.project_card import ProjectCard
 from agent_pump.tui.widgets.workflow_panel import WorkflowNodeClicked, WorkflowPanel
-from agent_pump.utils.config_migration import ConfigMigrator
 from agent_pump.utils.roadmap import RoadmapFeature
 
 
@@ -65,31 +73,22 @@ class AgentPumpApp(App):
 
     # Base bindings always available
     BINDINGS = [
-        Binding("ctrl+p", "command_palette", "Cmds"),
-        Binding("a", "add_project", "Add"),
-        Binding("i", "add_idea", "Idea"),
-        Binding("m", "manage_roadmap", "Roadmap"),
-        Binding("s", "open_settings", "Settings"),
-        Binding("u", "update_config", "Reload"),
-        Binding("d", "toggle_dark", "Dark", show=False),
-        Binding("P", "global_prompts", "Global", show=False),
-        Binding("f", "filter_logs", "Filter", show=False),
-        Binding("o", "toggle_sort", "Order", show=False),
-        Binding("t", "toggle_timer", "Timer", show=False),
-        Binding("w", "toggle_workflow_panel", "Flow"),
-        Binding("y", "show_summary", "Summary", show=False),
-        Binding("escape", "quit", "Quit", show=False),
+        Binding(kb.key, kb.action, kb.description, show=kb.show_in_footer)
+        for kb in KEYBINDINGS
+        if kb.scope == "global"
     ]
 
-    def __init__(self, project_paths: list[Path] | None = None):
+    def __init__(self, project_paths: list[Path] | None = None, dry_run: bool = False):
         """
         Initialize the application.
 
         Args:
             project_paths: Initial list of project paths to manage
+            dry_run: Whether to run in dry-run mode (preview only, no changes)
         """
         super().__init__()
         self.project_paths = project_paths or []
+        self.dry_run = dry_run
 
         # Initialize services
         self.app_state = AppState.load()
@@ -104,6 +103,7 @@ class AgentPumpApp(App):
         self.workflow_service = WorkflowService(self.event_bus, self.project_service)
         self.idea_service = IdeaService(self.event_bus, self.workspace)
         self.log_service = LogService(self.event_bus)
+        self.metrics_service = MetricsService(self.event_bus, self.workspace.name)
 
         self.log_panel: LogPanel | None = None
         self.workflow_panel: WorkflowPanel | None = None
@@ -130,15 +130,30 @@ class AgentPumpApp(App):
                     yield Static("Projects", classes="section-title")
                     yield Container(id="project-list")
                     with Horizontal(classes="button-row"):
-                        yield Button("+ Add", id="btn-add", variant="success", tooltip="Add a new project (a)")
-                        yield Button("▶ Start All", id="btn-start-all", variant="primary", tooltip="Start all projects (S)")
-                        yield Button("⏹ Stop All", id="btn-stop-all", variant="error", tooltip="Stop all projects (X)")
+                        yield Button(
+                            "+ Add",
+                            id="btn-add",
+                            variant="success",
+                            tooltip="Add a new project (a)",
+                        )
+                        yield Button(
+                            "▶ Start All",
+                            id="btn-start-all",
+                            variant="primary",
+                            tooltip="Start all projects (S)",
+                        )
+                        yield Button(
+                            "⏹ Stop All",
+                            id="btn-stop-all",
+                            variant="error",
+                            tooltip="Stop all projects (X)",
+                        )
                         yield Label("v0.1.0", classes="dim")
-                
+
                 with Vertical(id="main-content"):
                     yield Static("Activity Log", id="activity-log-title", classes="section-title")
                     yield LogPanel(id="log-panel")
-                
+
                 with Vertical(id="right-sidebar"):
                     yield Static("Workflow State", classes="section-title")
                     yield WorkflowPanel(id="workflow-panel")
@@ -159,8 +174,9 @@ class AgentPumpApp(App):
         self._log("Press 'a' to add a project, 'escape' to quit")
         self._log(f"Log sort order: {self.app_state.log_sort_order.upper()}")
 
-        # Start log service
+        # Start services
         await self.log_service.start()
+        await self.metrics_service.start()
 
         # Start event loop
         _ = self.run_worker(self._handle_events())
@@ -198,6 +214,8 @@ class AgentPumpApp(App):
                 self._log(
                     f"Configuration updated: {event.config_type}", project_path=event.project_path
                 )
+            elif isinstance(event, WorkspaceSwitchedEvent):
+                self._log(f"Workspace switched from {event.old_workspace} to {event.new_workspace}")
 
     def _log(
         self,
@@ -208,7 +226,7 @@ class AgentPumpApp(App):
     ) -> None:
         """Log a message to the log panel."""
         if self.log_panel:
-            self.log_panel.write(message, project_path=project_path, state=state, task=task)
+            self.log_panel.log_message(message, project_path=project_path, state=state, task=task)
 
     def _update_activity_log_title(self) -> None:
         """Update the Activity Log title to show the selected project."""
@@ -227,31 +245,20 @@ class AgentPumpApp(App):
 
     def _update_project_bindings(self) -> None:
         """Update key bindings based on project selection state."""
-        project_bindings = [
-            ("delete", "remove_project", "Remove"),
-            ("space", "toggle_project_state", "Start/Stop"),
-            ("S", "start_all", "All▶"),
-            ("X", "stop_all", "All⏹"),
-            ("k", "skip_feature", "Skip"),
-            ("c", "config_project", "Conf"),
-            ("b", "config_backends", "Back"),
-            ("p", "config_prompts", "Prmt"),
-            ("y", "show_summary", "Summ"),
-            ("R", "reset_project", "Reset"),
-        ]
+        project_bindings = [kb for kb in KEYBINDINGS if kb.scope == "project"]
 
         if self.selected_project is not None and not self._project_bindings_active:
             # Add project-specific bindings
-            for key, action, description in project_bindings:
-                self.bind(key, action, description=description, show=True)
+            for kb in project_bindings:
+                self.bind(kb.key, kb.action, description=kb.description, show=kb.show_in_footer)
             self._project_bindings_active = True
         elif self.selected_project is None and self._project_bindings_active:
             # Remove project-specific bindings
             # Textual App does not support unbind, so we just set them to not show
             # and rely on the handlers checking for selected_project
-            for key, action, description in project_bindings:
+            for kb in project_bindings:
                 # Overwrite with show=False to hide from footer
-                self.bind(key, action, description=description, show=False)
+                self.bind(kb.key, kb.action, description=kb.description, show=False)
             self._project_bindings_active = False
 
     async def _add_project(self, path: Path) -> None:
@@ -298,39 +305,6 @@ class AgentPumpApp(App):
         if not project.has_best_practices():
             self._log(f"  ⚠ Warning: No BEST_PRACTICES.md found in {path}")
 
-        # Check for config migration
-        self.run_worker(self._check_config_migration(project))
-
-    async def _check_config_migration(self, project: Project) -> None:
-        """Check for legacy config and offer migration."""
-        self._log(f"Checking migration for {project.path}")
-        migrator = ConfigMigrator(project.path)
-        needs_migration = migrator.needs_migration()
-
-        if needs_migration:
-            result = await self.push_screen(
-                ConfirmModal(
-                    question="Legacy Configuration Detected\n\n"
-                    "Convert .agent-pump.yml to new directory structure?\n"
-                    "This enables per-phase prompt customization via markdown files.",
-                    confirm_label="Convert",
-                    cancel_label="Cancel",
-                ),
-                wait_for_dismiss=True,
-            )
-            self._log(f"Migration modal result: {result}")
-
-            if result:
-                try:
-                    self._log("Starting migration...")
-                    migrator.migrate(remove_legacy=False)  # Keep backup
-                    self._log("Migration completed.")
-                    self.notify("Config migrated to .agent-pump/ directory")
-                except Exception as e:
-                    self._log(f"Migration failed: {e}")
-                    import traceback
-                    self._log(f"Traceback: {traceback.format_exc()}")
-                    self.notify(f"Migration failed: {e}", severity="error")
 
     async def _on_ideas_processed(self, path: Path | None) -> None:
         """Callback when ideas have been processed by the workflow."""
@@ -523,11 +497,11 @@ class AgentPumpApp(App):
         if not self.selected_project:
             self._log("No project selected.")
             return
-        
+
         project = self.projects.get(self.selected_project)
         if not project:
             return
-            
+
         self.push_screen(ProjectSummaryModal(project))
 
     def action_config_project(self) -> None:
@@ -585,10 +559,45 @@ class AgentPumpApp(App):
             return
 
         def handle_result(result: None) -> None:
-             pass
+            pass
 
         self.push_screen(
             PromptConfigModal(project_config, self.workspace, initial_phase=initial_phase),
+            handle_result,
+        )
+
+    def action_edit_workflow(self) -> None:
+        """Open the workflow editor for the selected project."""
+        if not self.selected_project:
+            self._log("No project selected. Select a project first with click/arrow keys.")
+            return
+
+        project_config = self.workspace.get_project_config(self.selected_project)
+        if not project_config:
+            self._log("Project not found in workspace config.")
+            return
+
+        # Get the current workflow for this project
+        current_workflow_name = getattr(project_config, "workflow_name", "default")
+        try:
+            current_workflow = get_workflow(
+                current_workflow_name, self.workspace.workflow_definitions
+            )
+        except KeyError:
+            # Fallback to default if workflow not found
+            current_workflow = get_workflow("default")
+
+        def handle_result(result: WorkflowDefinition | None) -> None:
+            if result is not None:
+                # Update project to use the edited workflow
+                project_config.workflow_name = result.name
+                self.workspace.save()
+                self._log(f"Workflow updated to '{result.name}' for project {project_config.name}")
+            else:
+                self._log("Workflow editor closed without saving")
+
+        self.push_screen(
+            WorkflowEditorModal(self.workspace, current_workflow),
             handle_result,
         )
 
@@ -621,25 +630,21 @@ class AgentPumpApp(App):
         if not project:
             return
 
-        # Check migration again (force check)
-        await self._check_config_migration(project)
 
         # Reload config
         try:
-             # Force reload of config from disk
-             new_config = Config.load(project.path)
-             # Update project object
-             project.backend = new_config.backend
-             if self.selected_project in self.workflows:
-                 self.workflows[self.selected_project].config = new_config
+            # Force reload of config from disk
+            new_config = Config.load(project.path)
+            # Update project object
+            project.backend = new_config.backend
+            if self.selected_project in self.workflows:
+                self.workflows[self.selected_project].config = new_config
 
-             self._log(f"Configuration reloaded for {project.name}")
+            self._log(f"Configuration reloaded for {project.name}")
 
-             # Log which config file was used
-             if (project.path / ".agent-pump" / "config.yml").exists():
-                 self._log("  Using: .agent-pump/config.yml")
-             elif (project.path / ".agent-pump.yml").exists():
-                 self._log("  Using: .agent-pump.yml (Legacy)")
+            # Log which config file was used
+            if (project.path / ".agent-pump" / "config.yml").exists():
+                self._log("  Using: .agent-pump/config.yml")
 
         except Exception as e:
             self._log(f"[ERROR] Failed to reload config: {e}")
@@ -655,6 +660,104 @@ class AgentPumpApp(App):
             # If None, modal was dismissed without explicit save/cancel
 
         self.push_screen(SettingsModal(self.workspace), handle_result)
+
+    def action_show_metrics(self) -> None:
+        """Open the metrics and analytics dashboard."""
+        self.push_screen(MetricsModal(self.metrics_service))
+
+    def action_switch_workspace(self) -> None:
+        """Open the workspace switcher modal."""
+        from agent_pump.models.workspace import Workspace
+
+        workspaces = Workspace.list_workspaces()
+        current = self.workspace.name if self.workspace else "default"
+
+        def handle_result(result: str | None) -> None:
+            if result is None:
+                self._log("Workspace switch cancelled")
+                return
+
+            if result not in workspaces:
+                # This is a new workspace name from the create flow
+                self._create_and_switch_workspace(result)
+            else:
+                # User selected an existing workspace to switch to
+                self.run_worker(self._do_workspace_switch(result))
+
+        self.push_screen(WorkspaceSwitcherModal(workspaces, current), handle_result)
+
+    async def _do_workspace_switch(self, workspace_name: str) -> None:
+        """Perform the actual workspace switch."""
+        self._log(f"Switching to workspace: {workspace_name}")
+
+        # Stop all running workflows for safety
+        await self.workflow_service.stop_all()
+
+        # Switch workspace via service
+        new_workspace = await self.workspace_service.switch_workspace(workspace_name)
+
+        # Update local workspace reference
+        self.workspace = new_workspace
+
+        # Clear current projects from UI
+        await self._clear_all_projects()
+
+        # Reload projects from new workspace
+        await self._load_workspace_projects()
+
+        self._log(f"Switched to workspace: {workspace_name}")
+        self.notify(f"Switched to workspace: {workspace_name}")
+
+    async def _clear_all_projects(self) -> None:
+        """Remove all project cards from the UI."""
+        try:
+            project_list = self.query_one("#project-list", Container)
+            for card in list(project_list.query(ProjectCard)):
+                card.remove()
+        except Exception as e:
+            self._log(f"[ERROR] Failed to clear project list: {e}")
+
+        # Clear internal state
+        self.selected_project = None
+        if self.workflow_panel:
+            self.workflow_panel.set_workflow(None)
+        if self.log_panel:
+            self.log_panel.set_filter(None)
+
+    async def _load_workspace_projects(self) -> None:
+        """Load all projects from the current workspace."""
+        if not self.workspace:
+            return
+
+        for path_str in self.workspace.projects:
+            try:
+                path = Path(path_str)
+                if path.exists():
+                    await self._add_project(path)
+            except Exception as e:
+                self._log(f"[ERROR] Failed to load project {path_str}: {e}")
+
+    def _create_and_switch_workspace(self, name: str) -> None:
+        """Create a new workspace and switch to it."""
+        from agent_pump.models.workspace import Workspace
+
+        name = name.strip()
+        existing = Workspace.list_workspaces()
+
+        if name in existing:
+            self._log(f"[ERROR] Workspace '{name}' already exists")
+            self.notify(f"Workspace '{name}' already exists", severity="error")
+            return
+
+        # Create the workspace
+        workspace = Workspace(name=name)
+        workspace.save()
+
+        self._log(f"Created workspace: {name}")
+        self.notify(f"Created workspace: {name}")
+
+        # Switch to the new workspace
+        self.run_worker(self._do_workspace_switch(name))
 
     def action_filter_logs(self) -> None:
         """Configure activity log filters."""
@@ -754,6 +857,95 @@ class AgentPumpApp(App):
             on_confirm,
         )
 
+    def action_show_checkpoints(self) -> None:
+        """Show checkpoint list and allow rollback for the selected project."""
+        if not self.selected_project:
+            self._log("No project selected. Select a project first.")
+            return
+
+        workflow = self.workflows.get(self.selected_project)
+        if not workflow:
+            self._log("Workflow not found for selected project.")
+            return
+
+        # Get checkpoints from workflow state
+        checkpoints = workflow.workflow_state.list_checkpoints()
+        current_feature = workflow.project.current_feature
+
+        def handle_result(result: tuple[str, str] | None) -> None:
+            if result is None:
+                self._log("Checkpoint modal closed")
+                return
+
+            action, checkpoint_id = result
+            if action == "rollback":
+                self.run_worker(self._do_rollback(checkpoint_id))
+
+        from agent_pump.tui.screens.checkpoint_modal import CheckpointModal
+
+        self.push_screen(
+            CheckpointModal(checkpoints=checkpoints, current_feature=current_feature),
+            handle_result,
+        )
+
+    async def _do_rollback(self, checkpoint_id: str) -> None:
+        """Perform the actual rollback operation."""
+        if not self.selected_project:
+            return
+
+        try:
+            result = await self.workflow_service.rollback_to_checkpoint(
+                self.selected_project, checkpoint_id
+            )
+            if result:
+                self._log(f"Successfully rolled back to checkpoint {checkpoint_id}")
+                self.notify(f"Rolled back to checkpoint {checkpoint_id}", severity="information")
+            else:
+                self._log(f"Failed to rollback: checkpoint {checkpoint_id} not found")
+                self.notify("Rollback failed: checkpoint not found", severity="error")
+        except Exception as e:
+            self._log(f"[ERROR] Rollback failed: {e}")
+            self.notify(f"Rollback failed: {e}", severity="error")
+
+    def action_create_checkpoint(self) -> None:
+        """Create a manual checkpoint for the selected project."""
+        if not self.selected_project:
+            self._log("No project selected. Select a project first.")
+            return
+
+        workflow = self.workflows.get(self.selected_project)
+        if not workflow:
+            self._log("Workflow not found for selected project.")
+            return
+
+        # Use the current feature name or a generic description
+        feature = workflow.project.current_feature
+        description = "Manual checkpoint" + (f" for {feature}" if feature else "")
+
+        self.run_worker(self._do_create_checkpoint(description))
+
+    async def _do_create_checkpoint(self, description: str) -> None:
+        """Perform the actual checkpoint creation."""
+        if not self.selected_project:
+            return
+
+        try:
+            checkpoint = await self.workflow_service.create_manual_checkpoint(
+                self.selected_project, description
+            )
+            if checkpoint:
+                self._log(f"Created checkpoint {checkpoint.id}: {checkpoint.description}")
+                self.notify(
+                    f"Checkpoint created: {checkpoint.get_short_hash()}",
+                    severity="information",
+                )
+            else:
+                self._log("Failed to create checkpoint")
+                self.notify("Failed to create checkpoint", severity="error")
+        except Exception as e:
+            self._log(f"[ERROR] Failed to create checkpoint: {e}")
+            self.notify(f"Checkpoint creation failed: {e}", severity="error")
+
     async def action_quit(self) -> None:
         """Quit the application, properly cleaning up subprocesses."""
         import asyncio
@@ -761,6 +953,12 @@ class AgentPumpApp(App):
 
         # Stop all workflows via service (fire and forget cancellation)
         await self.workflow_service.stop_all()
+
+        # Give workflows time to acknowledge cancellation
+        await asyncio.sleep(0.1)
+
+        # Gracefully shutdown workflow service and wait for tasks
+        await self.workflow_service.shutdown()
 
         # Cancel all Textual workers (background tasks)
         self.workers.cancel_all()

@@ -6,9 +6,9 @@ Agent-pump supports custom build, lint, and test commands that run after the AI 
 
 Verification commands can be configured in two ways:
 
-### 1. Project-Level Configuration (`.agent-pump.yml`)
+### 1. Project-Level Configuration (`.agent-pump/config.yml`)
 
-Create a `.agent-pump.yml` file in your project root:
+Create a `.agent-pump/config.yml` file in your project:
 
 ```yaml
 verification:

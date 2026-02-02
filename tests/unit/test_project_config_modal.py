@@ -34,8 +34,9 @@ async def test_project_config_modal_interaction(tmp_path):
     # Setup project
     project_path = tmp_path / "test_project"
     project_path.mkdir()
-    # Create valid config
-    (project_path / ".agent-pump.yml").write_text("""
+    # Create valid config in new location
+    (project_path / ".agent-pump").mkdir()
+    (project_path / ".agent-pump" / "config.yml").write_text("""
 backend: gemini
 workflow:
   max_iterations: 10
@@ -93,7 +94,7 @@ verification:
             await pilot.pause()
 
             # Verify file update
-            content = (project_path / ".agent-pump.yml").read_text()
+            content = (project_path / ".agent-pump" / "config.yml").read_text()
             assert "skip_verification: false" in content
 
 
@@ -123,11 +124,8 @@ async def test_project_config_creation(tmp_path):
 
             await pilot.pause()
 
-            # Check for new config path first
+            # Check for config file
             config_file = project_path / ".agent-pump" / "config.yml"
-            if not config_file.exists():
-                 # Fallback to legacy
-                 config_file = project_path / ".agent-pump.yml"
 
             # Verify config file was created
             assert config_file.exists()
@@ -148,6 +146,7 @@ def mock_config():
     config.verification.test_cmd = None
     config.backend = "gemini"
     return config
+
 
 @pytest.mark.asyncio
 async def test_validation_shake(tmp_path, mock_config):
@@ -186,14 +185,14 @@ async def test_validation_shake(tmp_path, mock_config):
             assert app.screen is modal
 
             # Test 2: Invalid Timeout (Zero)
-            max_iter_input.value = "10" # Fix first error
+            max_iter_input.value = "10"  # Fix first error
             timeout_input.value = "0"
 
             shake_mock.reset_mock()
             await modal.action_save()
 
             shake_mock.assert_called_with(timeout_input)
-             # Verify validation failure (modal not dismissed)
+            # Verify validation failure (modal not dismissed)
             assert app.screen is modal
 
             # Test 3: Valid Input
