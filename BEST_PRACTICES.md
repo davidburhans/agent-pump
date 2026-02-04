@@ -511,6 +511,16 @@ Before committing:
 - **Fix long lines early**: Break long strings and function calls across multiple lines before they accumulate.
 - **Use explicit re-exports**: For package `__init__.py` files that re-export classes, use `from .module import Class as Class` pattern to satisfy type checkers.
 
+### TUI Testing
+- **Mocking Helpers**: When testing TUI screens that use helper functions (like `shake`), mock the imported function directly (`patch("agent_pump.tui.screens.screen.shake")`) rather than patching it as a method on the screen instance.
+- **Widget Selection**: When `query_one()` is called multiple times in the code under test, use `side_effect` with a callable or list to return distinct mock widgets for each selector. This ensures assertions target the correct widget.
+- **Path Resolution**: On Windows, `pathlib.Path` comparisons can be tricky due to drive letters. Always use `.resolve()` in tests when comparing paths that have been processed by application logic, or relax assertions to check normalized path components.
+
+### Service State Management
+- **Persistence of Transients**: Services that manage transient requests (like approvals) should consider how clients will query the status *after* resolution.
+- **Resolution Cache**: Implementing a short-lived cache (e.g., `_resolved_approvals`) allows clients to safely query the final state of an operation even after it has been removed from the active pending list.
+- **Wait Operations**: Async `wait` operations should check both pending and resolved states to avoid race conditions where an operation completes before the waiter wakes up.
+
 ### Select Widget Type Handling
 - **NoSelection handling**: When using `Select` widgets, the `.value` property can return a `NoSelection` type when nothing is selected.
 - **Type-safe extraction**: Always check `isinstance(value, str)` before using Select values to satisfy type checkers.

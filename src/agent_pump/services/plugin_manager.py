@@ -15,7 +15,6 @@ from agent_pump.events.bus import EventBus
 from agent_pump.models.plugin import (
     HookContext,
     PluginConfig,
-    PluginInfo,
     PluginLoadError,
     PluginState,
     RegisteredHook,

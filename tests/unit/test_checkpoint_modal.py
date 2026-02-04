@@ -1,6 +1,5 @@
 """Tests for checkpoint modal TUI screen."""
 
-import pytest
 
 from agent_pump.models.checkpoint import Checkpoint
 from agent_pump.tui.screens.checkpoint_modal import CheckpointModal

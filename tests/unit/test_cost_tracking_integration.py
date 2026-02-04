@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import AsyncGenerator
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from agent_pump.backends.base import AgentBackend
 from agent_pump.models.cost_tracking import (
-    BACKEND_PRICING,
     BudgetAction,
     BudgetConfig,
     BudgetPeriod,

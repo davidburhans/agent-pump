@@ -270,7 +270,7 @@ class BootstrapModal(ModalScreen[tuple[Path, str, bool] | None]):
             lines.append(f"Framework: {analysis.framework}")
         lines.extend(
             [
-                f"",
+                "",
                 f"Key files: {len(analysis.key_files)}",
                 f"Has tests: {'Yes' if analysis.has_tests else 'No'}",
                 f"Has docs: {'Yes' if analysis.has_docs else 'No'}",
@@ -278,7 +278,7 @@ class BootstrapModal(ModalScreen[tuple[Path, str, bool] | None]):
             ]
         )
         if analysis.key_files:
-            lines.append(f"\nDetected files:")
+            lines.append("\nDetected files:")
             for f in analysis.key_files[:5]:  # Show max 5
                 lines.append(f"  - {f}")
             if len(analysis.key_files) > 5:

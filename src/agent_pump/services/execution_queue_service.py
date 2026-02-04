@@ -337,7 +337,8 @@ class ExecutionQueueService(BaseService):
         if item:
             new_position = workspace.get_queue_position(path)
             logger.info(
-                f"Updated project {path} priority to {new_priority.name}, new position: #{new_position}"
+                f"Updated project {path} priority to {new_priority.name}, "
+                f"new position: #{new_position}"
             )
             return True, f"Priority updated to {new_priority.name}, now at position #{new_position}"
 

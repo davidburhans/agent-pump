@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import pytest
-
 from agent_pump.utils.dry_run import (
     DryRunContext,
     OperationType,

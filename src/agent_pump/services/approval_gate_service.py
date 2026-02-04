@@ -47,6 +47,7 @@ class ApprovalGateService:
         """
         self.event_bus = event_bus
         self._pending_approvals: dict[Path, dict[str, ApprovalRequest]] = {}
+        self._resolved_approvals: dict[str, ApprovalRequest] = {}
         self._timeout_task: asyncio.Task | None = None
         self._shutdown = False
         self._resolution_events: dict[str, asyncio.Event] = {}
@@ -176,6 +177,9 @@ class ApprovalGateService:
                 if not phases:
                     del self._pending_approvals[request.project_path]
 
+        # Add to resolved
+        self._resolved_approvals[request_id] = request
+
         # Signal resolution
         if request_id in self._resolution_events:
             self._resolution_events[request_id].set()
@@ -256,10 +260,16 @@ class ApprovalGateService:
         Returns:
             The approval request if found, None otherwise
         """
+        # Check pending approvals
         for phases in self._pending_approvals.values():
             for request in phases.values():
                 if request.id == request_id:
                     return request
+
+        # Check resolved approvals
+        if request_id in self._resolved_approvals:
+            return self._resolved_approvals[request_id]
+
         return None
 
     def get_pending_approvals(

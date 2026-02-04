@@ -1,16 +1,11 @@
 """Tests for workflow plugin hook integration."""
 
-import asyncio
-from pathlib import Path
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from agent_pump.events.bus import EventBus
-from agent_pump.models.plugin import HookContext
 from agent_pump.models.project import Project, ProjectStatus
-from agent_pump.models.state import WorkflowState
 from agent_pump.orchestrator.workflow import ProjectWorkflow
 from agent_pump.services.plugin_manager import PluginManager
 

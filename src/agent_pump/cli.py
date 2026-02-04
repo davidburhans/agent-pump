@@ -8,7 +8,6 @@ import click
 from rich.console import Console
 
 from agent_pump.models.app_state import AppState
-from agent_pump.tui.app import AgentPumpApp
 from agent_pump.utils.verification import load_verification_config, save_verification_config
 
 console = Console()
@@ -100,6 +99,9 @@ def main(
     else:
         configure_logging(level="INFO", structured=False)
 
+    # DEBUG
+    print(f"DEBUG: invoked_subcommand={ctx.invoked_subcommand}")
+
     if ctx.invoked_subcommand is not None:
         return
 
@@ -148,6 +150,8 @@ def main(
         return
 
     # Launch TUI app
+    from agent_pump.tui.app import AgentPumpApp
+
     app = AgentPumpApp(project_paths=all_projects, dry_run=dry_run)
     app.run()
 

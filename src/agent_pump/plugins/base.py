@@ -12,9 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from agent_pump.events.bus import EventBus
-    from agent_pump.models.plugin import HookContext, PluginConfig, PluginInfo
-    from agent_pump.models.project import Project
-    from agent_pump.orchestrator.workflow import ProjectWorkflow
+    from agent_pump.models.plugin import HookContext, PluginInfo
 
 
 class PluginContext:
@@ -79,7 +77,7 @@ class Plugin(ABC):
 
     @property
     @abstractmethod
-    def info(self) -> "PluginInfo":
+    def info(self) -> PluginInfo:
         """Return plugin metadata.
 
         This property must be implemented by all plugins to provide

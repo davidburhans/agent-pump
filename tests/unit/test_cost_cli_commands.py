@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from click.testing import CliRunner
 
 from agent_pump.cli import main
-from agent_pump.models.cost_tracking import BudgetAction, BudgetConfig, BudgetPeriod
+from agent_pump.models.cost_tracking import BudgetAction, BudgetConfig
 from agent_pump.models.workspace import Workspace
 from agent_pump.services.cost_tracking_service import CostTrackingService
 

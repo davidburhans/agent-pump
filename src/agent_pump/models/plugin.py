@@ -6,18 +6,14 @@ plugin metadata, configuration, and hook context.
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
 if TYPE_CHECKING:
-    from agent_pump.events.bus import EventBus
-    from agent_pump.models.project import Project
-    from agent_pump.orchestrator.workflow import ProjectWorkflow
-    from agent_pump.plugins.base import Plugin
+    pass
 
 
 class PluginInfo(BaseModel):

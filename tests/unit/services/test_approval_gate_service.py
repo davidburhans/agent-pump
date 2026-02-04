@@ -3,7 +3,7 @@
 import asyncio
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -16,7 +16,6 @@ from agent_pump.events.models import (
 from agent_pump.models.approval_gate_config import (
     ApprovalDecision,
     ApprovalGateConfig,
-    ApprovalRequest,
     GateConfig,
     TimeoutAction,
 )
@@ -536,6 +535,9 @@ class TestTimeoutHandling:
             # Wait for timeout monitor to process
             await asyncio.sleep(0.1)
 
+            # Manually expire the request
+            request.timeout_at = datetime.now() - timedelta(minutes=1)
+
             # Manually trigger timeout processing
             await service._process_timeouts()
 
@@ -571,6 +573,9 @@ class TestTimeoutHandling:
                 feature=None,
                 config=config,
             )
+
+            # Manually expire the request
+            request.timeout_at = datetime.now() - timedelta(minutes=1)
 
             await service._process_timeouts()
 

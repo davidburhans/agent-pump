@@ -3,7 +3,6 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from textual.widgets import Button, Input, Label, Static
 
 from agent_pump.tui.screens.approval_gate_modal import ApprovalGateModal
 

@@ -24,6 +24,7 @@ from agent_pump.events.models import (
 from agent_pump.models.branch_state import BranchState
 from agent_pump.models.branch_strategy import BranchStrategyConfig
 from agent_pump.models.cost_tracking import BudgetAction
+from agent_pump.models.plugin import HookContext
 from agent_pump.models.project import Project, ProjectStatus
 from agent_pump.models.state import WorkflowState
 from agent_pump.models.workflow_snapshot import (
@@ -32,7 +33,6 @@ from agent_pump.models.workflow_snapshot import (
     WorkflowSnapshot,
 )
 from agent_pump.models.workspace import PhaseBackends, ProjectConfig, PromptCustomization
-from agent_pump.models.plugin import HookContext
 from agent_pump.orchestrator.verification_executor import VerificationExecutor
 from agent_pump.services.branch_manager import BranchManager, MergeResult
 from agent_pump.services.checkpoint_service import CheckpointService

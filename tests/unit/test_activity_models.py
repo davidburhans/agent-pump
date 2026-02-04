@@ -3,8 +3,6 @@
 from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
-import pytest
-
 from agent_pump.models.activity import (
     Activity,
     ActivityLog,

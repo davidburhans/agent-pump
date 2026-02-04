@@ -3,8 +3,6 @@
 from datetime import datetime, timedelta
 from uuid import uuid4
 
-import pytest
-
 from agent_pump.api.schemas import (
     ActivityDTO,
     ActivityFilterRequest,

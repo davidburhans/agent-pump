@@ -3,9 +3,6 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from agent_pump.services.bootstrap_service import BootstrapService
 from agent_pump.tui.screens.bootstrap_modal import BootstrapModal
 
 
@@ -94,7 +91,17 @@ class TestBootstrapModalAnalysis:
         # Mock the preview widget
         with patch.object(modal, "query_one") as mock_query:
             mock_preview = MagicMock()
-            mock_query.return_value = mock_preview
+            mock_error = MagicMock()
+
+            # query_one is called for preview-content and error-label
+            def query_side_effect(selector, type=None):
+                if selector == "#preview-content":
+                    return mock_preview
+                if selector == "#error-label":
+                    return mock_error
+                return MagicMock()
+
+            mock_query.side_effect = query_side_effect
 
             modal._analyze_project()
 
@@ -114,7 +121,16 @@ class TestBootstrapModalAnalysis:
 
         with patch.object(modal, "query_one") as mock_query:
             mock_preview = MagicMock()
-            mock_query.return_value = mock_preview
+            mock_error = MagicMock()
+
+            def query_side_effect(selector, type=None):
+                if selector == "#preview-content":
+                    return mock_preview
+                if selector == "#error-label":
+                    return mock_error
+                return MagicMock()
+
+            mock_query.side_effect = query_side_effect
 
             modal._analyze_project()
 
@@ -252,8 +268,9 @@ class TestBootstrapModalErrorHandling:
             mock_input = MagicMock()
             mock_query.side_effect = [mock_label, mock_input]
 
-            with patch.object(modal, "shake"):
+            with patch("agent_pump.tui.screens.bootstrap_modal.shake") as mock_shake:
                 modal._show_error("Test error message")
+                mock_shake.assert_called_once()
 
             mock_label.update.assert_called_once_with("Test error message")
             mock_label.add_class.assert_called_once_with("visible")
@@ -315,12 +332,14 @@ class TestBootstrapModalDismissal:
         with patch.object(modal, "query_one") as mock_query:
             mock_input = MagicMock()
             mock_input.value = str(test_path)
+            mock_error = MagicMock()  # For _clear_error
             mock_select = MagicMock()
             mock_select.value = "gemini"
             mock_checkbox = MagicMock()
             mock_checkbox.value = False
 
-            mock_query.side_effect = [mock_input, mock_select, mock_checkbox]
+            # Sequence: path-input -> error-label -> backend-select -> dry-run-checkbox
+            mock_query.side_effect = [mock_input, mock_error, mock_select, mock_checkbox]
 
             with patch.object(modal, "dismiss") as mock_dismiss:
                 with patch.object(Path, "exists", return_value=True):
@@ -329,6 +348,6 @@ class TestBootstrapModalDismissal:
 
                         mock_dismiss.assert_called_once()
                         result = mock_dismiss.call_args[0][0]
-                        assert result[0] == test_path
+                        assert result[0] == test_path.resolve()
                         assert result[1] == "gemini"
                         assert result[2] is False

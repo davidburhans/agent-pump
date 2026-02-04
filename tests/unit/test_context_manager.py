@@ -1,13 +1,11 @@
 """Tests for context manager utility."""
 
-import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from unittest.mock import Mock, patch
 
 import pytest
 
-from agent_pump.models.context_config import ContextConfig, ContextFile
+from agent_pump.models.context_config import ContextConfig
 from agent_pump.utils.context_manager import ContextAnalysis, ContextManager
 
 

@@ -1,9 +1,7 @@
 """Tests for metrics API DTOs."""
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-
-import pytest
 
 from agent_pump.api.schemas import (
     FeatureCompletionDTO,

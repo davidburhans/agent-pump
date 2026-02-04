@@ -1,15 +1,11 @@
 """Tests for enhanced WebSocket connection manager with collaborative mode."""
 
-import asyncio
 import json
-from datetime import datetime
-from uuid import UUID, uuid4
+from unittest.mock import AsyncMock, MagicMock
+from uuid import uuid4
 
 import pytest
-import pytest_asyncio
-from fastapi import WebSocket
 from starlette.websockets import WebSocketState
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from agent_pump.api.routes.websocket import ConnectionManager
 from agent_pump.models.activity import ActivityType

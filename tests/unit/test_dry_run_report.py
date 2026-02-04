@@ -1,7 +1,6 @@
 """Unit tests for dry-run report models."""
 
 from datetime import datetime
-from pathlib import Path
 
 import pytest
 
@@ -12,7 +11,6 @@ from agent_pump.models.dry_run_report import (
     FileChangeType,
     GitOperation,
     PhaseEstimate,
-    VerificationCommand,
 )
 
 

@@ -3,7 +3,7 @@
 import asyncio
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -371,7 +371,7 @@ class TestMetricsService:
         project_path = Path("/test/project")
         metrics_service.set_project_name(project_path, "Test")
 
-        from agent_pump.models.metrics import FeatureCompletion, ProjectMetrics
+        from agent_pump.models.metrics import FeatureCompletion
 
         p1 = metrics_service._metrics.get_or_create_project_metrics(project_path, "Test")
         p1.features = [
