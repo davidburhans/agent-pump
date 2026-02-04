@@ -2,8 +2,7 @@
 
 from datetime import datetime
 
-from textual import events, on
-
+from textual import events
 from textual.app import ComposeResult
 from textual.containers import Horizontal
 from textual.message import Message
@@ -100,7 +99,7 @@ class ProjectCard(Static):
         color: $accent;
     }
     """
-    
+
     # Accessible name for screen readers
     accessible_name: str | None
 
@@ -133,7 +132,7 @@ class ProjectCard(Static):
         self.timeout = timeout or self.DEFAULT_TIMEOUT
         self.can_focus = True
         self._timer_handle = None  # Track timer for cleanup
-        
+
         # Initial accessible name
         self._update_accessible_name()
 
@@ -296,7 +295,7 @@ class ProjectCard(Static):
             f"🔄 {self.project.iteration_count} iterations | "
             f"{verification_info}"
         )
-        
+
     def _update_accessible_name(self) -> None:
         """Update the accessible name based on current state."""
         status = self.project.status.value.lower()
@@ -306,7 +305,7 @@ class ProjectCard(Static):
         """Refresh the card content."""
         # Update timer state based on project status
         self._update_timer_state()
-        
+
         # Update accessible name
         self._update_accessible_name()
 
@@ -341,7 +340,7 @@ class ProjectCard(Static):
 
     def on_click(self, event: events.Click) -> None:
         """Handle click events."""
-        if event.widget.id == "btn-config":
+        if event.widget and event.widget.id == "btn-config":
             event.stop()
             self.post_message(self.BackendConfigRequested(self.project, self))
         else:

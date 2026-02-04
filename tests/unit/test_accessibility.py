@@ -1,23 +1,24 @@
-import pytest
-from textual.widgets import Label, Button
-from agent_pump.tui.widgets.workflow_panel import WorkflowNode
-from agent_pump.tui.widgets.project_card import ProjectCard
-from agent_pump.tui.widgets.log_panel import LogPanel
-from agent_pump.models.project import Project, ProjectStatus
-from agent_pump.orchestrator.workflow_definition import WorkflowPhase
 from unittest.mock import MagicMock
+
+from agent_pump.models.project import Project, ProjectStatus
+from agent_pump.models.workflow_snapshot import NodeSnapshot
+from agent_pump.tui.widgets.log_panel import LogPanel
+from agent_pump.tui.widgets.project_card import ProjectCard
+from agent_pump.tui.widgets.workflow_panel import WorkflowNode
+
 
 class TestAccessibility:
     """Test suite for accessibility improvements."""
-    
+
     def test_workflow_node_accessible_name(self):
         """Test WorkflowNode accessible name."""
-        phase = WorkflowPhase(name="planning", icon="P", on_success="next_phase")
-        node = WorkflowNode(phase)
+        snapshot = NodeSnapshot(id="planning", label="Planning", icon="P", status="pending")
+        node = WorkflowNode(snapshot)
         assert node.accessible_name == "Planning Phase: Pending"
-        
-        # Test generic node (string)
-        node_idle = WorkflowNode("idle")
+
+        # Test generic node (idle)
+        snapshot_idle = NodeSnapshot(id="idle", label="Idle", icon="⏹", status="pending")
+        node_idle = WorkflowNode(snapshot_idle)
         assert node_idle.accessible_name == "Idle Phase: Pending"
 
     def test_project_card_accessible_name(self):
@@ -35,7 +36,7 @@ class TestAccessibility:
         project.config.lint_cmd = None
         project.config.test_cmd = None
         project.config.skip_verification = False
-        
+
         card = ProjectCard(project)
         assert card.accessible_name == "Project Test Project: planning"
 
@@ -45,9 +46,9 @@ class TestAccessibility:
         # Mock scroll methods to avoid NoActiveAppError
         panel.scroll_home = MagicMock()
         panel.scroll_end = MagicMock()
-        
+
         assert panel.accessible_name == "Activity Log Panel"
-        
+
         # Test update with filter
         mock_path = MagicMock()
         mock_path.name = "MyProject"

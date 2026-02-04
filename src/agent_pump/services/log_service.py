@@ -3,8 +3,8 @@
 import asyncio
 import logging
 from collections import deque
+from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import AsyncIterator
 
 from agent_pump.events.bus import EventBus
 from agent_pump.events.models import LogEntryEvent
@@ -59,7 +59,7 @@ class LogService(BaseService):
         # Listeners for streaming: dict[Path, set[asyncio.Queue]]
         self._listeners: dict[Path, set[asyncio.Queue]] = {}
         self._global_listeners: set[asyncio.Queue] = set()
-        
+
         # Start listening task
         # In a real app, we should track this task to cancel it on shutdown
         # But BaseService doesn't have a start/stop lifecycle method standardized yet
@@ -86,7 +86,7 @@ class LogService(BaseService):
         # The TUI will inflate it from the message if needed, or we keep it None.
         from datetime import datetime
         timestamp = datetime.now().strftime("%H:%M:%S")
-        
+
         entry = LogEntry(
             timestamp=timestamp,
             message=event.message,
@@ -100,10 +100,10 @@ class LogService(BaseService):
         if event.project_path:
             self._get_buffer(event.project_path).add(entry)
             self._notify_listeners(event.project_path, entry)
-        
-        # We might also want a "global" buffer? 
+
+        # We might also want a "global" buffer?
         # For now, we only store if project_path is known.
-        
+
         # Notify global listeners
         self._notify_global_listeners(entry)
 
@@ -130,13 +130,13 @@ class LogService(BaseService):
         Yields past logs first, then future ones.
         """
         queue: asyncio.Queue[LogEntry] = asyncio.Queue()
-        
+
         # Add history first
         if project_path:
             history = self._get_buffer(project_path).get_recent(1000) # Max limit?
             for entry in history:
                 queue.put_nowait(entry)
-            
+
             # Register listener
             if project_path not in self._listeners:
                 self._listeners[project_path] = set()

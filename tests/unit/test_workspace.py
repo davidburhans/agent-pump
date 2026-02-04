@@ -270,3 +270,25 @@ class TestWorkspace:
             assert "default" in workspaces
             assert "project-a" in workspaces
             assert "project-b" in workspaces
+
+    def test_delete_workspace(self, tmp_path):
+        """Test deleting a workspace."""
+        # Create a workspace file
+        workspace_file = tmp_path / "test-workspace.json"
+        workspace_file.write_text('{"name": "test-workspace"}')
+
+        with patch.object(Workspace, "get_workspaces_dir", return_value=tmp_path):
+            # Delete should succeed
+            result = Workspace.delete("test-workspace")
+            assert result is True
+            assert not workspace_file.exists()
+
+            # Deleting again should return False
+            result = Workspace.delete("test-workspace")
+            assert result is False
+
+    def test_delete_nonexistent_workspace(self, tmp_path):
+        """Test deleting a workspace that doesn't exist."""
+        with patch.object(Workspace, "get_workspaces_dir", return_value=tmp_path):
+            result = Workspace.delete("nonexistent")
+            assert result is False

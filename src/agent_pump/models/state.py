@@ -5,6 +5,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from agent_pump.models.checkpoint import Checkpoint, CheckpointCollection
+
 
 class PhaseLog(BaseModel):
     """Log entry for a workflow phase."""
@@ -31,6 +33,7 @@ class WorkflowState(BaseModel):
     completed_features: list[str] = Field(default_factory=list)
     failed_features: list[str] = Field(default_factory=list)
     phase_logs: list[PhaseLog] = Field(default_factory=list)
+    checkpoints: CheckpointCollection = Field(default_factory=CheckpointCollection)
     last_updated: datetime = Field(default_factory=datetime.now)
     iteration_count: int = Field(default=0)
 
@@ -79,3 +82,24 @@ class WorkflowState(BaseModel):
             self.phase_logs[-1].model = model
             self.phase_logs[-1].duration_seconds = duration_seconds
         self.last_updated = datetime.now()
+
+    def add_checkpoint(self, checkpoint: Checkpoint) -> None:
+        """Add a checkpoint to the workflow state."""
+        self.checkpoints.add(checkpoint)
+        self.last_updated = datetime.now()
+
+    def get_latest_checkpoint(self) -> Checkpoint | None:
+        """Get the most recent checkpoint."""
+        return self.checkpoints.get_latest()
+
+    def list_checkpoints(self) -> list[Checkpoint]:
+        """List all checkpoints in chronological order."""
+        return self.checkpoints.list_all()
+
+    def rollback_to_checkpoint(self, checkpoint_id: str) -> Checkpoint | None:
+        """Mark a checkpoint as the current rollback target.
+
+        Note: Actual git rollback is performed by CheckpointService.
+        This method just returns the checkpoint for reference.
+        """
+        return self.checkpoints.get_by_id(checkpoint_id)

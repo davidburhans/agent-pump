@@ -13,7 +13,7 @@ from agent_pump.config import Config
 
 
 class ProjectConfigModal(ModalScreen[None]):
-    """Modal for configuring project settings (.agent-pump.yml)."""
+    """Modal for configuring project settings."""
 
     BINDINGS = [
         Binding("escape", "cancel", "Cancel"),
@@ -81,7 +81,7 @@ class ProjectConfigModal(ModalScreen[None]):
         super().__init__(name=name, id=id, classes=classes)
         self.project_path = project_path
         self.config = Config.load(project_path)
-        self.config_path = project_path / ".agent-pump.yml"
+        self.config_path = project_path / ".agent-pump" / "config.yml"
 
     def compose(self) -> ComposeResult:
         """Compose the modal's widgets."""

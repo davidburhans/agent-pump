@@ -95,7 +95,7 @@ class FallbackBackendRunner:
         backend_args = []
         for instance in backend_instances:
             backend = get_backend(instance.name)
-            
+
             # Pre-set extra args for consistency
             if instance.args:
                 backend._extra_args = instance.args  # type: ignore
@@ -105,7 +105,7 @@ class FallbackBackendRunner:
                 # Create unique key based on name + args (distinguish models)
                 args_key = str(instance.args) if instance.args else "default"
                 key = f"{instance.name}::{args_key}"
-                
+
                 backend = LockingBackendWrapper(
                     backend,
                     key=key,

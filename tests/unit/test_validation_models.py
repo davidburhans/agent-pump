@@ -1,7 +1,10 @@
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
-from pathlib import Path
-from agent_pump.models.validation import ProjectPathInput, IdeaInput, PromptCustomizationInput
+
+from agent_pump.models.validation import IdeaInput, ProjectPathInput, PromptCustomizationInput
+
 
 def test_project_path_input_valid(tmp_path):
     """Test valid project path."""

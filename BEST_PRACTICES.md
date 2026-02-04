@@ -476,3 +476,60 @@ Before committing:
 - **API Differences**: Moving from `TextArea` to `RichLog` requires API updates. `TextArea` uses `text` property and `insert()`, while `RichLog` uses `write()`.
 - **Scrolling**: Both widgets use `scroll_home()` / `scroll_end()`, but these methods require an active `App` context (animator), which can break unit tests if not mocked.
 - **Renderables**: `RichLog` can accept any Rich renderable (Panel, Table) directly, whereas `TextArea` only accepts strings. This makes `RichLog` superior for logs but harder to filter (requires rebuild) compared to just hiding lines (if that were supported).
+
+### FastAPI Server Patterns
+- **Lifespan Management**: Use `@asynccontextmanager` for proper startup/shutdown handling. This ensures services are initialized before accepting requests and cleaned up gracefully on shutdown.
+- **Middleware Ordering**: Add CORS before Auth middleware to ensure preflight requests are handled before authentication checks.
+- **Debug Mode Toggle**: Use a `debug` parameter in `create_server()` to conditionally enable docs and detailed error responses. Never expose detailed errors in production.
+- **Factory Pattern**: Create a `create_server()` factory function rather than a global app instance. This allows testing with different configurations and avoids global state issues.
+- **DTOs for API Responses**: Always use Pydantic DTOs for API responses to ensure consistent serialization and validation. Never return internal domain models directly.
+- **WebSocket Connection Manager**: Implement a global connection manager class to track active WebSocket connections. This enables future broadcasting capabilities and proper cleanup on disconnect.
+- **TestClient for Testing**: Use FastAPI's `TestClient` for unit/integration tests. It handles the lifespan context manager automatically, making tests simpler and more reliable.
+- **CLI Integration**: When adding server commands to CLI, use `asyncio.run()` to bridge sync CLI entry points with async server code. Handle signals gracefully for clean shutdown.
+
+### Circular Import Prevention
+- **Package Initialization Order**: Always define module-level constants (like `__version__`) BEFORE importing submodules in `__init__.py`.
+- **Import Chain Awareness**: Be careful with import chains. A common pattern that causes circular imports: `__init__.py` imports `cli` → `cli` imports `app` → `app` imports `services` → `services` imports `api` → `api` imports `__version__` from the package root.
+- **Solution**: Define `__version__` at the top of `__init__.py` before any imports, or use lazy imports (import inside functions) for breaking circular dependencies.
+
+### API DTO Conventions
+- **CamelCase for JSON**: All API DTOs must use camelCase for JSON serialization to align with JavaScript/Web standards.
+- **Implementation**: Use `pydantic.alias_generators.to_camel` with `ConfigDict(alias_generator=to_camel, populate_by_name=True)`.
+- **Benefits**: This allows Python code to use snake_case while the API returns camelCase for frontend compatibility.
+
+### CORS Testing
+- **Origin Header Required**: When testing CORS with TestClient, always include an `Origin` header in requests to trigger CORS middleware response headers.
+- **Example**: `client.get("/health", headers={"Origin": "http://localhost:3000"})`
+
+### Verification & Code Quality Maintenance
+- **Run verification commands regularly**: `ruff check src/agent_pump` and `pyright src/agent_pump` should pass before commits.
+- **Fix linting errors promptly**: Address line length (E501), whitespace (W293), unused imports (F401), and dead code (F841) as they appear.
+- **Handle type checker edge cases**: Pyright is strict about:
+  - Return type mismatches (e.g., `dict[str, str]` vs `dict[str, Any]`)
+  - Union types that include `None` (use proper null checks)
+  - Widget event handlers (check for `None` before accessing attributes)
+- **Fix long lines early**: Break long strings and function calls across multiple lines before they accumulate.
+- **Use explicit re-exports**: For package `__init__.py` files that re-export classes, use `from .module import Class as Class` pattern to satisfy type checkers.
+
+### Select Widget Type Handling
+- **NoSelection handling**: When using `Select` widgets, the `.value` property can return a `NoSelection` type when nothing is selected.
+- **Type-safe extraction**: Always check `isinstance(value, str)` before using Select values to satisfy type checkers.
+- **Example**:
+  ```python
+  priority = self.query_one("#item-priority", Select).value
+  priority_value = None
+  if isinstance(priority, str):
+      priority_value = priority
+  self.dismiss((title, priority_value))
+  ```
+
+### Event Handler Safety
+- **Null checks for event.widget**: In `on_click` and other event handlers, `event.widget` can be `None`.
+- **Safe attribute access**: Always check `if event.widget and event.widget.id == "..."` before accessing widget attributes.
+- **Example**:
+  ```python
+  def on_click(self, event: events.Click) -> None:
+      if event.widget and event.widget.id == "btn-config":
+          event.stop()
+          self.post_message(self.BackendConfigRequested(self.project, self))
+  ```

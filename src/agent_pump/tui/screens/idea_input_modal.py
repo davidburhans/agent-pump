@@ -25,7 +25,7 @@ class IdeaInputModal(ModalScreen[str | None]):
         background: $surface;
         padding: 1 2;
     }
-    
+
     #error-label {
         color: $error;
         height: auto;
@@ -34,7 +34,7 @@ class IdeaInputModal(ModalScreen[str | None]):
         margin-bottom: 0;
         display: none;
     }
-    
+
     #error-label.visible {
         display: block;
     }
@@ -96,11 +96,11 @@ class IdeaInputModal(ModalScreen[str | None]):
         """Show error feedback with shake animation."""
         widget.add_class("error")
         shake(widget)
-        
+
         error_label = self.query_one("#error-label", Label)
         error_label.update(message)
         error_label.add_class("visible")
-        
+
         widget.focus()
 
     def _clear_error(self) -> None:

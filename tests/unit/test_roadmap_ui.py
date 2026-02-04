@@ -1,9 +1,11 @@
 """Tests for roadmap UI components."""
 
+
 import pytest
-from pathlib import Path
-from agent_pump.tui.screens.roadmap_modal import RoadmapModal
+
 from agent_pump.tui.screens.add_roadmap_item_modal import AddRoadmapItemModal
+from agent_pump.tui.screens.roadmap_modal import RoadmapModal
+
 
 @pytest.fixture
 def sample_roadmap(tmp_path):

@@ -256,10 +256,7 @@ Footer {
 
 /* --- Focus & Visual Indicators --- */
 
-/* General Focus Ring */
-:focus {
-    outline: none; /* Textual uses borders mostly, but just in case */
-}
+
 
 /* Buttons */
 Button:focus {

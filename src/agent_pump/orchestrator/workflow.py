@@ -7,6 +7,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
+if TYPE_CHECKING:
+    from agent_pump.models.dry_run_report import DryRunReport
+
 from transitions import Machine
 
 from agent_pump.backends import create_fallback_runner_from_config, get_backend
@@ -14,11 +17,13 @@ from agent_pump.backends.base import AgentBackend
 from agent_pump.backends.gemini import GeminiBackend
 from agent_pump.events.bus import EventBus
 from agent_pump.events.models import (
-    IdeaProcessedEvent,
     LogEntryEvent,
     VerificationResultEvent,
     WorkflowStateChangedEvent,
 )
+from agent_pump.models.branch_state import BranchState
+from agent_pump.models.branch_strategy import BranchStrategyConfig
+from agent_pump.models.cost_tracking import BudgetAction
 from agent_pump.models.project import Project, ProjectStatus
 from agent_pump.models.state import WorkflowState
 from agent_pump.models.workflow_snapshot import (
@@ -27,9 +32,14 @@ from agent_pump.models.workflow_snapshot import (
     WorkflowSnapshot,
 )
 from agent_pump.models.workspace import PhaseBackends, ProjectConfig, PromptCustomization
-
+from agent_pump.models.plugin import HookContext
 from agent_pump.orchestrator.verification_executor import VerificationExecutor
+from agent_pump.services.branch_manager import BranchManager, MergeResult
+from agent_pump.services.checkpoint_service import CheckpointService
+from agent_pump.services.cost_tracking_service import CostTrackingService
+from agent_pump.services.plugin_manager import PluginManager
 from agent_pump.utils.notifier import Notifier
+from agent_pump.utils.token_counter import TokenCounter
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +102,8 @@ class ProjectWorkflow:
         on_output: Callable[[str, str, str | None], None] | None = None,
         on_state_change: Callable[[str, str], None] | None = None,
         on_ideas_processed: Callable[[Path], None] | None = None,
+        dry_run: bool = False,
+        plugin_manager: PluginManager | None = None,
     ):
         """
         Initialize the workflow for a project.
@@ -109,6 +121,8 @@ class ProjectWorkflow:
             on_output: Callback for agent output lines
             on_state_change: Callback for state changes (old_state, new_state)
             on_ideas_processed: Callback when ideas have been processed
+            dry_run: Whether to run in dry-run mode (preview only, no changes)
+            plugin_manager: Optional plugin manager for running plugin hooks
         """
         from agent_pump.orchestrator.workflow_definition import DEFAULT_WORKFLOW
 
@@ -136,6 +150,7 @@ class ProjectWorkflow:
         self.on_ideas_processed = on_ideas_processed
         self._running = False
         self._cancelled = False
+        self._pending_publish_tasks: list[asyncio.Task] = []
 
         # Initialize verification executor with project's verification config
         self.verification_executor = VerificationExecutor(
@@ -186,6 +201,50 @@ class ProjectWorkflow:
         # Workspace reference (optional)
         self.workspace = None
 
+        # Initialize cost tracking service (will be set when workspace is assigned)
+        self.cost_tracking_service: CostTrackingService | None = None
+
+        # Initialize branch strategy configuration
+        self.branch_config: BranchStrategyConfig = (
+            project_config.branch_strategy if project_config else BranchStrategyConfig()
+        )
+        # Branch state tracking (loaded from workflow_state if persisted)
+        self.branch_state: BranchState | None = None
+
+        # Initialize checkpoint service for auto-checkpoints and rollback
+        self.checkpoint_service = CheckpointService(
+            event_bus=event_bus or EventBus(),
+            repo_path=project.path,
+        )
+
+        # Initialize plugin manager (can be None if plugins not enabled)
+        self.plugin_manager = plugin_manager
+
+        # Initialize dry-run mode
+        self._dry_run = dry_run
+        if dry_run:
+            from datetime import datetime
+
+            from agent_pump.models.dry_run_report import DryRunReport
+            from agent_pump.utils.dry_run import DryRunContext
+
+            self._dry_run_context = DryRunContext(enabled=True)
+            self._dry_run_report = DryRunReport(
+                project_path=str(project.path),
+                project_name=project.name,
+                start_time=datetime.now(),
+            )
+
+            # Wrap backend for dry-run mode
+            from agent_pump.backends.dry_run import wrap_backend_for_dry_run
+
+            self.backend = wrap_backend_for_dry_run(
+                self.backend, self._dry_run_context, self._dry_run_report
+            )
+        else:
+            self._dry_run_context = None
+            self._dry_run_report = None
+
     async def _read_file_content(self, filename: str) -> str:
         """Read content of a file from the project directory asynchronously."""
         try:
@@ -203,12 +262,12 @@ class ProjectWorkflow:
             logger.warning(f"Error reading {filename}: {e}")
         return "(File not found or empty)"
 
-    async def _get_context_content(self) -> dict[str, str]:
+    async def _get_context_content(self) -> dict[str, Any]:
         """Get the context content for prompts."""
-        # We only pass branch by default now. 
+        # We only pass branch by default now.
         # File content is accessed via {{ read_file(...) }} in Jinja Templates.
         return {
-            "branch": self.project.branch,
+            "branch": self.project.branch or "main",
         }
 
     def _after_state_change(self, *args: Any, **kwargs: Any) -> None:
@@ -233,8 +292,11 @@ class ProjectWorkflow:
         except ValueError:
             pass
 
-        # Save state
-        self.workflow_state.save()
+        # Save state (skip in dry-run mode)
+        if not self._dry_run:
+            self.workflow_state.save()
+        elif self._dry_run_context:
+            self._dry_run_context.track_state_save(self.project.path / ".agent-pump" / "state.json")
 
         # Send notifications for important state changes if enabled
         self._send_notification_if_enabled(old_state, new_state)
@@ -248,7 +310,12 @@ class ProjectWorkflow:
             )
             try:
                 # We can't await easily here, use create_task
-                asyncio.create_task(self.event_bus.publish(event))
+                task = asyncio.create_task(self.event_bus.publish(event))
+                self._pending_publish_tasks.append(task)
+                # Clean up completed tasks to prevent memory growth
+                self._pending_publish_tasks = [
+                    t for t in self._pending_publish_tasks if not t.done()
+                ]
             except RuntimeError:
                 pass  # No event loop
 
@@ -338,7 +405,12 @@ class ProjectWorkflow:
                 task=self.project.current_feature,
             )
             try:
-                asyncio.create_task(self.event_bus.publish(event))
+                task = asyncio.create_task(self.event_bus.publish(event))
+                self._pending_publish_tasks.append(task)
+                # Clean up completed tasks to prevent memory growth
+                self._pending_publish_tasks = [
+                    t for t in self._pending_publish_tasks if not t.done()
+                ]
             except RuntimeError:
                 pass
 
@@ -396,18 +468,16 @@ class ProjectWorkflow:
                 backend = get_backend(instance.name)
                 if instance.args:
                     backend._extra_args = instance.args  # type: ignore
-                
+
                 # Wrap if concurrency limit is enforced
                 if instance.concurrency_limit > 0:
                     from agent_pump.backends.locking import LockingBackendWrapper
-                    
+
                     args_key = str(instance.args) if instance.args else "default"
                     key = f"{instance.name}::{args_key}"
-                    
+
                     backend = LockingBackendWrapper(
-                        backend,
-                        key=key,
-                        limit=instance.concurrency_limit
+                        backend, key=key, limit=instance.concurrency_limit
                     )
                 return backend
             except ValueError:
@@ -496,6 +566,9 @@ class ProjectWorkflow:
                 if step_timeout is not None and step_timeout > 0:
                     timeout = step_timeout
 
+        # Count input tokens for cost tracking
+        input_tokens = TokenCounter.count_tokens(prompt, backend.name, metrics_model_name)
+
         try:
             async for line in backend.run(
                 project_path=self.project.path,
@@ -576,6 +649,19 @@ class ProjectWorkflow:
         )
         self.workflow_state.save()
 
+        # Record costs for this phase
+        if self.cost_tracking_service:
+            output_text = "".join(output_lines)
+            output_tokens = TokenCounter.count_tokens(output_text, backend.name, metrics_model_name)
+            self.cost_tracking_service.record_invocation(
+                project_path=self.project.path,
+                phase=phase_name,
+                backend_name=metrics_backend_name,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                model=metrics_model_name,
+            )
+
         return success
 
     async def run(self, max_iterations: int = 10) -> None:
@@ -590,6 +676,24 @@ class ProjectWorkflow:
 
         self._running = True
         self._cancelled = False
+
+        # Check budget before starting workflow
+        if self.cost_tracking_service:
+            is_exceeded, period = self.cost_tracking_service.check_budget()
+            if is_exceeded:
+                action = self.cost_tracking_service._budget_config.action_on_exceeded
+                if action == BudgetAction.PAUSE:
+                    self._emit_output(
+                        f"\n[BUDGET] Budget exceeded for {period.value if period else 'period'}. "
+                        f"Pausing workflow.\n"
+                    )
+                    self.pause_workflow()
+                    return
+                else:
+                    self._emit_output(
+                        f"\n[WARNING] Budget exceeded for {period.value if period else 'period'}. "
+                        f"Continuing with warnings...\n"
+                    )
 
         try:
             # Sync visible status to current machine state if it was paused
@@ -607,7 +711,12 @@ class ProjectWorkflow:
                             new_state=self.state,  # type: ignore
                         )
                         try:
-                            asyncio.create_task(self.event_bus.publish(event))
+                            task = asyncio.create_task(self.event_bus.publish(event))
+                            self._pending_publish_tasks.append(task)
+                            # Clean up completed tasks to prevent memory growth
+                            self._pending_publish_tasks = [
+                                t for t in self._pending_publish_tasks if not t.done()
+                            ]
                         except RuntimeError:
                             pass
                 except ValueError:
@@ -616,6 +725,13 @@ class ProjectWorkflow:
             # Start if idle
             if self.state == "idle":  # type: ignore
                 self.start()  # type: ignore
+
+            # Initialize plugins for this project
+            if self.plugin_manager:
+                self.plugin_manager.initialize_plugins(self.project)
+                loaded_count = len(self.plugin_manager.loaded_plugins)
+                if loaded_count > 0:
+                    self._emit_output(f"\n[PLUGINS] Loaded {loaded_count} plugin(s)\n")
 
             iteration = 0
             while iteration < max_iterations and not self._cancelled:
@@ -663,12 +779,28 @@ class ProjectWorkflow:
                             default_prompt="",  # No fallback, requires file
                             context=context,
                         )
-                        
+
                         if not prompt.strip():
-                            self._emit_output(f"\n[ERROR] No prompt found for state '{phase.name}'. Please create .agent-pump/states/{phase.name}.md\n")
+                            msg = (
+                                f"\n[ERROR] No prompt found for state '{phase.name}'. "
+                                f"Please create .agent-pump/states/{phase.name}.md\n"
+                            )
+                            self._emit_output(msg)
                             success = False
                         else:
-                            
+                            # Execute pre-phase hooks
+                            if self.plugin_manager:
+                                hook_context = HookContext(
+                                    project=self.project,
+                                    phase=phase.name,
+                                    feature=self.project.current_feature,
+                                    event_bus=self.event_bus,
+                                    data={"prompt_length": len(prompt)},
+                                )
+                                await self.plugin_manager.execute_phase_hooks(
+                                    phase.name, hook_context, "enter"
+                                )
+
                             # Run Agent Phase
                             success = await self.run_phase(prompt, phase.name)
 
@@ -679,13 +811,28 @@ class ProjectWorkflow:
                         if success:
                             success = await self._post_phase(phase.name, success)
 
+                        # Execute post-phase hooks
+                        if self.plugin_manager:
+                            hook_context = HookContext(
+                                project=self.project,
+                                phase=phase.name,
+                                feature=self.project.current_feature,
+                                event_bus=self.event_bus,
+                                data={"success": success},
+                            )
+                            await self.plugin_manager.execute_phase_hooks(
+                                phase.name, hook_context, "exit"
+                            )
+
                         # Transitions
                         if success:
                             # Check iteration limits for committing/looping phases
                             if phase.name == "committing":
                                 iteration += 1
                                 if iteration >= max_iterations:
-                                    self._emit_output(f"\n[INFO] Max iterations ({max_iterations}) reached\n")
+                                    self._emit_output(
+                                        f"\n[INFO] Max iterations ({max_iterations}) reached\n"
+                                    )
                                     if hasattr(self, "no_more_features"):
                                         self.no_more_features()
                                         continue
@@ -726,13 +873,25 @@ class ProjectWorkflow:
                         new_state="paused",
                     )
                     try:
-                        asyncio.create_task(self.event_bus.publish(event))
+                        task = asyncio.create_task(self.event_bus.publish(event))
+                        self._pending_publish_tasks.append(task)
+                        # Clean up completed tasks to prevent memory growth
+                        self._pending_publish_tasks = [
+                            t for t in self._pending_publish_tasks if not t.done()
+                        ]
                     except RuntimeError:
                         pass
 
     def cancel(self) -> None:
         """Cancel the running workflow."""
         self._cancelled = True
+        # Cancel any pending event bus publish tasks to prevent
+        # "coroutine was never awaited" warnings during shutdown
+        if hasattr(self, "_pending_publish_tasks"):
+            for task in self._pending_publish_tasks:
+                if not task.done():
+                    task.cancel()
+            self._pending_publish_tasks.clear()
 
     def pause_workflow(self) -> None:
         """
@@ -887,16 +1046,16 @@ class ProjectWorkflow:
         # Determine active index
         phase_names = [p.name for p in self.workflow_def.phases]
         ordered_states = ["idle"] + phase_names + ["completed"]
-        
+
         current_idx = -1
         if current_state in ordered_states:
             current_idx = ordered_states.index(current_state)
-        
+
         # Build phases
         for i, phase in enumerate(self.workflow_def.phases):
             # Calculate linear index (idle is 0, so phases start at 1)
             phase_idx = i + 1
-            
+
             status = "pending"
             if current_idx > phase_idx:
                 status = "completed"
@@ -911,25 +1070,24 @@ class ProjectWorkflow:
                 NodeSnapshot(
                     id=phase.name,
                     label=phase.name.title(),
-                    status=status, # type: ignore
+                    status=status,  # type: ignore
                     icon=phase.icon or "●",
                     is_active=(status == "active"),
                 )
             )
 
         # 3. Add Completed Node
-        completed_idx = len(ordered_states) - 1
         comp_status = "active" if current_state == "completed" else "pending"
         if current_state == "completed":
-            comp_status = "completed" # Actually it's both active and completed in a way? 
+            comp_status = "completed"  # Actually it's both active and completed in a way?
             # Let's say active for visualization highlight
             comp_status = "active"
-        
+
         nodes.append(
             NodeSnapshot(
                 id="completed",
                 label="Done",
-                status=comp_status, # type: ignore
+                status=comp_status,  # type: ignore
                 icon="🏁",
                 is_active=(current_state == "completed"),
             )
@@ -938,28 +1096,28 @@ class ProjectWorkflow:
         # 4. Build Edges (Linear flow)
         # From Idle to first phase
         edges.append(EdgeSnapshot(source="idle", target=phase_names[0]))
-        
+
         # Between phases
         for i in range(len(phase_names) - 1):
-            edges.append(EdgeSnapshot(source=phase_names[i], target=phase_names[i+1]))
-            
+            edges.append(EdgeSnapshot(source=phase_names[i], target=phase_names[i + 1]))
+
         # Last phase to completed
         edges.append(EdgeSnapshot(source=phase_names[-1], target="completed"))
 
         # Determine edge activity (simple logic: active if source is completed or active)
         # Actually, edge is active if flow has passed it.
         # Edge 0 (Idle -> Phase 1) is active if state index >= 1
-        
+
         # Idle -> P1
         edges[0] = edges[0].model_copy(update={"active": current_idx >= 1})
-        
+
         # Phases -> Phases
         for i in range(len(phase_names) - 1):
             # edge index is i + 1
             # Edge P(i) -> P(i+1) is active if state index > i+1 (meaning P(i) is done)
             # P(i) is at ordered_states[i+1]
-            edges[i+1] = edges[i+1].model_copy(update={"active": current_idx > (i + 1)})
-            
+            edges[i + 1] = edges[i + 1].model_copy(update={"active": current_idx > (i + 1)})
+
         # Last Phase -> Completed
         # edge index is len(phase_names)
         # Active if last phase is done (current_idx > len(phase_names))
@@ -977,6 +1135,22 @@ class ProjectWorkflow:
 
     async def _prepare_phase(self, phase_name: str, context: dict[str, str]) -> None:
         """Run preparation logic before a phase starts."""
+        # Create auto-checkpoint before each phase (skip if dry-run mode)
+        if not self._dry_run:
+            try:
+                checkpoint = self.checkpoint_service.create_checkpoint(
+                    phase=phase_name,
+                    feature=self.project.current_feature,
+                    description=f"Auto-checkpoint before {phase_name} phase",
+                    auto_created=True,
+                )
+                self.workflow_state.add_checkpoint(checkpoint)
+                self.workflow_state.save()
+                logger.info(f"Created auto-checkpoint for {phase_name} phase: {checkpoint.id}")
+            except Exception as e:
+                # Log error but don't block workflow if checkpoint fails
+                logger.warning(f"Failed to create auto-checkpoint: {e}")
+
         if phase_name == "planning":
             await self._prepare_planning_phase(context)
 
@@ -984,14 +1158,15 @@ class ProjectWorkflow:
         """Run logic after a phase finishes. Returns final success status."""
         if not ai_success:
             return False
-            
+
         if phase_name == "verifying":
             return await self._run_custom_verification()
-            
+
         if phase_name == "brainstorming":
             if self.idea_queue:
                 if self.event_bus:
                     from agent_pump.events.models import IdeaProcessedEvent
+
                     event = IdeaProcessedEvent(
                         project_path=self.project.path,
                         ideas=self.idea_queue.copy(),
@@ -1003,18 +1178,33 @@ class ProjectWorkflow:
 
                 if self.on_ideas_processed:
                     self.on_ideas_processed(self.project.path)
-                
+
                 # Clear queue
                 self.idea_queue = []
-                
+
         if phase_name == "committing":
             if self.project.current_feature:
                 self.project.completed_features.append(self.project.current_feature)
-            
-            # Note: Iteration count is updated in the run loop to control the loop, 
+
+            # Note: Iteration count is updated in the run loop to control the loop,
             # but we update the persistent state here
             self.workflow_state.iteration_count += 1
             self.project.iteration_count = self.workflow_state.iteration_count
+
+            # Branch Strategy: Auto-merge if enabled
+            if self.branch_config.enabled and self.branch_config.auto_merge:
+                merge_result = await self._attempt_merge()
+                if not merge_result.success:
+                    if merge_result.has_conflicts:
+                        # Pause workflow for manual conflict resolution
+                        self._emit_output(
+                            "\n[WORKFLOW PAUSED] Merge conflicts detected. "
+                            "Please resolve manually and resume.\n"
+                        )
+                        self.pause_workflow()
+                        return False
+                    # Other merge error - log but don't fail
+                    self._emit_output(f"\n[WARNING] Auto-merge failed: {merge_result.error}\n")
 
         return True
 
@@ -1022,7 +1212,7 @@ class ProjectWorkflow:
         """Logic to pick next task from roadmap if not set."""
         # Read TASK_NAME directly
         feature_request = await self._read_file_content("TASK_NAME")
-        
+
         # If TASK_NAME is empty, try to pick first item from ROADMAP.md
         if not feature_request or feature_request == "(File not found or empty)":
             from agent_pump.utils.roadmap import RoadmapParser
@@ -1044,40 +1234,168 @@ class ProjectWorkflow:
 
             if uncompleted:
                 feature_request = uncompleted[0].title
-                self._emit_output(
-                    f"\n[INFO] Auto-picking next roadmap item: "
-                    f"{feature_request}\n"
-                )
+                self._emit_output(f"\n[INFO] Auto-picking next roadmap item: {feature_request}\n")
                 # Create TASK_NAME file to persist this choice
                 try:
-                    (self.project.path / "TASK_NAME").write_text(
-                        feature_request, encoding="utf-8"
-                    )
+                    (self.project.path / "TASK_NAME").write_text(feature_request, encoding="utf-8")
                     self.project.current_feature = feature_request
-                    # Note: We don't need to put it in context anymore since templates use read_file("TASK_NAME")
+                    # Note: We don't need to put it in context anymore since
+                    # templates use read_file("TASK_NAME")
                     # But we maintain file state.
                 except Exception as e:
                     logger.warning(f"Failed to create TASK_NAME: {e}")
             elif roadmap_path.exists():
+                self._emit_output("\n[WARNING] Roadmap is empty. No tasks to pick.\n")
+            else:
+                self._emit_output("\n[WARNING] No TASK_NAME and no ROADMAP.md found.\n")
+
+        # Branch Strategy: Create feature branch if enabled
+        if (
+            self.branch_config.enabled
+            and self.branch_config.auto_create_branch
+            and self.project.current_feature
+        ):
+            await self._create_feature_branch(self.project.current_feature)
+
+    async def _create_feature_branch(self, feature_name: str) -> None:
+        """Create a feature branch for the current feature.
+
+        Args:
+            feature_name: Name of the feature to create branch for
+        """
+        try:
+            from git import InvalidGitRepositoryError
+
+            try:
+                branch_manager = BranchManager(
+                    self.project.path,
+                    config=self.branch_config,
+                )
+            except InvalidGitRepositoryError:
+                self._emit_output("\n[WARNING] Not a git repository. Skipping branch creation.\n")
+                return
+
+            # Check if worktree is clean (if required)
+            if self.branch_config.require_clean_worktree:
+                if not branch_manager.is_worktree_clean():
+                    self._emit_output(
+                        "\n[WARNING] Worktree is not clean. "
+                        "Stash or commit changes before creating feature branch.\n"
+                    )
+                    return
+
+            # Check if already on a feature branch
+            current_branch = branch_manager.get_current_branch()
+            if current_branch.startswith(self.branch_config.branch_prefix + "/"):
+                self._emit_output(f"\n[INFO] Already on feature branch: {current_branch}\n")
+                self.branch_state = BranchState(
+                    feature_branch=current_branch,
+                    base_branch=self.branch_config.base_branch,
+                )
+                return
+
+            # Create feature branch
+            branch_name = branch_manager.create_feature_branch(feature_name)
+            self.branch_state = BranchState(
+                feature_branch=branch_name,
+                base_branch=self.branch_config.base_branch,
+            )
+            self._emit_output(f"\n[BRANCH] Created feature branch: {branch_name}\n")
+
+        except Exception as e:
+            logger.warning(f"Failed to create feature branch: {e}")
+            self._emit_output(f"\n[WARNING] Failed to create feature branch: {e}\n")
+
+    async def _attempt_merge(self) -> MergeResult:
+        """Attempt to merge the feature branch into the base branch.
+
+        Returns:
+            MergeResult indicating success/failure
+        """
+        if not self.branch_state or not self.branch_state.feature_branch:
+            return MergeResult(success=True)  # No branch to merge
+
+        try:
+            from git import InvalidGitRepositoryError
+
+            try:
+                branch_manager = BranchManager(
+                    self.project.path,
+                    config=self.branch_config,
+                )
+            except InvalidGitRepositoryError:
+                return MergeResult(success=False, error="Not a git repository")
+
+            feature_branch = self.branch_state.feature_branch
+            commit_message = f"Merge {feature_branch}: {self.project.current_feature}"
+
+            self._emit_output(
+                f"\n[MERGE] Merging {feature_branch} into {self.branch_config.base_branch}...\n"
+            )
+
+            result = branch_manager.merge_to_base(feature_branch, commit_message)
+
+            if result.success:
+                self.branch_state.mark_merged()
+                self._emit_output(f"[MERGE] Successfully merged {feature_branch}\n")
+
+                # Push to remote if configured
+                if self.branch_config.push_on_merge:
+                    if branch_manager.push_to_remote(self.branch_config.base_branch):
+                        self._emit_output("[MERGE] Pushed to remote\n")
+                    else:
+                        self._emit_output("[WARNING] Failed to push to remote\n")
+
+                # Optionally delete the feature branch
+                branch_manager.delete_branch(feature_branch)
+
+            elif result.has_conflicts:
+                self.branch_state.mark_conflicts()
                 self._emit_output(
-                    "\n[WARNING] Roadmap is empty. No tasks to pick.\n"
+                    f"\n[MERGE CONFLICT] Automatic merge failed. "
+                    "Please resolve conflicts manually on branch "
+                    f"{self.branch_config.base_branch}.\n"
                 )
             else:
-                self._emit_output(
-                    "\n[WARNING] No TASK_NAME and no ROADMAP.md found.\n"
-                )
+                self._emit_output(f"\n[MERGE FAILED] {result.error}\n")
+
+            return result
+
+        except Exception as e:
+            logger.exception("Error during merge attempt")
+            return MergeResult(success=False, error=str(e))
 
     async def _run_custom_verification(self) -> bool:
         """Run the custom verification commands (post-verifying phase)."""
         self._emit_output("\n[INFO] Running custom verification commands...\n")
 
+        # Execute pre-verification plugin hooks
+        if self.plugin_manager:
+            hook_context = HookContext(
+                project=self.project,
+                phase="verifying",
+                feature=self.project.current_feature,
+                event_bus=self.event_bus,
+                data={},
+            )
+            await self.plugin_manager.execute_phase_hooks("verifying", hook_context, "enter")
+
         # Run all verification commands
         verification_results = await self.verification_executor.run_all()
 
+        # Run plugin custom verification steps
+        if self.plugin_manager:
+            custom_steps = self.plugin_manager.get_custom_verification_steps()
+            for step in custom_steps:
+                step_name = step.get("name", "custom")
+                step_cmd = step.get("command")
+                if step_cmd:
+                    self._emit_output(f"\n[INFO] Running plugin verification step: {step_name}\n")
+                    result = await self.verification_executor.run_command(step_cmd)
+                    verification_results[step_name] = result
+
         # Check if all verification commands passed
-        all_passed = all(
-            result.success for result in verification_results.values()
-        )
+        all_passed = all(result.success for result in verification_results.values())
 
         # Log verification results
         for cmd_type, result in verification_results.items():
@@ -1107,9 +1425,51 @@ class ProjectWorkflow:
                 except RuntimeError:
                     pass
 
+        # Execute post-verification plugin hooks
+        if self.plugin_manager:
+            hook_context = HookContext(
+                project=self.project,
+                phase="verifying",
+                feature=self.project.current_feature,
+                event_bus=self.event_bus,
+                data={"all_passed": all_passed, "results": verification_results},
+            )
+            await self.plugin_manager.execute_phase_hooks("verifying", hook_context, "exit")
+
         if all_passed:
             self._emit_output("\n[SUCCESS] All verification commands passed!\n")
             return True
         else:
             self._emit_output("\n[ERROR] Some verification commands failed\n")
             return False
+
+    def get_dry_run_report(self) -> "DryRunReport | None":
+        """
+        Get the dry-run report if in dry-run mode.
+
+        Returns:
+            DryRunReport if in dry-run mode, None otherwise
+        """
+        if self._dry_run_report:
+            # Finalize the report before returning
+            if not self._dry_run_report.end_time:
+                self._dry_run_report.finalize(
+                    success=True,
+                    failure_reason=None,
+                )
+            return self._dry_run_report
+        return None
+
+    def finalize_dry_run(self, success: bool = True, failure_reason: str | None = None) -> None:
+        """
+        Finalize the dry-run session.
+
+        Args:
+            success: Whether the dry-run would have succeeded
+            failure_reason: Reason for failure if success is False
+        """
+        if self._dry_run_report:
+            self._dry_run_report.finalize(success=success, failure_reason=failure_reason)
+
+        if self._dry_run_context:
+            self._dry_run_context.end_session()

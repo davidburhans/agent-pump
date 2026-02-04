@@ -23,6 +23,20 @@ class GeminiBackend(AgentBackend):
     def command(self) -> str:
         return "gemini"
 
+    def get_context_window_size(self, model: str | None = None) -> int:
+        """Get context window size for Gemini models.
+
+        Gemini Flash: 1M tokens
+        Gemini Pro: 2M tokens
+        """
+        if model:
+            model_lower = model.lower()
+            if "pro" in model_lower or "ultra" in model_lower:
+                return 2_000_000
+            elif "flash" in model_lower:
+                return 1_000_000
+        return 1_000_000  # Default to Flash size
+
     async def _check_availability(self) -> bool:
         """Check if gemini command is available."""
         available = cached_which(self.command) is not None
@@ -62,9 +76,15 @@ class GeminiBackend(AgentBackend):
             cmd.append("--verbose")
 
         # Apply extra args (e.g., --model gemini-2.5-flash)
+        combined_args = []
+        if self._extra_args:
+            combined_args.extend(self._extra_args)
         if extra_args:
-            cmd.extend(extra_args)
-            logger.debug(f"Applied extra args: {extra_args}")
+            combined_args.extend(extra_args)
+
+        if combined_args:
+            cmd.extend(combined_args)
+            logger.debug(f"Applied extra args: {combined_args}")
         logger.debug(f"Command: {cmd[0]} --yolo (prompt via stdin)")
 
         start_time = time.time()
@@ -193,22 +213,17 @@ class GeminiBackend(AgentBackend):
             process.terminate()
             raise
         finally:
-            # Ensure process is terminated
+            # Ensure process is terminated and resources released
             try:
                 if process.returncode is None:
                     logger.debug("Terminating process in finally block")
                     try:
                         process.terminate()
-                        await process.wait()
                     except ProcessLookupError:
                         pass
-                    except RuntimeError as e:
-                        # Handle "Event loop is closed" if it occurs during wait()
-                        logger.warning(f"RuntimeError during process cleanup: {e}")
-                        try:
-                            process.kill()
-                        except Exception:
-                            pass
+
+                # Always wait to ensure pipes/transports are closed
+                await process.wait()
             except Exception as e:
                 logger.error(f"Error during process cleanup: {e}")
 

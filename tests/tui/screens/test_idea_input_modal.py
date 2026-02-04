@@ -4,8 +4,6 @@ from textual.widgets import Input
 from agent_pump.tui.screens import IdeaInputModal
 
 
-
-
 @pytest.mark.asyncio
 async def test_idea_input_modal_submit_valid():
     """Test submitting a valid idea."""
@@ -53,7 +51,7 @@ async def test_idea_input_modal_validation_error():
         # Check error label visibility and content
         error_label = modal.query_one("#error-label")
         assert "visible" in error_label.classes
-        
+
         # Check shake animation (offset change)
         # Note: Animation happens over time, so we might check if offset is not None or has changed.
         # But we set it immediately in the first step of shake.

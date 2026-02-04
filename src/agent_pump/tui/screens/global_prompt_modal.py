@@ -157,7 +157,8 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
             yield Static("🌐 Global Prompt Settings", id="modal-title")
             yield Label(
                 "Configure prompt prefix/suffix per provider.\n"
-                "Engine settings apply to all models. Specific model settings override engine settings.",
+                "Engine settings apply to all models. "
+                "Specific model settings override engine settings.",
                 classes="help-text",
             )
 
@@ -167,25 +168,39 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
                     with TabPane(f"{engine_name.capitalize()}", id=f"tab-{engine_name}"):
                         # Wrapper to hold scrollable area + fixed footer
                         with Vertical(classes="tab-content-wrapper"):
-
                             # Scrollable Area (1fr)
                             with ScrollableContainer(classes="settings-scroll-container"):
                                 # 1. Engine Level Settings
-                                yield Label(f"🔧 {engine_name.capitalize()} Global Settings", classes="engine-title")
+                                yield Label(
+                                    f"🔧 {engine_name.capitalize()} Global Settings",
+                                    classes="engine-title",
+                                )
 
                                 e_prefix = self.settings.engine_prefixes.get(engine_name, "")
                                 e_suffix = self.settings.engine_suffixes.get(engine_name, "")
 
                                 with Vertical(classes="textarea-row"):
                                     yield Label("Engine Prefix:", classes="textarea-label")
-                                    yield TextArea(e_prefix, id=f"engine-{engine_name}-prefix", classes="small-textarea")
+                                    yield TextArea(
+                                        e_prefix,
+                                        id=f"engine-{engine_name}-prefix",
+                                        classes="small-textarea",
+                                    )
 
                                 with Vertical(classes="textarea-row"):
                                     yield Label("Engine Suffix:", classes="textarea-label")
-                                    yield TextArea(e_suffix, id=f"engine-{engine_name}-suffix", classes="small-textarea")
+                                    yield TextArea(
+                                        e_suffix,
+                                        id=f"engine-{engine_name}-suffix",
+                                        classes="small-textarea",
+                                    )
 
                                 # 2. Model Level Settings for this engine
-                                yield Label(f"📦 {engine_name.capitalize()} Models", classes="engine-title", id=f"models-title-{engine_name}")
+                                yield Label(
+                                    f"📦 {engine_name.capitalize()} Models",
+                                    classes="engine-title",
+                                    id=f"models-title-{engine_name}",
+                                )
 
                                 # Filter models relevant to this engine
                                 relevant_models = self._get_models_for_engine(engine_name)
@@ -200,7 +215,11 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
                                     placeholder=f"Add {engine_name} model...",
                                     id=f"new-model-input-{engine_name}",
                                 ),
-                                Button("Add Model", variant="success", id=f"btn-add-model-{engine_name}"),
+                                Button(
+                                    "Add Model",
+                                    variant="success",
+                                    id=f"btn-add-model-{engine_name}",
+                                ),
                                 classes="add-model-row",
                             )
 
@@ -296,7 +315,7 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
             container.mount_all(self._compose_model_section(model_name))
             self.notify(f"Added model '{model_name}'", severity="information")
         except Exception:
-             self.notify(f"Could not find container for {engine_name}", severity="error")
+            self.notify(f"Could not find container for {engine_name}", severity="error")
 
     def _remove_model(self, model_id: str) -> None:
         """Remove a model configuration."""
@@ -325,6 +344,7 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
 
     def _confirm_clear_all(self) -> None:
         """Ask for confirmation before clearing."""
+
         def on_confirm(result: bool | None) -> None:
             if result:
                 self._clear_all()
@@ -365,7 +385,8 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
             except Exception:
                 # Might not be rendered if tab not visited?
                 # Textual usually keeps tab content in DOM but hidden.
-                # If lazy loading is involved, this might be risky, but TabbedContent usually keeps it.
+                # If lazy loading is involved, this might be risky, but
+                # TabbedContent usually keeps it.
                 pass
 
         # 2. Model Settings
@@ -384,12 +405,13 @@ class GlobalPromptModal(ModalScreen[GlobalPromptSettings | None]):
                 if s_widget.text.strip():
                     self.settings.model_suffixes[model_name] = s_widget.text
             except Exception:
-                # If the widget isn't in the DOM (e.g. was never rendered?), we might lose data?
-                # But we initialized `configured_models` from existing settings.
-                # If the user didn't open the tab, we might effectively delete it if we rely ONLY on DOM.
-                # BUT, since we render ALL tabs in `compose`, they should be in DOM.
-                # Ideally, we should merge with original settings if not found, but "Clear All" complicates that.
-                # For this implementation, we assume DOM existence.
+                # If the widget isn't in the DOM (e.g. was never rendered?), we might
+                # lose data? But we initialized `configured_models` from existing
+                # settings. If the user didn't open the tab, we might effectively delete
+                # it if we rely ONLY on DOM. BUT, since we render ALL tabs in `compose`,
+                # they should be in DOM. Ideally, we should merge with original settings
+                # if not found, but "Clear All" complicates that. For this
+                # implementation, we assume DOM existence.
                 pass
 
         self.dismiss(self.settings)

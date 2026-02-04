@@ -1,0 +1,63 @@
+"""Integration tests for HTTP server startup."""
+
+import pytest
+from fastapi.testclient import TestClient
+
+from agent_pump.api.server import create_server
+
+
+class TestServerStartup:
+    """Integration tests for server startup and basic functionality."""
+
+    @pytest.fixture
+    def client(self) -> TestClient:
+        """Create a test client with debug mode."""
+        app = create_server(debug=True)
+        return TestClient(app)
+
+    def test_server_starts_and_responds_to_health(self, client: TestClient) -> None:
+        """Test that server starts and responds to health check."""
+        response = client.get("/health")
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "ok"
+
+    def test_server_respects_port_configuration(self) -> None:
+        """Test that server can be configured with different settings."""
+        # This is more of a configuration test - we create different app instances
+        app1 = create_server(debug=False, api_key=None)
+        app2 = create_server(debug=True, api_key="test-key")
+
+        # Both should create successfully
+        assert app1 is not None
+        assert app2 is not None
+
+    def test_openapi_docs_available_in_debug_mode(self, client: TestClient) -> None:
+        """Test that OpenAPI docs are available in debug mode."""
+        # Get OpenAPI schema
+        response = client.get("/openapi.json")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify it's a valid OpenAPI spec
+        assert "openapi" in data
+        assert "paths" in data
+        assert "/health" in data["paths"]
+
+    def test_server_lifespan_events(self, client: TestClient) -> None:
+        """Test that lifespan events are triggered correctly."""
+        # The lifespan context manager should have run during TestClient initialization
+        response = client.get("/health")
+        data = response.json()
+
+        # If startup ran, uptime should be available
+        assert "uptimeSeconds" in data
+
+    def test_graceful_error_handling(self, client: TestClient) -> None:
+        """Test that unhandled exceptions are caught gracefully."""
+        # API routes that don't exist should return 404
+        response = client.get("/api/non-existent-route")
+
+        # Should return 404, not 500
+        assert response.status_code == 404

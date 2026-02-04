@@ -49,7 +49,7 @@ class ProjectSummaryModal(ModalScreen[None]):
         table.add_row("Iterations", str(self.project.iteration_count))
         table.add_row("Backend", self.project.backend)
         table.add_row("Branch", self.project.branch or "main")
-        
+
         # Add list of completed features if any
         if self.project.completed_features:
             table.add_section()

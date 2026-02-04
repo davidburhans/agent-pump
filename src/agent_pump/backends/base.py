@@ -126,6 +126,28 @@ Ensure you are on this branch before making any changes.
         """
         return f"Please install '{self.command}' and ensure it is available in your PATH."
 
+    @property
+    def context_window_size(self) -> int:
+        """
+        Get the context window size for this backend in tokens.
+
+        Returns:
+            Maximum number of tokens this backend supports in context.
+        """
+        return 128000  # Default conservative value
+
+    def get_context_window_size(self, model: str | None = None) -> int:
+        """
+        Get the context window size for a specific model.
+
+        Args:
+            model: Optional model name for model-specific sizing.
+
+        Returns:
+            Context window size in tokens.
+        """
+        return self.context_window_size
+
     async def log_command(
         self,
         project_path: Path,

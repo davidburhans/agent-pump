@@ -1,12 +1,12 @@
-import pytest
 from unittest.mock import MagicMock
-from rich.text import Text
-from rich.panel import Panel
-from rich.table import Table
 
-from agent_pump.tui.widgets.log_panel import LogPanel, LogEntry
-from agent_pump.tui.screens.project_summary_modal import ProjectSummaryModal
+from rich.panel import Panel
+from rich.text import Text
+
 from agent_pump.models.project import Project, ProjectStatus
+from agent_pump.tui.screens.project_summary_modal import ProjectSummaryModal
+from agent_pump.tui.widgets.log_panel import LogPanel
+
 
 class TestRichRenderables:
     """Test suite for rich renderable enhancements."""
@@ -16,9 +16,9 @@ class TestRichRenderables:
         panel = LogPanel()
         panel.scroll_home = MagicMock()
         panel.scroll_end = MagicMock()
-        
+
         panel.write("Hello World")
-        
+
         assert len(panel.log_entries) == 1
         entry = panel.log_entries[0]
         assert entry.message == "Hello World"
@@ -31,13 +31,13 @@ class TestRichRenderables:
         panel = LogPanel()
         panel.scroll_home = MagicMock()
         panel.scroll_end = MagicMock()
-        
+
         # Phase start
         panel.write("Starting planning phase...")
         entry = panel.log_entries[0]
         assert isinstance(entry.renderable, Panel)
         assert entry.renderable.style == "blue"
-        
+
         # Error
         panel.write("[ERROR] Something went wrong")
         entry = panel.log_entries[1]
@@ -55,7 +55,7 @@ class TestRichRenderables:
         project.iteration_count = 5
         project.backend = "gemini"
         project.branch = "main"
-        
+
         modal = ProjectSummaryModal(project)
         # We can't easily test the visual output of the table without running the app,
         # but we can ensure it initializes without error.

@@ -24,9 +24,13 @@ build/
 .coverage
 htmlcov/
 
+node_modules/
+
 # OS
 .DS_Store
 Thumbs.db
 
 # Project state
 .agent-pump/
+
+workspace/

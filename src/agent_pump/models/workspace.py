@@ -7,6 +7,10 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .approval_gate_config import ApprovalGateConfig
+from .branch_strategy import BranchStrategyConfig
+from .cost_tracking import BudgetConfig
+from .execution_queue import ExecutionQueueConfig, ExecutionQueueItem, QueuePriority, QueueStatus
 from .verification_config import VerificationConfig
 
 logger = logging.getLogger(__name__)
@@ -25,7 +29,10 @@ class BackendInstance(BaseModel):
     )
     concurrency_limit: int = Field(
         default=1,
-        description="Max concurrent instances sharing this config (1 = serial execution). Set to 0 for unlimited.",
+        description=(
+            "Max concurrent instances sharing this config "
+            "(1 = serial execution). Set to 0 for unlimited."
+        ),
     )
 
 
@@ -193,7 +200,13 @@ class ProjectConfig(BaseModel):
     verification: VerificationConfig = Field(
         default_factory=VerificationConfig, description="Verification command configuration"
     )
-    branch: str | None = Field(default=None, description="Optional branch to isolate work")
+    branch_strategy: BranchStrategyConfig = Field(
+        default_factory=BranchStrategyConfig,
+        description="Git branch strategy configuration for this project",
+    )
+    branch: str | None = Field(
+        default=None, description="Optional branch to isolate work (legacy, use branch_strategy)"
+    )
     min_execution_time_seconds: int = Field(
         default=10,
         description="Minimum execution time for a backend call to be considered successful",
@@ -213,6 +226,10 @@ class ProjectConfig(BaseModel):
     idea_queue: list[IdeaQueueItem] = Field(
         default_factory=list,
         description="Ideas to feed to the brainstormer for this project",
+    )
+    approval_gate: ApprovalGateConfig = Field(
+        default_factory=ApprovalGateConfig,
+        description="Approval gate configuration for this project",
     )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -254,6 +271,18 @@ class Workspace(BaseModel):
     notifications_enabled: bool = Field(
         default=True, description="Enable desktop notifications for workflow events"
     )
+    execution_queue: list[ExecutionQueueItem] = Field(
+        default_factory=list,
+        description="Queue of projects waiting to execute",
+    )
+    execution_queue_config: ExecutionQueueConfig = Field(
+        default_factory=ExecutionQueueConfig,
+        description="Execution queue configuration",
+    )
+    budget_config: BudgetConfig = Field(
+        default_factory=BudgetConfig,
+        description="Budget configuration for cost tracking",
+    )
     created_at: datetime = Field(default_factory=datetime.now)
     last_modified: datetime = Field(default_factory=datetime.now)
 
@@ -294,6 +323,28 @@ class Workspace(BaseModel):
         """List all available workspace names."""
         workspaces_dir = cls.get_workspaces_dir()
         return [p.stem for p in workspaces_dir.glob("*.json")]
+
+    @classmethod
+    def delete(cls, name: str) -> bool:
+        """
+        Delete a workspace file.
+
+        Args:
+            name: The name of the workspace to delete.
+
+        Returns:
+            True if the workspace was deleted, False if it didn't exist.
+        """
+        workspace_path = cls.get_workspace_path(name)
+        if workspace_path.exists():
+            try:
+                workspace_path.unlink()
+                logger.info(f"Deleted workspace '{name}' from {workspace_path}")
+                return True
+            except Exception as e:
+                logger.error(f"Failed to delete workspace '{name}' from {workspace_path}: {e}")
+                return False
+        return False
 
     def save(self) -> None:
         """Save workspace to disk."""
@@ -368,3 +419,202 @@ class Workspace(BaseModel):
             List of idea strings (up to count).
         """
         return [item.idea for item in self.idea_queue[:count]]
+
+    # Execution Queue Management Methods
+
+    def get_active_projects_count(self) -> int:
+        """Count how many projects are currently executing."""
+        return sum(1 for item in self.execution_queue if item.is_active)
+
+    def can_start_project(self) -> bool:
+        """Check if a new project can be started based on concurrency limits."""
+        if not self.execution_queue_config.has_limit:
+            return True
+        return self.get_active_projects_count() < self.execution_queue_config.max_concurrent
+
+    def get_queued_projects(self) -> list[ExecutionQueueItem]:
+        """Get all queued (pending) projects sorted by priority and position."""
+        queued = [item for item in self.execution_queue if item.is_pending]
+        # Sort by priority (desc), then by position (asc) for stable ordering
+        return sorted(queued, key=lambda x: (-x.priority.value, x.position))
+
+    def get_queue_position(self, path: Path) -> int | None:
+        """Get the position of a project in the queue (1-indexed).
+
+        Returns:
+            Position in queue (1 = first), or None if not queued.
+        """
+        queued = self.get_queued_projects()
+        for i, item in enumerate(queued, 1):
+            if item.project_path == path:
+                return i
+        return None
+
+    def queue_project(
+        self, path: Path, priority: QueuePriority = QueuePriority.MEDIUM
+    ) -> ExecutionQueueItem:
+        """Add a project to the execution queue.
+
+        Args:
+            path: Project path
+            priority: Queue priority (default: MEDIUM)
+
+        Returns:
+            The created queue item
+        """
+        path = path.resolve()
+        # Check if already in queue
+        existing = next(
+            (
+                item
+                for item in self.execution_queue
+                if item.project_path == path and item.is_pending
+            ),
+            None,
+        )
+        if existing:
+            # Update priority if already queued
+            idx = self.execution_queue.index(existing)
+            self.execution_queue[idx] = existing.update_priority(priority)
+            return self.execution_queue[idx]
+
+        # Create new queue item with next position
+        max_position = max((item.position for item in self.execution_queue), default=0)
+        item = ExecutionQueueItem(
+            project_path=path,
+            priority=priority,
+            position=max_position + 1,
+        )
+        self.execution_queue.append(item)
+        return item
+
+    def dequeue_project(self, path: Path) -> ExecutionQueueItem | None:
+        """Remove a project from the queue.
+
+        Args:
+            path: Project path to remove
+
+        Returns:
+            The removed item, or None if not found
+        """
+        path = path.resolve()
+        for i, item in enumerate(self.execution_queue):
+            if item.project_path == path and item.is_pending:
+                removed = self.execution_queue.pop(i)
+                return removed
+        return None
+
+    def get_next_queued_project(self) -> ExecutionQueueItem | None:
+        """Get the next project to execute from the queue.
+
+        Returns:
+            The next queue item, or None if queue is empty
+        """
+        queued = self.get_queued_projects()
+        return queued[0] if queued else None
+
+    def mark_project_active(self, path: Path) -> ExecutionQueueItem | None:
+        """Mark a queued project as active.
+
+        Args:
+            path: Project path
+
+        Returns:
+            The updated item, or None if not found
+        """
+        path = path.resolve()
+        for i, item in enumerate(self.execution_queue):
+            if item.project_path == path and item.is_pending:
+                self.execution_queue[i] = item.mark_active()
+                return self.execution_queue[i]
+        return None
+
+    def mark_project_completed(self, path: Path) -> ExecutionQueueItem | None:
+        """Mark an active project as completed.
+
+        Args:
+            path: Project path
+
+        Returns:
+            The updated item, or None if not found
+        """
+        path = path.resolve()
+        for i, item in enumerate(self.execution_queue):
+            if item.project_path == path and item.is_active:
+                self.execution_queue[i] = item.mark_completed()
+                return self.execution_queue[i]
+        return None
+
+    def mark_project_failed(self, path: Path) -> ExecutionQueueItem | None:
+        """Mark an active project as failed.
+
+        Args:
+            path: Project path
+
+        Returns:
+            The updated item, or None if not found
+        """
+        path = path.resolve()
+        for i, item in enumerate(self.execution_queue):
+            if item.project_path == path and item.is_active:
+                self.execution_queue[i] = item.mark_failed()
+                return self.execution_queue[i]
+        return None
+
+    def cancel_queued_project(self, path: Path) -> ExecutionQueueItem | None:
+        """Cancel a queued project.
+
+        Args:
+            path: Project path
+
+        Returns:
+            The cancelled item, or None if not found
+        """
+        path = path.resolve()
+        for i, item in enumerate(self.execution_queue):
+            if item.project_path == path and item.is_pending:
+                self.execution_queue[i] = item.mark_cancelled()
+                return self.execution_queue[i]
+        return None
+
+    def cleanup_completed_queue_items(self, max_age_hours: int = 24) -> int:
+        """Remove completed/failed/cancelled items older than max_age_hours.
+
+        Args:
+            max_age_hours: Maximum age in hours (default: 24)
+
+        Returns:
+            Number of items removed
+        """
+        from datetime import timedelta
+
+        cutoff = datetime.now() - timedelta(hours=max_age_hours)
+        to_remove = [
+            i
+            for i, item in enumerate(self.execution_queue)
+            if item.status in (QueueStatus.COMPLETED, QueueStatus.FAILED, QueueStatus.CANCELLED)
+            and item.queued_at < cutoff
+        ]
+        # Remove in reverse order to maintain indices
+        for i in reversed(to_remove):
+            self.execution_queue.pop(i)
+        return len(to_remove)
+
+    def reorder_queued_project(
+        self, path: Path, new_priority: QueuePriority
+    ) -> ExecutionQueueItem | None:
+        """Change the priority of a queued project.
+
+        Args:
+            path: Project path
+            new_priority: New priority level
+
+        Returns:
+            The updated item, or None if not found or not queued
+        """
+        path = path.resolve()
+        for i, item in enumerate(self.execution_queue):
+            if item.project_path == path and item.is_pending:
+                self.execution_queue[i] = item.update_priority(new_priority)
+                return self.execution_queue[i]
+        return None

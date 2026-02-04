@@ -51,7 +51,7 @@ class LockingBackendWrapper(AgentBackend):
         Execute the agent with concurrency locking.
         """
         logger.info(f"Adding request to backend queue for {self._key} (limit={self._limit})...")
-        
+
         async with BackendLockManager.get_lock(self._key, self._limit):
             logger.info(f"Acquired lock for {self._key}. Running backend...")
             try:

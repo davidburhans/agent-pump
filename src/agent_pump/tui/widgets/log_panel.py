@@ -3,10 +3,11 @@
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import cast
 
 from rich.console import RenderableType
-from rich.text import Text
 from rich.panel import Panel
+from rich.text import Text
 from textual.widgets import RichLog
 
 
@@ -29,7 +30,7 @@ class LogPanel(RichLog):
 
     # Maximum number of log entries to keep in memory
     MAX_LOG_ENTRIES = 10000
-    
+
     # Accessible name for screen readers
     accessible_name: str = "Activity Log Panel"
 
@@ -58,7 +59,33 @@ class LogPanel(RichLog):
 
     def write(
         self,
-        content: RenderableType,
+        content: RenderableType | object,
+        width: int | None = None,
+        expand: bool = False,
+        shrink: bool = False,
+        scroll_end: bool | None = None,
+        **kwargs,
+    ) -> None:
+        """
+        Override write to capture log entries.
+        We ignore styling args for the entry storage, but might need them if we pass through.
+        However, log_message handles the rendering.
+        """
+        # Extract kwargs that belong to log_message
+        project_path = kwargs.get("project_path")
+        state = kwargs.get("state", "unknown")
+        task = kwargs.get("task")
+
+        self.log_message(
+            content,
+            project_path=project_path,
+            state=state,
+            task=task,
+        )
+
+    def log_message(
+        self,
+        content: RenderableType | object,
         project_path: Path | None = None,
         state: str = "unknown",
         task: str | None = None,
@@ -76,9 +103,9 @@ class LogPanel(RichLog):
 
         # Create timestamp prefix
         timestamp_text = Text(f"[{timestamp}] ", style="dim")
-        
+
         final_renderable = content
-        
+
         # If content is a string/text, check for special formatting needs
         if isinstance(content, (str, Text)):
             text_content = str(content)
@@ -88,7 +115,7 @@ class LogPanel(RichLog):
                     Text(text_content.strip(), style="bold white"),
                     title=f"[{timestamp}] Phase Change",
                     style="blue",
-                    border_style="blue"
+                    border_style="blue",
                 )
             elif "[ERROR]" in text_content:
                 # Wrap errors in a red panel
@@ -96,7 +123,7 @@ class LogPanel(RichLog):
                     Text(text_content.replace("[ERROR]", "").strip(), style="white"),
                     title=f"[{timestamp}] Error",
                     style="red",
-                    border_style="red"
+                    border_style="red",
                 )
             elif "[SUCCESS]" in text_content:
                 # Wrap success in a green panel
@@ -104,7 +131,7 @@ class LogPanel(RichLog):
                     Text(text_content.replace("[SUCCESS]", "").strip(), style="bold white"),
                     title=f"[{timestamp}] Success",
                     style="green",
-                    border_style="green"
+                    border_style="green",
                 )
             else:
                 if isinstance(content, str):
@@ -117,7 +144,7 @@ class LogPanel(RichLog):
             project_path=project_path,
             state=state,
             task=task,
-            renderable=final_renderable,
+            renderable=cast(RenderableType, final_renderable),
         )
         self.log_entries.append(entry)
 
@@ -134,30 +161,28 @@ class LogPanel(RichLog):
 
         if self._should_show(entry):
             if self.sort_order == "desc":
-                # RichLog writes to the end by default. 
+                # RichLog writes to the end by default.
                 # For "desc" (newest first), we want the NEWEST item at the TOP?
                 # Actually, standard terminal logs are "asc" (newest at bottom).
                 # Previous implementation:
                 # asc -> append to end (scroll end)
                 # desc -> insert at top (0,0) (scroll home)
-                
+
                 # RichLog doesn't support "insert at top" easily without clearing.
                 # It behaves like a terminal.
-                # So if we want "newest first", we effectively have to rewrite everything 
+                # So if we want "newest first", we effectively have to rewrite everything
                 # or use a widget that supports reverse list.
-                # BUT, given we are refactoring, maybe we should stick to standard "asc" 
-                # (newest at bottom) as default for RichLog, and only support "desc" via full refresh?
-                # Yes, "desc" will be expensive for RichLog as we have to clear and re-render reverse list.
+                # BUT, given we are refactoring, maybe we should stick to standard
+                # "asc" (newest at bottom) as default for RichLog, and only support
+                # "desc" via full refresh? Yes, "desc" will be expensive for RichLog
+                # as we have to clear and re-render reverse list.
                 self._refresh_display()
             else:
                 # "asc" is natural for RichLog
                 super().write(final_renderable)
 
     def set_filter(
-        self,
-        project_path: Path | None,
-        states: list[str] | None = None,
-        task: str | None = None
+        self, project_path: Path | None, states: list[str] | None = None, task: str | None = None
     ) -> None:
         """Filter logs by project, states, and task."""
         if (
@@ -171,7 +196,7 @@ class LogPanel(RichLog):
         self.filter_states = states
         self.filter_task = task
         self._refresh_display()
-        
+
         filter_desc = "All Projects"
         if self.filter_path:
             filter_desc = f"Project {self.filter_path.name}"
@@ -211,7 +236,7 @@ class LogPanel(RichLog):
     def _refresh_display(self) -> None:
         """Refresh the log with filtered entries."""
         self.clear()
-        
+
         visible_entries = [entry for entry in self.log_entries if self._should_show(entry)]
 
         if self.sort_order == "desc":
@@ -219,7 +244,7 @@ class LogPanel(RichLog):
 
         for entry in visible_entries:
             super().write(entry.renderable)
-            
+
         # Scroll to match sort order intent
         # If desc (newest at top), scroll top
         # If asc (newest at bottom), scroll bottom
@@ -227,3 +252,11 @@ class LogPanel(RichLog):
             self.scroll_home()
         else:
             self.scroll_end()
+
+    @property
+    def text(self) -> str:
+        """Get the text content of the log (visible entries) for testing."""
+        visible_entries = [entry for entry in self.log_entries if self._should_show(entry)]
+        if self.sort_order == "desc":
+            visible_entries.reverse()
+        return "\n".join(entry.message for entry in visible_entries)

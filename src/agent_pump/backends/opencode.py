@@ -73,6 +73,13 @@ class OpenCodeBackend(AgentBackend):
     def command(self) -> str:
         return "opencode"
 
+    def get_context_window_size(self, model: str | None = None) -> int:
+        """Get context window size for OpenCode.
+
+        OpenCode supports multiple backends, default to 128K.
+        """
+        return 128_000
+
     async def _check_availability(self) -> bool:
         """Check if opencode command is available in PATH."""
         available = cached_which(self.command) is not None
@@ -121,24 +128,30 @@ class OpenCodeBackend(AgentBackend):
             yield self.get_setup_instructions()
             return
 
-        # Build command: opencode run "prompt"
-        cmd = [executable, "run", prompt]
+        # Build command: opencode run [extra_args]
+        # Prompt is passed via stdin to avoid shell escaping issues and length limits
+        cmd = [executable, "run"]
 
         # Apply extra args (e.g., --agent, --model)
+        # Use both instance-level args and method-level args
+        combined_args = []
+        if self._extra_args:
+            combined_args.extend(self._extra_args)
         if extra_args:
-            cmd.extend(extra_args)
-            logger.debug(f"Applied extra args: {extra_args}")
+            combined_args.extend(extra_args)
 
-        logger.debug(f"Command: {self.command} run <prompt> (len={len(prompt)})")
+        if combined_args:
+            cmd.extend(combined_args)
+            logger.debug(f"Applied extra args: {combined_args}")
+
+        logger.debug(f"Command: {self.command} run ... (prompt via stdin, len={len(prompt)})")
 
         start_time = time.time()
         line_count = 0
 
         # Log command for debugging
         cmd_str = subprocess.list2cmdline(cmd)
-        await self.log_command(
-            project_path, "opencode_cmd.log", "opencode run <prompt>", prompt
-        )
+        await self.log_command(project_path, "opencode_cmd.log", cmd_str, prompt)
 
         # Prepare environment
         env = os.environ.copy()
@@ -150,7 +163,7 @@ class OpenCodeBackend(AgentBackend):
             process = await asyncio.create_subprocess_shell(
                 cmd_str,
                 cwd=str(project_path),
-                stdin=asyncio.subprocess.DEVNULL,
+                stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
                 env=env,
@@ -160,13 +173,24 @@ class OpenCodeBackend(AgentBackend):
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 cwd=str(project_path),
-                stdin=asyncio.subprocess.DEVNULL,
+                stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
                 env=env,
             )
 
         logger.debug(f"Process started with PID: {process.pid}")
+
+        # Write prompt to stdin
+        if process.stdin:
+            try:
+                logger.debug("Writing prompt to stdin...")
+                process.stdin.write(prompt.encode("utf-8"))
+                await process.stdin.drain()
+                process.stdin.close()
+                logger.debug("Prompt written and stdin closed")
+            except Exception as e:
+                logger.error(f"Failed to write to stdin: {e}")
 
         try:
             while True:
@@ -217,10 +241,16 @@ class OpenCodeBackend(AgentBackend):
             process.terminate()
             raise
         finally:
-            if process.returncode is None:
-                logger.debug("Terminating process in finally block")
-                process.terminate()
+            try:
+                if process.returncode is None:
+                    logger.debug("Terminating process in finally block")
+                    try:
+                        process.terminate()
+                    except ProcessLookupError:
+                        pass
                 await process.wait()
+            except Exception as e:
+                logger.error(f"Error checking process status: {e}")
 
             elapsed = time.time() - start_time
             logger.info(

@@ -1,14 +1,15 @@
 
 import asyncio
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from agent_pump.events.bus import EventBus
 from agent_pump.events.models import WorkspaceSwitchedEvent
 from agent_pump.models.app_state import AppState
 from agent_pump.models.workspace import Workspace
 from agent_pump.services.workspace_service import WorkspaceService
+
 
 class TestWorkspaceAsync:
     """Tests for async workspace operations."""

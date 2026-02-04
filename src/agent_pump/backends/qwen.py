@@ -77,6 +77,13 @@ class QwenBackend(AgentBackend):
     def command(self) -> str:
         return "qwen"
 
+    def get_context_window_size(self, model: str | None = None) -> int:
+        """Get context window size for Qwen models.
+
+        Qwen 3 Coder: 128K tokens
+        """
+        return 128_000
+
     async def _check_availability(self) -> bool:
         """Check if qwen command is available in PATH."""
         available = cached_which(self.command) is not None
@@ -136,9 +143,16 @@ class QwenBackend(AgentBackend):
         cmd = [executable, "--yolo"]
 
         # Apply extra args (e.g., --model)
+        # Apply extra args (e.g., --model)
+        combined_args = []
+        if self._extra_args:
+            combined_args.extend(self._extra_args)
         if extra_args:
-            cmd.extend(extra_args)
-            logger.debug(f"Applied extra args: {extra_args}")
+            combined_args.extend(extra_args)
+
+        if combined_args:
+            cmd.extend(combined_args)
+            logger.debug(f"Applied extra args: {combined_args}")
 
         logger.debug(f"Command: {self.command} --yolo (prompt via stdin, len={len(prompt)})")
 
@@ -237,10 +251,16 @@ class QwenBackend(AgentBackend):
             process.terminate()
             raise
         finally:
-            if process.returncode is None:
-                logger.debug("Terminating process in finally block")
-                process.terminate()
+            try:
+                if process.returncode is None:
+                    logger.debug("Terminating process in finally block")
+                    try:
+                        process.terminate()
+                    except ProcessLookupError:
+                        pass
                 await process.wait()
+            except Exception as e:
+                logger.error(f"Error checking process status: {e}")
 
             elapsed = time.time() - start_time
             logger.info(

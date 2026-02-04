@@ -94,4 +94,9 @@ class AddRoadmapItemModal(ModalScreen[tuple[str, str | None] | None]):
             self.notify("Title is required", severity="error")
             return
 
-        self.dismiss((title, priority))
+        # Handle NoSelection case - convert to None or valid string
+        priority_value = None
+        if isinstance(priority, str):
+            priority_value = priority
+
+        self.dismiss((title, priority_value))

@@ -9,7 +9,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class WorkflowPhase(BaseModel):
-    model_config = ConfigDict(frozen=True)
     """A single phase in a workflow.
 
     Represents one step in the development workflow, with its prompt
@@ -24,6 +23,26 @@ class WorkflowPhase(BaseModel):
     on_failure: str = Field(
         default="error",
         description="State to transition to on failure",
+    )
+    allow_failure_recovery: bool = Field(
+        default=True,
+        description="Whether to attempt recovery on failure (vs immediate error)",
+    )
+
+    # Extended configuration for custom workflows
+    timeout: int | None = Field(
+        default=None,
+        description="Phase-specific timeout in seconds (None = use global default)",
+    )
+    max_retries: int = Field(
+        default=0,
+        description="Number of retry attempts on failure",
+        ge=0,
+    )
+    retry_delay: float = Field(
+        default=0.0,
+        description="Delay between retries in seconds",
+        ge=0.0,
     )
     allow_failure_recovery: bool = Field(
         default=True,

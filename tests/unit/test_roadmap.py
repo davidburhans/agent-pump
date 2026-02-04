@@ -129,7 +129,7 @@ def test_add_new_feature_to_roadmap(sample_roadmap):
 
     # Reload and check
     new_parser = RoadmapParser(sample_roadmap)
-    new_features = new_parser.parse()
+    new_parser.parse()
     new_uncompleted = new_parser.get_uncompleted_features()
 
     assert new_uncompleted[0].title == "New Feature"

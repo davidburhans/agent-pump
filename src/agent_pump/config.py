@@ -19,8 +19,25 @@ workflow:
   max_iterations: 10
   # Timeout in seconds for agent operations
   timeout: 1800
-  # Git branch to isolate work (optional)
+  # Git branch to isolate work (optional, legacy - use branch_strategy below)
   branch: null
+
+# Git Branch Strategy - Smart branch management for feature development
+branch_strategy:
+  # Enable branch strategy (default: false - must opt-in)
+  enabled: false
+  # Automatically create feature branch before planning phase
+  auto_create_branch: true
+  # Automatically merge feature branch after verification passes (use with caution)
+  auto_merge: false
+  # Prefix for feature branches (e.g., "feature/add-login-page")
+  branch_prefix: "feature"
+  # Base branch to create feature branches from
+  base_branch: "main"
+  # Require clean worktree before creating/switching branches
+  require_clean_worktree: true
+  # Push to remote after successful merge
+  push_on_merge: false
 
 verification:
   # Commands to verify code correctness.
@@ -63,13 +80,12 @@ class Config(BaseModel):
         Load configuration from files.
 
         Priority:
-        1. Project-level .agent-pump/config.yml (New Standard)
-        2. Project-level .agent-pump.yml (Legacy)
-        3. User-level ~/.config/agent-pump/config.yml
-        4. Defaults
+        1. Project-level .agent-pump/config.yml
+        2. User-level ~/.config/agent-pump/config.yml
+        3. Defaults
 
-        If no project-level configuration exists, the new standard
-        (.agent-pump/config.yml) is created.
+        If no project-level configuration exists, .agent-pump/config.yml
+        is created automatically.
         """
         config_data: dict[str, Any] = {}
 
@@ -80,13 +96,12 @@ class Config(BaseModel):
                 user_data = yaml.safe_load(f) or {}
                 config_data.update(user_data)
 
-        # Check for configs
+        # Check for config
         new_config_dir = project_path / ".agent-pump"
         new_config_file = new_config_dir / "config.yml"
-        legacy_config_file = project_path / ".agent-pump.yml"
 
-        # If neither exists, create NEW structure
-        if not new_config_file.exists() and not legacy_config_file.exists():
+        # If no config exists, create structure
+        if not new_config_file.exists():
             new_config_dir.mkdir(parents=True, exist_ok=True)
             (new_config_dir / "states").mkdir(parents=True, exist_ok=True)
             (new_config_dir / "backends").mkdir(parents=True, exist_ok=True)
@@ -109,13 +124,9 @@ class Config(BaseModel):
                         encoding="utf-8",
                     )
 
-        # Load project config (prefer new)
+        # Load project config
         if new_config_file.exists():
-             with open(new_config_file) as f:
-                project_data = yaml.safe_load(f) or {}
-                config_data.update(project_data)
-        elif legacy_config_file.exists():
-             with open(legacy_config_file) as f:
+            with open(new_config_file) as f:
                 project_data = yaml.safe_load(f) or {}
                 config_data.update(project_data)
 
@@ -125,4 +136,3 @@ class Config(BaseModel):
         """Save configuration to a file."""
         with open(path, "w") as f:
             yaml.safe_dump(self.model_dump(), f, default_flow_style=False)
-

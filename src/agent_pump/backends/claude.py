@@ -79,6 +79,13 @@ class ClaudeBackend(AgentBackend):
     def command(self) -> str:
         return "claude"
 
+    def get_context_window_size(self, model: str | None = None) -> int:
+        """Get context window size for Claude models.
+
+        Claude 3.x: 200K tokens
+        """
+        return 200_000
+
     async def _check_availability(self) -> bool:
         """Check if claude command is available in PATH."""
         available = cached_which(self.command) is not None
@@ -132,9 +139,16 @@ class ClaudeBackend(AgentBackend):
         cmd = [executable, "-p"]
 
         # Apply extra args (e.g., --output-format, --allowedTools)
+        # Apply extra args (e.g., --output-format, --allowedTools)
+        combined_args = []
+        if self._extra_args:
+            combined_args.extend(self._extra_args)
         if extra_args:
-            cmd.extend(extra_args)
-            logger.debug(f"Applied extra args: {extra_args}")
+            combined_args.extend(extra_args)
+
+        if combined_args:
+            cmd.extend(combined_args)
+            logger.debug(f"Applied extra args: {combined_args}")
 
         logger.debug(f"Command: {self.command} -p (prompt via stdin, len={len(prompt)})")
 
@@ -233,10 +247,16 @@ class ClaudeBackend(AgentBackend):
             process.terminate()
             raise
         finally:
-            if process.returncode is None:
-                logger.debug("Terminating process in finally block")
-                process.terminate()
+            try:
+                if process.returncode is None:
+                    logger.debug("Terminating process in finally block")
+                    try:
+                        process.terminate()
+                    except ProcessLookupError:
+                        pass
                 await process.wait()
+            except Exception as e:
+                logger.error(f"Error checking process status: {e}")
 
             elapsed = time.time() - start_time
             logger.info(

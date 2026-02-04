@@ -23,50 +23,11 @@ For completed features, see [FEATURES.md](FEATURES.md).
 
 ## Future Enhancements
 
----
-
-### 🔴 Collaborative Mode
-**Priority: Low**
-
-Enable multiple users to monitor and interact with the same Agent Pump instance.
-
-**Acceptance Criteria:**
-- Shared state via web dashboard
-- User identification for idea injection
-- Activity log shows who injected which ideas
-- Role-based permissions (viewer vs controller)
+*No enhancements queued. Add new features during the Brainstorm phase.*
 
 ---
 
-### 🔴 Plugin System
-**Priority: Low**
 
-Allow extending Agent Pump with custom phases, backends, or hooks.
-
-**Acceptance Criteria:**
-- Python-based plugin API
-- Hook into workflow events (pre/post phase)
-- Custom verification steps
-- Community plugin registry (future)
-
----
-
-### 🔴 Feature Audit
-**Priority: High**
-
-Audit the feature list FEATURES.md against the codebase for completeness and accuracy.
-
-**Acceptance Criteria:**
-- Ensure all features are fully implemented in the codebase and the user experience is smooth for interacting with them.
-- Ensure all features are documented, as well as how to interact with them via the TUI, the CLI, and the Web UI.
-- Ensure all features are well-tested and we do not have useless tests.
-- For any feature that is not completely implemented, add it to the roadmap with a 🔴 status so it can be worked on in the future.
-- For any feature that is not completely documented, add it to the roadmap with a 🔴 status so it can be worked on in the future.
-- For any feature that is not completely tested, add it to the roadmap with a 🔴 status so it can be worked on in the future.
-- For any feature that does not have a pleasant user experience in the TUI, CLI, or Web UI, add it to the roadmap with a 🔴 status so it can be worked on in the future.
-
-Do this audit for all features in FEATURES.md. Update the FEATURES.md for each feature with your findings.
----
 
 ## Deferred
 

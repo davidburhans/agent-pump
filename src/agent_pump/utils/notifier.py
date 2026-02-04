@@ -40,3 +40,48 @@ class Notifier:
     def test() -> None:
         """Send a test notification."""
         Notifier.send("Agent Pump", "This is a test notification from Agent Pump.")
+
+    @staticmethod
+    def send_approval_request(
+        project_name: str,
+        phase: str,
+        feature: str | None = None,
+        timeout_minutes: int = 0,
+    ) -> None:
+        """Send a notification for an approval request.
+
+        Args:
+            project_name: Name of the project requiring approval
+            phase: Workflow phase requiring approval
+            feature: Current feature being worked on (if any)
+            timeout_minutes: Minutes until auto timeout (0 = no timeout)
+        """
+        title = f"⏸ Approval Required: {project_name}"
+
+        if feature:
+            message = f"Phase '{phase}' for feature '{feature}' needs your approval."
+        else:
+            message = f"Phase '{phase}' needs your approval."
+
+        if timeout_minutes > 0:
+            message += f"\nAuto-approval in {timeout_minutes} minutes."
+
+        Notifier.send(title, message, timeout=15)
+
+    @staticmethod
+    def send_approval_timeout_warning(
+        project_name: str,
+        phase: str,
+        minutes_remaining: int,
+    ) -> None:
+        """Send a warning notification before approval timeout.
+
+        Args:
+            project_name: Name of the project
+            phase: Workflow phase
+            minutes_remaining: Minutes until timeout
+        """
+        title = f"⚠ Approval Timeout Warning: {project_name}"
+        message = f"Approval for phase '{phase}' expires in {minutes_remaining} minutes."
+
+        Notifier.send(title, message, timeout=10)

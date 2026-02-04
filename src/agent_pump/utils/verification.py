@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 def load_verification_config(project_path: Path) -> VerificationConfig:
     """
-    Load verification configuration from .agent-pump.yml file in the project directory.
+    Load verification configuration from .agent-pump/config.yml file in the project directory.
 
     Args:
         project_path: Path to the project directory
@@ -20,7 +20,7 @@ def load_verification_config(project_path: Path) -> VerificationConfig:
     Returns:
         VerificationConfig with settings loaded from the config file
     """
-    config_path = project_path / ".agent-pump.yml"
+    config_path = project_path / ".agent-pump" / "config.yml"
 
     if not config_path.exists():
         logger.debug(f"No verification config found at {config_path}, using defaults")
@@ -43,13 +43,16 @@ def load_verification_config(project_path: Path) -> VerificationConfig:
 
 def save_verification_config(project_path: Path, config: VerificationConfig) -> None:
     """
-    Save verification configuration to .agent-pump.yml file in the project directory.
+    Save verification configuration to .agent-pump/config.yml file in the project directory.
 
     Args:
         project_path: Path to the project directory
         config: VerificationConfig to save
     """
-    config_path = project_path / ".agent-pump.yml"
+    config_path = project_path / ".agent-pump" / "config.yml"
+
+    # Ensure directory exists
+    config_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Load existing config to preserve other settings
     existing_config = {}

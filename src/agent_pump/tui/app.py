@@ -23,6 +23,7 @@ from agent_pump.events.models import (
 from agent_pump.keybindings import KEYBINDINGS
 from agent_pump.models.app_state import AppState
 from agent_pump.models.project import Project
+from agent_pump.models.template import ProjectTemplate
 from agent_pump.models.workspace import (
     GlobalPromptSettings,
     PhaseBackends,
@@ -35,12 +36,14 @@ from agent_pump.services.idea_service import IdeaService
 from agent_pump.services.log_service import LogService
 from agent_pump.services.metrics_service import MetricsService
 from agent_pump.services.project_service import ProjectService
+from agent_pump.services.template_service import TemplateService
 from agent_pump.services.workflow_service import WorkflowService
 from agent_pump.services.workspace_service import WorkspaceService
 from agent_pump.tui.commands import AgentPumpCommandProvider
 from agent_pump.tui.screens import (
     AddProjectModal,
     BackendConfigModal,
+    BootstrapModal,
     GlobalPromptModal,
     IdeaInputModal,
     MetricsModal,
@@ -49,6 +52,8 @@ from agent_pump.tui.screens import (
     PromptConfigModal,
     RoadmapModal,
     SettingsModal,
+    TemplateApplyModal,
+    TemplateListModal,
     WorkflowEditorModal,
     WorkspaceSwitcherModal,
 )
@@ -304,7 +309,6 @@ class AgentPumpApp(App):
 
         if not project.has_best_practices():
             self._log(f"  ⚠ Warning: No BEST_PRACTICES.md found in {path}")
-
 
     async def _on_ideas_processed(self, path: Path | None) -> None:
         """Callback when ideas have been processed by the workflow."""
@@ -630,7 +634,6 @@ class AgentPumpApp(App):
         if not project:
             return
 
-
         # Reload config
         try:
             # Force reload of config from disk
@@ -664,6 +667,124 @@ class AgentPumpApp(App):
     def action_show_metrics(self) -> None:
         """Open the metrics and analytics dashboard."""
         self.push_screen(MetricsModal(self.metrics_service))
+
+    def action_templates(self) -> None:
+        """Open the template browser modal."""
+        from agent_pump.services.template_service import TemplateService
+
+        # Get all available templates
+        template_service = TemplateService(self.event_bus, self.workspace)
+        templates = template_service.list_templates()
+
+        def handle_list_result(selected_template: ProjectTemplate | None) -> None:
+            if selected_template is None:
+                self._log("Template browser closed")
+                return
+
+            # Check if user wants to apply to existing or create new
+            # We use a dynamic attribute set in the modal to determine this
+            is_new_project = getattr(selected_template, "is_new_project", False)
+
+            if is_new_project:
+                # Create new project from template
+                self._handle_create_from_template(selected_template, template_service)
+            else:
+                # Apply to existing project
+                if self.selected_project:
+                    self._handle_apply_template(
+                        selected_template, self.selected_project, template_service
+                    )
+                else:
+                    # No project selected, show apply modal for user to enter path
+                    self._handle_apply_template(selected_template, None, template_service)
+
+        self.push_screen(TemplateListModal(templates, self.workspace), handle_list_result)
+
+    def _handle_apply_template(
+        self,
+        template: ProjectTemplate,
+        existing_project: Path | None,
+        template_service: TemplateService,
+    ) -> None:
+        """Handle applying a template to an existing or new project path.
+
+        Args:
+            template: The template to apply.
+            existing_project: Path to existing project, or None to prompt for path.
+            template_service: The template service for applying templates.
+        """
+
+        def handle_apply_result(project_path: Path | None) -> None:
+            if project_path:
+                self._log(f"Applied template '{template.name}' to {project_path}")
+                # Refresh project config if it was an existing project
+                if existing_project and existing_project in self.projects:
+                    self._refresh_project_config(existing_project)
+            else:
+                self._log("Template application cancelled")
+
+        self.push_screen(
+            TemplateApplyModal(
+                template=template,
+                existing_project=existing_project,
+                is_new_project=False,
+                template_service=template_service,
+            ),
+            handle_apply_result,
+        )
+
+    def _handle_create_from_template(
+        self, template: ProjectTemplate, template_service: TemplateService
+    ) -> None:
+        """Handle creating a new project from a template.
+
+        Args:
+            template: The template to use.
+            template_service: The template service for creating projects.
+        """
+
+        def handle_create_result(project_path: Path | None) -> None:
+            if project_path:
+                self._log(f"Created new project from template '{template.name}': {project_path}")
+                # Add the new project to the app
+                self.run_worker(self._add_project(project_path))
+            else:
+                self._log("Project creation from template cancelled")
+
+        self.push_screen(
+            TemplateApplyModal(
+                template=template,
+                is_new_project=True,
+                template_service=template_service,
+            ),
+            handle_create_result,
+        )
+
+    def _refresh_project_config(self, project_path: Path) -> None:
+        """Refresh project configuration after template application.
+
+        Args:
+            project_path: Path to the project to refresh.
+        """
+        if project_path not in self.projects:
+            return
+
+        project = self.projects[project_path]
+        try:
+            # Reload config from disk
+            from agent_pump.config import Config
+
+            new_config = Config.load(project.path)
+            project.backend = new_config.backend
+
+            # Update workflow with new config
+            workflow = self.workflows.get(project_path)
+            if workflow:
+                workflow.config = new_config
+
+            self._log(f"Configuration refreshed for {project.name}")
+        except Exception as e:
+            self._log(f"[ERROR] Failed to refresh config: {e}")
 
     def action_switch_workspace(self) -> None:
         """Open the workspace switcher modal."""
@@ -1035,3 +1156,79 @@ class AgentPumpApp(App):
 
         # Open backend config
         self.action_config_backends()
+
+    def action_bootstrap_project(self) -> None:
+        """Open the project bootstrap modal.
+
+        Allows users to bootstrap a project with AI-generated ROADMAP.md
+        and BEST_PRACTICES.md files.
+        """
+
+        def handle_bootstrap_result(result: tuple[Path, str, bool] | None) -> None:
+            """Handle the result from the bootstrap modal.
+
+            Args:
+                result: Tuple of (path, backend, dry_run) or None if cancelled.
+            """
+            if result is None:
+                self._log("Bootstrap cancelled")
+                return
+
+            path, backend_name, dry_run = result
+            self.run_worker(self._bootstrap_project(path, backend_name, dry_run))
+
+        # Use currently selected project as initial path if available
+        initial_path = self.selected_project
+        self.push_screen(BootstrapModal(initial_path=initial_path), handle_bootstrap_result)
+
+    async def _bootstrap_project(self, path: Path, backend_name: str, dry_run: bool) -> None:
+        """Execute the bootstrap operation.
+
+        Args:
+            path: Path to the project to bootstrap.
+            backend_name: Name of the AI backend to use.
+            dry_run: Whether to run in dry-run mode.
+        """
+        from agent_pump.backends import get_backend
+        from agent_pump.services.bootstrap_service import BootstrapService
+
+        self._log(f"Bootstrapping project: {path.name}")
+        self._log(f"Using backend: {backend_name}")
+
+        if dry_run:
+            self._log("[DRY RUN] Preview mode - no files will be written")
+
+        try:
+            service = BootstrapService(self.event_bus)
+            backend = get_backend(backend_name)
+
+            result = await service.bootstrap_project(
+                project_path=path,
+                backend=backend,
+                dry_run=dry_run,
+            )
+
+            if result.success:
+                if dry_run:
+                    self._log(f"[DRY RUN] Preview complete for {path.name}")
+                    if result.roadmap_content:
+                        preview = (
+                            result.roadmap_content[:300] + "..."
+                            if len(result.roadmap_content) > 300
+                            else result.roadmap_content
+                        )
+                        self._log(f"ROADMAP.md preview:\n{preview}")
+                else:
+                    self._log(f"[SUCCESS] Bootstrapped {path.name}")
+                    if result.files_written:
+                        for f in result.files_written:
+                            self._log(f"  Created: {f}")
+
+                    # If project is already managed, refresh its config
+                    if path in self.projects:
+                        self._refresh_project_config(path)
+            else:
+                self._log(f"[ERROR] Bootstrap failed: {result.error_message}")
+
+        except Exception as e:
+            self._log(f"[ERROR] Bootstrap error: {e}")

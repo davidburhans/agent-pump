@@ -1,8 +1,8 @@
 """Modal screen for adding a new project."""
 
 from pathlib import Path
-from pydantic import ValidationError
 
+from pydantic import ValidationError
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal
 from textual.screen import ModalScreen
@@ -45,7 +45,7 @@ class AddProjectModal(ModalScreen[Path | None]):
     #path-input {
         width: 1fr;
     }
-    
+
     #error-label {
         color: $error;
         height: auto;
@@ -53,7 +53,7 @@ class AddProjectModal(ModalScreen[Path | None]):
         padding-left: 1;
         display: none;
     }
-    
+
     #error-label.visible {
         display: block;
     }
@@ -162,20 +162,20 @@ class AddProjectModal(ModalScreen[Path | None]):
                 msg = msg.replace("Value error, ", "")
             self._show_error(path_input, msg)
         except Exception as e:
-             self._show_error(path_input, str(e))
+            self._show_error(path_input, str(e))
 
     def _show_error(self, widget: Widget, message: str) -> None:
         """Show visual error feedback."""
         widget.add_class("error")
         shake(widget)
-        
+
         # Show error label
         error_label = self.query_one("#error-label", Label)
         error_label.update(message)
         error_label.add_class("visible")
-        
+
         widget.focus()
-        
+
     def _clear_error(self) -> None:
         """Clear error message."""
         error_label = self.query_one("#error-label", Label)

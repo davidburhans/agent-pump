@@ -7,7 +7,7 @@ from textual.message import Message
 from textual.reactive import reactive
 from textual.widgets import Static
 
-from agent_pump.models.workflow_snapshot import WorkflowSnapshot, NodeSnapshot
+from agent_pump.models.workflow_snapshot import NodeSnapshot, WorkflowSnapshot
 from agent_pump.orchestrator.workflow import ProjectWorkflow
 
 logger = logging.getLogger(__name__)
@@ -64,7 +64,7 @@ class WorkflowNode(Static):
         background: $surface-lighten-2;
     }
     """
-    
+
     # Accessible name attribute for screen readers
     accessible_name: str | None
 
@@ -78,7 +78,7 @@ class WorkflowNode(Static):
         self.is_active = snapshot.is_active
 
         self.update(f"{self.icon} {self.label}")
-        
+
         # Apply initial status styles
         if self.status == "active":
             self.add_class("active")
@@ -86,10 +86,10 @@ class WorkflowNode(Static):
             self.add_class("completed")
         elif self.status == "error":
             self.add_class("error")
-            
+
         # Enable focus for keyboard navigation
         self.can_focus = True
-        
+
         # Initial accessible name
         self.accessible_name = f"{self.label} Phase: {self.status.title()}"
 
@@ -201,7 +201,7 @@ class WorkflowPanel(Middle):
 
         # Build nodes list
         widgets = []
-        
+
         # Iterate through nodes in snapshot
         for i, node_data in enumerate(self.snapshot.nodes):
             node = WorkflowNode(node_data, id=f"node-{node_data.id}")
@@ -213,7 +213,7 @@ class WorkflowPanel(Middle):
             # Logic: If there is an edge starting from this node, add a connector.
             # Find edge where source == node_data.id
             edge = next((e for e in self.snapshot.edges if e.source == node_data.id), None)
-            
+
             if edge:
                 c = WorkflowConnector()
                 if edge.active:
@@ -239,7 +239,7 @@ class WorkflowPanel(Middle):
             if node.is_active:
                 active_node_id = node.id
                 break
-        
+
         # Check if running - if paused/error, maybe don't pulse?
         # Snapshot doesn't explicitly have "is_running", but we can infer from state or
         # passed workflow. For now, if active, pulse.

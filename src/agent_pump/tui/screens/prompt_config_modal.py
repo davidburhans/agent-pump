@@ -1,10 +1,11 @@
-import click
 import os
 import platform
 import subprocess
+
+import click
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Container, Vertical, VerticalScroll
+from textual.containers import Container, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import Button, Markdown, Static
 
@@ -87,11 +88,10 @@ class PromptConfigModal(ModalScreen[None]):
 
     def compose(self) -> ComposeResult:
         """Compose the modal's widgets."""
-        
-        states_dir = self.project_config.path / ".agent-pump" / "states"
-        backends_dir = self.project_config.path / ".agent-pump" / "backends"
 
-        doc_content = f"""
+        states_dir = self.project_config.path / ".agent-pump" / "states"
+
+        doc_content = """
 ## File-Based Prompt System
 
 You can customize the agent's behavior by editing Markdown files in your project.
@@ -104,13 +104,13 @@ Edit the files in `.agent-pump/states/` to replace the default prompts for any p
 *   `verifying.md`
 
 **Template Variables:**
-*   `{{ branch }}`: Current git branch name
+*   `{ branch }`: Current git branch name
 
 **Reference Files via `read_file`:**
 You can read any file in your project:
-*   `{{ read_file("ROADMAP.md") }}`
-*   `{{ read_file("ENGINEERING_PLAN.md") }}`
-*   `{{ read_file("docs/api-spec.md") }}`
+*   `{ read_file("ROADMAP.md") }`
+*   `{ read_file("ENGINEERING_PLAN.md") }`
+*   `{ read_file("docs/api-spec.md") }`
 
 ### 2. Pre/Post Hooks
 You can prepend or append text to any phase by creating these files in `states/`:
@@ -136,10 +136,10 @@ Create a `backends/` folder in `.agent-pump/` and add:
 
         with Container(id="modal-container"):
             yield Static("📝 Prompt Configuration", id="modal-title")
-            
+
             with VerticalScroll():
                 yield Markdown(doc_content)
-                
+
                 yield Static("Prompt Directory:", classes="path-label")
                 yield Static(str(states_dir), classes="path-label")
 
@@ -166,9 +166,9 @@ Create a `backends/` folder in `.agent-pump/` and add:
         if not states_dir.exists():
             # Fallback to project root if .agent-pump doesn't exist yet
             states_dir = self.project_config.path
-        
+
         path_str = str(states_dir)
-        
+
         try:
             if platform.system() == "Windows":
                 os.startfile(path_str)
@@ -177,13 +177,15 @@ Create a `backends/` folder in `.agent-pump/` and add:
             else:
                 # Linux/Unix
                 subprocess.run(["xdg-open", path_str], check=True)
-                
+
             self.notify(f"Opened {states_dir}", severity="information")
             self.dismiss(None)
         except Exception as e:
-            self.notify(f"Failed to open directory directly: {e}. Trying fallback...", severity="warning")
+            self.notify(
+                f"Failed to open directory directly: {e}. Trying fallback...", severity="warning"
+            )
             try:
-                 click.launch(path_str)
-                 self.dismiss(None)
+                click.launch(path_str)
+                self.dismiss(None)
             except Exception as e2:
-                 self.notify(f"Fallback failed: {e2}", severity="error")
+                self.notify(f"Fallback failed: {e2}", severity="error")

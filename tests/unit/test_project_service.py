@@ -28,6 +28,7 @@ class TestProjectService:
     def workspace(self):
         ws = MagicMock(spec=Workspace)
         ws.projects = {}
+        ws.workflow_definitions = {}
         ws.get_project_config.return_value = None
         return ws
 

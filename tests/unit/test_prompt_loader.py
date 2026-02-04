@@ -76,7 +76,7 @@ class TestPromptLoader:
         (backends_dir / "pre-gemini.md").write_text("Backend Pre", encoding="utf-8")
         (backends_dir / "post-gemini.md").write_text("Backend Post", encoding="utf-8")
         # Ensure base overrides default
-        (states_dir / "planning.md").write_text("Custom Base {var}", encoding="utf-8")
+        (states_dir / "planning.md").write_text("Custom Base {{ var }}", encoding="utf-8")
 
         prompt = loader.build_prompt(
             state="planning",

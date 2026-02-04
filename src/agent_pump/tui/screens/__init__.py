@@ -1,13 +1,21 @@
-from .add_project_modal import AddProjectModal
-from .add_roadmap_item_modal import AddRoadmapItemModal
-from .backend_config_modal import BackendConfigModal
-from .confirm_modal import ConfirmModal
-from .global_prompt_modal import GlobalPromptModal
-from .idea_input_modal import IdeaInputModal
-from .log_filter_modal import LogFilterModal
-from .project_config_modal import ProjectConfigModal
-from .prompt_config_modal import PromptConfigModal
-from .roadmap_modal import RoadmapModal
-from .settings_modal import SettingsModal
-from .verification_config_modal import VerificationConfigModal
-from .project_summary_modal import ProjectSummaryModal
+from .add_project_modal import AddProjectModal as AddProjectModal
+from .bootstrap_modal import BootstrapModal as BootstrapModal
+from .add_roadmap_item_modal import AddRoadmapItemModal as AddRoadmapItemModal
+from .approval_gate_modal import ApprovalGateModal as ApprovalGateModal
+from .backend_config_modal import BackendConfigModal as BackendConfigModal
+from .checkpoint_modal import CheckpointModal as CheckpointModal
+from .confirm_modal import ConfirmModal as ConfirmModal
+from .global_prompt_modal import GlobalPromptModal as GlobalPromptModal
+from .idea_input_modal import IdeaInputModal as IdeaInputModal
+from .log_filter_modal import LogFilterModal as LogFilterModal
+from .metrics_modal import MetricsModal as MetricsModal
+from .project_config_modal import ProjectConfigModal as ProjectConfigModal
+from .project_summary_modal import ProjectSummaryModal as ProjectSummaryModal
+from .prompt_config_modal import PromptConfigModal as PromptConfigModal
+from .roadmap_modal import RoadmapModal as RoadmapModal
+from .settings_modal import SettingsModal as SettingsModal
+from .template_apply_modal import TemplateApplyModal as TemplateApplyModal
+from .template_list_modal import TemplateListModal as TemplateListModal
+from .verification_config_modal import VerificationConfigModal as VerificationConfigModal
+from .workflow_editor_modal import WorkflowEditorModal as WorkflowEditorModal
+from .workspace_switcher_modal import WorkspaceSwitcherModal as WorkspaceSwitcherModal

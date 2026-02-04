@@ -36,9 +36,10 @@ It feels less like "chatting with a bot" and more like **pair programming with a
 
 - **🚀 Autonomous Workflow Loop**: Automatically cycles through **Plan → Implement → Verify → Brainstorm → Commit**.
 - **🖥️ Beautiful TUI Dashboard**: A rich terminal interface built with Textual to monitor multiple projects simultaneously.
+- **🌐 HTTP API & WebSocket**: Built-in web server for remote monitoring, API access, and real-time updates.
 - **🧠 Pluggable Intelligence**: Currently powered by the **Gemini CLI**, with architecture ready for Claude Code and OpenCode.
 - **✅ Automated Verification**: Runs your tests, linters, and build commands. If they fail, the agent fixes the code automatically.
-- **⚙️ Custom Verification Commands**: Configure project-specific build, lint, and test commands via `.agent-pump.yml` or through the TUI.
+- **⚙️ Custom Verification Commands**: Configure project-specific build, lint, and test commands via `.agent-pump/config.yml` or through the TUI.
 - **📋 Copy Configuration**: Easily copy backend and prompt settings between projects or apply a configuration to your entire workspace.
 - **📝 Living Roadmap**: The agent doesn't just write code; it reads your `ROADMAP.md` to decide what to work on next.
 - **⚡ "YOLO" Mode**: Option to fully automate the process or require manual approval at key checkpoints.
@@ -103,6 +104,38 @@ uv run agent-pump project list
 uv run agent-pump ./my-project ./another-project
 ```
 
+### Web Server Mode
+
+Agent Pump includes an HTTP server for remote monitoring and API access:
+
+```bash
+# Start the HTTP server (default port 8000)
+uv run agent-pump --web
+
+# Start on a custom port
+uv run agent-pump --web --web-port 8080
+```
+
+**Available Endpoints:**
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /health` | Health check with server status |
+| `WS /ws` | WebSocket for real-time updates |
+| `GET /docs` | OpenAPI documentation (debug mode) |
+
+**Example Usage:**
+
+```bash
+# Check server health
+curl http://localhost:8000/health
+
+# Response:
+# {"status": "ok", "timestamp": "2025-01-15T10:30:00", "version": "0.1.0"}
+```
+
+See [docs/api.md](docs/api.md) for complete API documentation.
+
 ### Verification Commands
 
 Configure custom build, lint, and test commands for your projects to ensure code quality:
@@ -131,7 +164,7 @@ uv run agent-pump verification detect ./my-project
 
 #### File-Based Configuration
 
-You can also configure verification commands in your `.agent-pump.yml` file:
+You can also configure verification commands in your `.agent-pump/config.yml` file:
 
 ```yaml
 verification:

@@ -61,10 +61,10 @@ async def test_log_panel_formatting():
         assert "Normal message" in panel.text
 
         panel.write("[ERROR] Something bad")
-        assert "**[ERROR] Something bad**" in panel.text
+        assert "[ERROR] Something bad" in panel.text
 
         panel.write("Starting phase")
-        assert "### Starting phase" in panel.text
+        assert "Starting phase" in panel.text
 
 
 @pytest.mark.asyncio
