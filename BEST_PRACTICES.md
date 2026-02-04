@@ -548,3 +548,7 @@ Before committing:
           event.stop()
           self.post_message(self.BackendConfigRequested(self.project, self))
   ```
+
+### Commit Strategy
+- **Atomic Commits**: Ensure commits are atomic and represent a single logical change or feature.
+- **Pre-commit Checks**: Always run `git status` and `git diff` before committing to verify exactly what is being staged.
