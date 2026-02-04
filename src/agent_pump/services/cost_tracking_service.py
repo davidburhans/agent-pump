@@ -34,13 +34,15 @@ class CostTrackingService:
     enforces budget limits, and provides cost reporting.
     """
 
-    def __init__(self, workspace: Workspace) -> None:
+    def __init__(self, workspace: Workspace, storage_path: Path | None = None) -> None:
         """Initialize the cost tracking service.
 
         Args:
             workspace: The workspace to track costs for.
+            storage_path: Optional custom path for storing cost data.
         """
         self.workspace = workspace
+        self._storage_path = storage_path
         self._cost_records: list[CostRecord] = []
         self._budget_config = (
             workspace.budget_config if hasattr(workspace, "budget_config") else BudgetConfig()
@@ -54,7 +56,11 @@ class CostTrackingService:
         Returns:
             Path to the costs JSON file.
         """
-        costs_dir = Path.home() / ".config" / "agent-pump" / "costs"
+        if self._storage_path:
+            costs_dir = self._storage_path
+        else:
+            costs_dir = Path.home() / ".config" / "agent-pump" / "costs"
+        
         costs_dir.mkdir(parents=True, exist_ok=True)
         return costs_dir / f"{self.workspace.name}.json"
 

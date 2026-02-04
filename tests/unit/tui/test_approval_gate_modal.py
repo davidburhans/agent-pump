@@ -60,12 +60,14 @@ class TestApprovalGateModalComposition:
             timeout_minutes=30,
         )
 
-    def test_modal_compose_structure(self, modal):
+    @pytest.mark.asyncio
+    async def test_modal_compose_structure(self, modal):
         """Test that modal composes with correct structure."""
-        widgets = list(modal.compose())
-
-        # Should have one main container
-        assert len(widgets) == 1
+        app = pytest.importorskip("textual.app").App()
+        async with app.run_test() as pilot:
+            await pilot.app.push_screen(modal)
+            # Should have one main container
+            assert len(modal.query("#dialog")) == 1
 
     def test_modal_has_title(self, modal):
         """Test that modal has a title."""
@@ -193,6 +195,8 @@ class TestApprovalGateModalButtonHandling:
     def test_cancel_button_pressed(self, modal):
         """Test handling cancel button press."""
         with patch.object(modal, "dismiss") as mock_dismiss:
+            modal.query_one = MagicMock()
+            
             # Create mock button event
             mock_button = MagicMock()
             mock_button.id = "btn-cancel"

@@ -96,7 +96,10 @@ async def test_workspace_switcher_modal_create_new():
         await pilot.app.push_screen(modal)
 
         # Click the "Create New" button
-        await pilot.click("#btn-create")
+        btn = modal.query_one("#btn-create")
+        btn.focus()
+        await pilot.press("enter")
+        await pilot.pause()
 
         # Should show the create section with input field
         create_section = modal.query_one("#create-section")
@@ -122,7 +125,10 @@ async def test_workspace_switcher_modal_cancel():
         await pilot.app.push_screen(modal, callback=handle_dismiss)
 
         # Click cancel or press escape
-        await pilot.click("#btn-cancel")
+        btn = modal.query_one("#btn-cancel")
+        btn.focus()
+        await pilot.press("enter")
+        await pilot.pause()
 
         # Result should be None (cancelled)
         assert result is None

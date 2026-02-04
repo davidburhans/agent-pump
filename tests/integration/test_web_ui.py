@@ -5,7 +5,9 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from agent_pump.api.server import app
+from agent_pump.api.server import create_server
+
+app = create_server(autoload_projects=False)
 
 
 @pytest.fixture

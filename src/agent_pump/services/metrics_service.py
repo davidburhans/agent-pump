@@ -122,10 +122,11 @@ class MetricsService(BaseService):
         self._active_collectors: dict[Path, MetricsCollector] = {}
         self._current_features: dict[Path, str] = {}
         self._project_names: dict[Path, str] = {}
+        self._listen_task: asyncio.Task | None = None
 
     async def start(self) -> None:
         """Start listening to metrics events."""
-        asyncio.create_task(self._listen_for_events())
+        self._listen_task = asyncio.create_task(self._listen_for_events())
         logger.info("Metrics service started")
 
     async def _listen_for_events(self) -> None:

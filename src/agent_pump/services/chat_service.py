@@ -5,7 +5,6 @@ from collections.abc import AsyncGenerator
 from pathlib import Path
 
 from agent_pump.backends import get_backend
-from agent_pump.backends.base import AgentBackend
 from agent_pump.events.bus import EventBus
 from agent_pump.services.base import BaseService
 from agent_pump.utils.context_manager import ContextManager
@@ -57,9 +56,9 @@ class ChatService(BaseService):
         # Use a reasonable default for chat (maybe slightly less than full coding limit to be faster?)
         # For now, just use what context manager gives us.
         context_files = context_manager.get_context_files()
-        
+
         context_str = "\\n".join(
-            f"File: {f.path}\\n```\\n{f.content}\\n```" 
+            f"File: {f.path}\\n```\\n{f.content}\\n```"
             for f in context_files
         )
 
@@ -89,7 +88,7 @@ class ChatService(BaseService):
         )
 
         # 4. Stream Response
-        # We use backend.run() for now. 
+        # We use backend.run() for now.
         # Ideally, we should add a specific chat method to backend protocol later.
         async for chunk in backend.run(project_path, full_prompt, verbose=False):
             yield chunk

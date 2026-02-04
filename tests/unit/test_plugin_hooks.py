@@ -35,6 +35,7 @@ def temp_project(tmp_path) -> Project:
     agent_pump_dir.mkdir()
     states_dir = agent_pump_dir / "states"
     states_dir.mkdir()
+    (states_dir / "planning.md").write_text("Test prompt")
 
     # Create valid state file with required fields
     import json
@@ -83,12 +84,15 @@ class TestPlugin(Plugin):
         # Mock the run methods to avoid full execution
         with patch.object(workflow, "_prepare_phase", new_callable=AsyncMock):
             with patch.object(workflow, "run_phase", new_callable=AsyncMock) as mock_run:
-                mock_run.return_value = False  # Fail to stop after one iteration
+                async def side_effect(*args, **kwargs):
+                    workflow.cancel()
+                    return False
+                mock_run.side_effect = side_effect
 
                 try:
                     await workflow.run(max_iterations=1)
                 except Exception:
-                    pass  # We expect it to fail since we're mocking
+                    pass
 
                 # Check that plugin was loaded
                 assert "test" in plugin_manager.loaded_plugins
@@ -112,7 +116,10 @@ class TestPlugin(Plugin):
         with patch.object(workflow, "_prepare_phase", new_callable=AsyncMock):
             with patch.object(workflow, "run_phase", new_callable=AsyncMock) as mock_run:
                 with patch.object(workflow, "_post_phase", new_callable=AsyncMock):
-                    mock_run.return_value = False  # Stop after one phase
+                    async def side_effect(*args, **kwargs):
+                        workflow.cancel()
+                        return False
+                    mock_run.side_effect = side_effect
 
                     try:
                         await workflow.run(max_iterations=1)
@@ -142,7 +149,10 @@ class TestPlugin(Plugin):
             with patch.object(workflow, "run_phase", new_callable=AsyncMock) as mock_run:
                 with patch.object(workflow, "_post_phase", new_callable=AsyncMock) as mock_post:
                     mock_run.return_value = True
-                    mock_post.return_value = True
+                    async def post_side_effect(*args, **kwargs):
+                        workflow.cancel()
+                        return True
+                    mock_post.side_effect = post_side_effect
 
                     # Set up workflow state to be in a phase
                     workflow.workflow_state.current_state = "planning"
@@ -182,7 +192,10 @@ class TestPlugin(Plugin):
 
         with patch.object(workflow, "_prepare_phase", new_callable=AsyncMock):
             with patch.object(workflow, "run_phase", new_callable=AsyncMock) as mock_run:
-                mock_run.return_value = False
+                async def side_effect(*args, **kwargs):
+                    workflow.cancel()
+                    return False
+                mock_run.side_effect = side_effect
 
                 try:
                     await workflow.run(max_iterations=1)
@@ -394,7 +407,10 @@ class TestWorkflowWithoutPlugins:
         # Mock to control execution
         with patch.object(workflow, "_prepare_phase", new_callable=AsyncMock):
             with patch.object(workflow, "run_phase", new_callable=AsyncMock) as mock_run:
-                mock_run.return_value = False  # Stop immediately
+                async def side_effect(*args, **kwargs):
+                    workflow.cancel()
+                    return False
+                mock_run.side_effect = side_effect
 
                 try:
                     await workflow.run(max_iterations=1)

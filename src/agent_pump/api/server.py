@@ -58,9 +58,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict[str, Any], None]:
         await app.state.metrics_service.start()
         logger.info("Metrics service initialized")
 
-        # Load projects
-        for path_str in workspace.projects:
-            await app.state.project_service.add_project(Path(path_str))
+        # Load projects if enabled
+        if getattr(app.state, "autoload_projects", True):
+            for path_str in workspace.projects:
+                await app.state.project_service.add_project(Path(path_str))
 
         app.state.startup_time = datetime.now()
         logger.info("Services initialized successfully")
@@ -84,6 +85,7 @@ def create_server(
     api_key: str | None = None,
     cors_origins: list[str] | None = None,
     debug: bool = False,
+    autoload_projects: bool = True,
 ) -> FastAPI:
     """Create and configure the FastAPI application.
 
@@ -91,6 +93,7 @@ def create_server(
         api_key: Optional API key for authentication. If None, auth is disabled.
         cors_origins: List of allowed CORS origins. Defaults to localhost.
         debug: Enable debug mode for detailed error responses.
+        autoload_projects: Whether to automatically load projects from workspace.
 
     Returns:
         Configured FastAPI application instance.
@@ -104,6 +107,7 @@ def create_server(
         redoc_url="/redoc" if debug else None,
         openapi_url="/openapi.json" if debug else None,
     )
+    app.state.autoload_projects = autoload_projects
 
     # Add CORS middleware
     cors_config = get_cors_config(origins=cors_origins)

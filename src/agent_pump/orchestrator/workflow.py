@@ -1151,6 +1151,15 @@ class ProjectWorkflow:
                 # Log error but don't block workflow if checkpoint fails
                 logger.warning(f"Failed to create auto-checkpoint: {e}")
 
+        if phase_name == "brainstorming":
+            # Refresh idea queue from project config if available
+            if self.project_config:
+                self.idea_queue = [item.idea for item in self.project_config.idea_queue]
+
+            # Add queued ideas to context
+            if self.idea_queue:
+                context["queued_ideas"] = self.idea_queue
+
         if phase_name == "planning":
             await self._prepare_planning_phase(context)
 

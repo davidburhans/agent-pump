@@ -209,6 +209,8 @@ Context:
 - Current ROADMAP.md: {{ read_file('ROADMAP.md') }}
 - Current ENGINEERING_PLAN.md: {{ read_file('ENGINEERING_PLAN.md') }}
 - Current TASK_NAME: {{ read_file('TASK_NAME') }}
+- Queued Ideas:
+  {{ queued_ideas | tojson(indent=2) }}
 
 Your task:
 1. Review the feature you just implemented

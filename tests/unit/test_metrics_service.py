@@ -106,7 +106,6 @@ class TestMetricsCollector:
         assert completion.success is True
 
 
-@pytest.mark.asyncio
 class TestMetricsService:
     """Tests for MetricsService class."""
 
@@ -114,7 +113,12 @@ class TestMetricsService:
     def event_bus(self):
         """Create a mock event bus."""
         bus = MagicMock(spec=EventBus)
-        bus.subscribe = AsyncMock(return_value=asyncio.sleep(0))
+        
+        # event_bus.subscribe() returns an AsyncGenerator
+        async def mock_subscribe():
+            if False: yield None # Make it a generator
+            
+        bus.subscribe.return_value = mock_subscribe()
         return bus
 
     @pytest.fixture
@@ -499,10 +503,25 @@ class TestMetricsServiceAsync:
     async def test_start_service(self):
         """Test starting the service."""
         event_bus = MagicMock(spec=EventBus)
-        event_bus.subscribe = AsyncMock(return_value=asyncio.sleep(0.1))
+        
+        # event_bus.subscribe() returns an AsyncGenerator
+        async def mock_subscribe():
+            if False: yield None
+            
+        event_bus.subscribe.return_value = mock_subscribe()
 
         service = MetricsService(event_bus)
+        # Mock _listen_for_events to avoid background task during test if needed,
+        # but here we actually want to test starting it.
         await service.start()
 
         # Should create a task to listen for events
-        await asyncio.sleep(0.05)  # Give it time to start
+        assert service._listen_task is not None
+        assert not service._listen_task.done()
+        
+        # Clean up
+        service._listen_task.cancel()
+        try:
+            await service._listen_task
+        except asyncio.CancelledError:
+            pass

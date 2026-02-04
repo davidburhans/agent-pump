@@ -1,6 +1,7 @@
 """CLI entry point for agent-pump."""
 
 import asyncio
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -1067,6 +1068,11 @@ def cost_show(project_path: Path | None, period: str | None) -> None:
 
     state = AppState.load()
     workspace = Workspace.load(state.current_workspace)
+
+    if not workspace:
+        console.print(f"[red]Workspace '{state.current_workspace}' not found.[/red]")
+        sys.exit(1)
+
     cost_service = CostTrackingService(workspace)
 
     if project_path:
@@ -1118,6 +1124,11 @@ def cost_export(export_format: str, output: str | None) -> None:
 
     state = AppState.load()
     workspace = Workspace.load(state.current_workspace)
+
+    if not workspace:
+        console.print(f"[red]Workspace '{state.current_workspace}' not found.[/red]")
+        sys.exit(1)
+
     cost_service = CostTrackingService(workspace)
 
     # Generate filename if not provided
@@ -1149,6 +1160,11 @@ def cost_reset(project_path: Path | None) -> None:
 
     state = AppState.load()
     workspace = Workspace.load(state.current_workspace)
+
+    if not workspace:
+        console.print(f"[red]Workspace '{state.current_workspace}' not found.[/red]")
+        sys.exit(1)
+
     cost_service = CostTrackingService(workspace)
 
     if project_path:
@@ -1173,6 +1189,11 @@ def cost_breakdown(by: str) -> None:
 
     state = AppState.load()
     workspace = Workspace.load(state.current_workspace)
+
+    if not workspace:
+        console.print(f"[red]Workspace '{state.current_workspace}' not found.[/red]")
+        sys.exit(1)
+
     cost_service = CostTrackingService(workspace)
 
     if by == "phase":
@@ -1212,6 +1233,11 @@ def budget_show() -> None:
 
     state = AppState.load()
     workspace = Workspace.load(state.current_workspace)
+
+    if not workspace:
+        console.print(f"[red]Workspace '{state.current_workspace}' not found.[/red]")
+        sys.exit(1)
+
     cost_service = CostTrackingService(workspace)
 
     status = cost_service.get_budget_status()
@@ -1259,6 +1285,11 @@ def budget_set(
 
     state = AppState.load()
     workspace = Workspace.load(state.current_workspace)
+
+    if not workspace:
+        console.print(f"[red]Workspace '{state.current_workspace}' not found.[/red]")
+        sys.exit(1)
+
     cost_service = CostTrackingService(workspace)
 
     # Get current config and update
@@ -1284,6 +1315,11 @@ def budget_enable() -> None:
 
     state = AppState.load()
     workspace = Workspace.load(state.current_workspace)
+
+    if not workspace:
+        console.print(f"[red]Workspace '{state.current_workspace}' not found.[/red]")
+        sys.exit(1)
+
     cost_service = CostTrackingService(workspace)
 
     current_config = cost_service._budget_config
@@ -1300,6 +1336,11 @@ def budget_disable() -> None:
 
     state = AppState.load()
     workspace = Workspace.load(state.current_workspace)
+
+    if not workspace:
+        console.print(f"[red]Workspace '{state.current_workspace}' not found.[/red]")
+        sys.exit(1)
+
     cost_service = CostTrackingService(workspace)
 
     current_config = cost_service._budget_config

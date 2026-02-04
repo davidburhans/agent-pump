@@ -2,6 +2,7 @@
 
 import tempfile
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -32,6 +33,14 @@ class TestVerificationWorkflowIntegration:
             )
 
             workflow = ProjectWorkflow(project=project)
+
+            # Mock the backend run method to avoid real AI calls
+            mock_backend_run = MagicMock()
+            async def mock_run_gen(*args, **kwargs):
+                yield "Mock backend output"
+                yield "[SUCCESS] Logic looks good"
+            mock_backend_run.side_effect = mock_run_gen
+            workflow.backend.run = mock_backend_run
 
             # Mock the run_phase method to simulate AI verification success
             original_run_phase = workflow.run_phase
