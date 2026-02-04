@@ -1,0 +1,43 @@
+Exit code: 1
+Output: [32m[2026-02-04 03:41:58] [INFO] agent_pump.utils.logging_config: Logging configured: level=INFO, structured=False[0m
+Are you sure you want to delete this workspace? [y/N]:Aborted!
+ 
+Exception: 1
+Traceback:
+Traceback (most recent call last):
+  File "C:\slop\agent-pump\.venv\Lib\site-packages\click\core.py", line 1406, in main
+    rv = self.invoke(ctx)
+         ^^^^^^^^^^^^^^^^
+  File "C:\slop\agent-pump\.venv\Lib\site-packages\click\core.py", line 1873, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\slop\agent-pump\.venv\Lib\site-packages\click\core.py", line 1871, in invoke
+    sub_ctx = cmd.make_context(cmd_name, args, parent=ctx)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\slop\agent-pump\.venv\Lib\site-packages\click\core.py", line 1216, in make_context
+    self.parse_args(ctx, args)
+  File "C:\slop\agent-pump\.venv\Lib\site-packages\click\core.py", line 1227, in parse_args
+    _, args = param.handle_parse_result(ctx, opts, args)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\slop\agent-pump\.venv\Lib\site-packages\click\core.py", line 2553, in handle_parse_result
+    value, source = self.consume_value(ctx, opts)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\slop\agent-pump\.venv\Lib\site-packages\click\core.py", line 3293, in consume_value
+    value = self.prompt_for_value(ctx)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\slop\agent-pump\.venv\Lib\site-packages\click\core.py", line 3143, in prompt_for_value
+    return confirm(self.prompt, default)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\slop\agent-pump\.venv\Lib\site-packages\click\termui.py", line 245, in confirm
+    raise Abort() from None
+click.exceptions.Abort
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\slop\agent-pump\.venv\Lib\site-packages\click\testing.py", line 504, in invoke
+    return_value = cli.main(args=args or (), prog_name=prog_name, **extra)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\slop\agent-pump\.venv\Lib\site-packages\click\core.py", line 1449, in main
+    sys.exit(1)
+SystemExit: 1

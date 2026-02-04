@@ -94,7 +94,7 @@ class TestWorkspaceCommands:
             mock_state.current_workspace = "default"  # Different from what we're deleting
             mock_state_class.load.return_value = mock_state
 
-            result = runner.invoke(main, ["workspace", "delete", "to-delete"])
+            result = runner.invoke(main, ["workspace", "delete", "to-delete"], input="y")
             assert result.exit_code == 0
             assert "Deleted workspace: to-delete" in result.output
             assert not (mock_workspace_dir / "to-delete.json").exists()
@@ -110,7 +110,7 @@ class TestWorkspaceCommands:
             mock_state.current_workspace = "current"
             mock_state_class.load.return_value = mock_state
 
-            result = runner.invoke(main, ["workspace", "delete", "current"])
+            result = runner.invoke(main, ["workspace", "delete", "current"], input="y")
             assert result.exit_code == 0
             assert "Cannot delete the current workspace" in result.output
             # File should still exist
@@ -118,7 +118,7 @@ class TestWorkspaceCommands:
 
     def test_workspace_delete_nonexistent(self, runner, mock_workspace_dir):
         """Test deleting a non-existent workspace."""
-        result = runner.invoke(main, ["workspace", "delete", "nonexistent"])
+        result = runner.invoke(main, ["workspace", "delete", "nonexistent"], input="y")
         assert result.exit_code == 0
         assert "not found" in result.output
 
