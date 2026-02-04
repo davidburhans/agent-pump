@@ -171,6 +171,11 @@ logger.info(f"Gemini CLI completed: {line_count} lines in {elapsed:.1f}s, exit c
 - **Avoid MountError**: Do not call `.mount()` on a widget that hasn't been mounted itself. Instantiating a container with children (e.g., `Horizontal(child1, child2)`) is safer and cleaner than mounting children imperatively after creation.
 - **Dynamic Rebuilds**: When rebuilding dynamic UIs, collect all new children into a list and pass them to the container constructor: `container = Horizontal(*new_children)`. This avoids mounting errors during complex updates.
 
+### Preview & Dry Run Patterns
+- **User Trust**: For complex or destructive operations (like Bootstrapping or applying Templates), always offer a "Preview" or "Dry Run" mode.
+- **Visual Confirmation**: Display a summary of changes (e.g., "3 files will be created") before execution.
+- **UI State Feedback**: Use visual cues like the `shake` animation for invalid inputs to provide immediate, non-blocking feedback.
+
 ### Form Validation
 - **Input Models**: Use Pydantic models for verifying form input correctness (e.g., path existence, string length) to separate validation logic from UI code.
 - **Visual Feedback**: Provide immediate feedback using classes (e.g., `.error`), animations (shake), and context-sensitive labels below fields.

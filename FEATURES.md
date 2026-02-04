@@ -1095,12 +1095,11 @@ uv run agent-pump project bootstrap ./my-project --dry-run
 5. Project is ready to use with Agent Pump immediately
 
 ### Audit Status: ✅ Fully implemented
-- **Implementation**: `src/agent_pump/services/bootstrap_service.py`
-- **Tests**: `tests/unit/test_bootstrap_service.py`
-- **TUI**: Not yet integrated (CLI only)
+- **Implementation**: `src/agent_pump/services/bootstrap_service.py`, `src/agent_pump/tui/screens/bootstrap_modal.py`
+- **Tests**: `tests/unit/test_bootstrap_service.py`, `tests/unit/test_bootstrap_modal.py`
+- **TUI**: Bootstrap modal fully functional (`B` keybinding)
 - **CLI**: Full bootstrap command suite
 - **Documentation**: Complete
-- **Note**: 🟡 TUI integration for project bootstrap is not yet implemented. Currently CLI-only.
 
 ---
 

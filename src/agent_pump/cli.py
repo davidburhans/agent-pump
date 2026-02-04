@@ -13,11 +13,10 @@ from agent_pump.utils.verification import load_verification_config, save_verific
 console = Console()
 
 
-@click.group(invoke_without_command=True, name="agent-pump")
-@click.argument(
-    "projects",
-    nargs=-1,
-    type=click.Path(exists=False, file_okay=False, dir_okay=True, path_type=Path),
+@click.group(
+    invoke_without_command=True,
+    name="agent-pump",
+    context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
 )
 @click.option(
     "--no-tui",
@@ -68,7 +67,6 @@ console = Console()
 @click.pass_context
 def main(
     ctx: click.Context,
-    projects: tuple[Path, ...],
     no_tui: bool,
     web: bool,
     web_port: int,
@@ -99,11 +97,11 @@ def main(
     else:
         configure_logging(level="INFO", structured=False)
 
-    # DEBUG
-    print(f"DEBUG: invoked_subcommand={ctx.invoked_subcommand}")
-
     if ctx.invoked_subcommand is not None:
         return
+
+    # Parse projects from extra args
+    projects = tuple(Path(p) for p in ctx.args)
 
     # Load persisted projects
     app_state = AppState.load()

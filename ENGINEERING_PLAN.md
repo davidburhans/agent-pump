@@ -1,118 +1,84 @@
-# Engineering Plan: Bootstrap TUI Integration
+# Engineering Plan: Interactive Chat Interface
 
 ## Overview
-Add TUI integration for the Project Bootstrap feature, allowing users to bootstrap projects directly from the TUI dashboard instead of only via CLI.
+Implement an interactive chat interface allowing users to "talk" to the codebase. Users can ask questions about the project, request explanations, or brainstorm ideas using the configured AI backend and context management system, without triggering a full coding workflow.
 
-## Current State
-- Bootstrap service is fully implemented (`src/agent_pump/services/bootstrap_service.py`)
-- CLI integration is complete (`src/agent_pump/cli.py`)
-- TUI integration is missing (FEATURES.md line 1103)
+## Goals
+- **CLI**: `agent-pump ask <query>` command.
+- **TUI**: Interactive Chat Panel/Screen.
+- **Context**: Smartly load relevant project context using `ContextManager`.
+- **Backend**: Reuse existing `Backend` infrastructure (Gemini, Claude, etc.).
 
 ## Implementation Steps
 
-### 1. Create BootstrapModal Component
-**File**: `src/agent_pump/tui/screens/bootstrap_modal.py`
+### 1. Core Chat Service
+**File**: `src/agent_pump/services/chat_service.py`
 
-**Features**:
-- Directory selection (DirectoryTree widget)
-- Backend selection dropdown (Gemini, Claude, Qwen, OpenCode)
-- Dry-run toggle checkbox
-- Project analysis preview before bootstrapping
-- Success/failure feedback
+Create a `ChatService` that orchestrates the interaction:
+- Accepts a query and project path.
+- Uses `ContextManager` to retrieve relevant file snippets.
+- Constructs a prompt for the backend (Question + Context).
+- Streams the response from the backend.
+- Manages chat history (transient or persisted).
 
-**UI Layout**:
-- Title: "Bootstrap Project"
-- Directory tree for path selection
-- Backend selector (dropdown)
-- Dry-run checkbox
-- Preview panel showing detected project type
-- Action buttons: Cancel, Preview, Bootstrap
+**Key Methods**:
+- `chat(query: str, project_path: Path, history: list[Message]) -> AsyncIterator[str]`
 
-### 2. Add Keybinding
-**File**: `src/agent_pump/keybindings.py`
+### 2. Backend Extension (If needed)
+Check if current `Backend` classes support streaming for pure chat (non-yolo mode).
+- Ensure `generate_response` or similar exists for simple text generation (not just diffs).
+- Most backends currently optimize for "Plan" or "Implement". We might need a "Chat" mode/prompt.
 
-Add new keybinding:
-- Key: `B` (shift+b, since `b` is used for backend config)
-- Action: `bootstrap_project`
-- Description: "Bootstrap"
-- Scope: global
+**Prompt Template**: `src/agent_pump/prompts/chat.md` (or similar)
+- System prompt: "You are an expert software engineer helper..."
 
-### 3. Integrate with TUI App
-**File**: `src/agent_pump/tui/app.py`
+### 3. CLI Integration
+**File**: `src/agent_pump/cli.py`
 
-Add:
-- Import BootstrapModal
-- `action_bootstrap_project()` method
-- Handler for modal result that calls BootstrapService
-- Progress/status updates during bootstrap
+Add `ask` command:
+```bash
+uv run agent-pump ask "Explain the workflow state machine"
+```
+- Should stream output to stdout.
 
-### 4. Export Modal
-**File**: `src/agent_pump/tui/screens/__init__.py`
+### 4. TUI Integration
+**File**: `src/agent_pump/tui/screens/chat_screen.py`
 
-Add export for BootstrapModal.
+Create a `ChatScreen` (or `ChatModal`):
+- **Layout**:
+    - Top/Center: `RichLog` or `ScrollView` for message history (User: ..., Agent: ...).
+    - Bottom: `Input` for typing messages.
+- **Interaction**:
+    - User types -> Enter.
+    - Message appended to log.
+    - Spinner shows while waiting.
+    - Agent response streams in.
 
-### 5. Write Unit Tests
-**File**: `tests/unit/test_bootstrap_modal.py`
+**Keybinding**:
+- Add `?` or `C` (Shift+C) to open Chat.
 
-**Test Coverage**:
-- Modal composition and widgets
-- Directory selection handling
-- Backend selection
-- Dry-run toggle
-- Validation of project path
-- Error handling (invalid path, bootstrap failure)
-- Success path with mock bootstrap service
-
-### 6. Update Documentation
-**Files**: 
-- `FEATURES.md`: Update audit status for Bootstrap feature from 🟡 to ✅
-- `ROADMAP.md`: Mark as complete and move to FEATURES.md
+### 5. Event Bus Updates
+Define `ChatEvent` or similar if we want to decouple TUI from Service via events (optional for simple Request/Response, but good for consistency).
 
 ## Technical Details
 
-### Modal Return Type
-```python
-BootstrapResult = tuple[Path, str, bool] | None  # (path, backend, dry_run) or None if cancelled
-```
+### Context Strategy
+Re-use `ContextManager.get_context_for_phase`.
+Maybe define a pseudo-phase "chatting" to configure context rules (e.g., include more docs, less strict token limits).
 
-### Integration with BootstrapService
-```python
-async def _bootstrap_project(self, path: Path, backend: str, dry_run: bool) -> None:
-    service = BootstrapService(self.event_bus)
-    result = await service.bootstrap_project(
-        project_path=path,
-        backend=backend,
-        dry_run=dry_run
-    )
-    if result.success:
-        self.notify(f"Bootstrapped {path.name}: {len(result.files_written)} files created")
-    else:
-        self.notify(f"Bootstrap failed: {result.error_message}", severity="error")
-```
+### Streaming
+The `Backend` protocol might need a `stream_response` method if not present.
+If streaming is too complex for step 1, buffered response is acceptable, but TUI spinner is required.
 
 ## Testing Strategy
+1. **Unit Tests**: Test `ChatService` mocking the backend.
+2. **Integration Tests**: CLI `ask` command (mocked backend).
+3. **TUI Tests**: Test `ChatScreen` input and display.
 
-1. **Unit Tests**: Mock BootstrapService, test UI interactions
-2. **Integration**: Test with actual directory selection
-3. **Error Cases**: Invalid paths, service failures
-4. **Success Cases**: Complete bootstrap flow
-
-## Files to Modify
-1. Create: `src/agent_pump/tui/screens/bootstrap_modal.py` (~200 lines)
-2. Modify: `src/agent_pump/keybindings.py` (+8 lines)
-3. Modify: `src/agent_pump/tui/screens/__init__.py` (+1 line)
-4. Modify: `src/agent_pump/tui/app.py` (+30 lines)
-5. Create: `tests/unit/test_bootstrap_modal.py` (~150 lines)
-6. Modify: `FEATURES.md` (update audit status)
-7. Modify: `ROADMAP.md` (mark complete)
-
-## Acceptance Criteria
-- [ ] Press `B` in TUI opens Bootstrap modal
-- [ ] Can select project directory via DirectoryTree
-- [ ] Can choose backend from dropdown
-- [ ] Can enable/disable dry-run mode
-- [ ] Shows preview of detected project type
-- [ ] Successfully bootstraps project on confirmation
-- [ ] Shows appropriate success/error notifications
-- [ ] All unit tests pass
-- [ ] Linting and type checking pass
+## Files to Modify/Create
+1. Create `src/agent_pump/services/chat_service.py`
+2. Modify `src/agent_pump/cli.py`
+3. Create `src/agent_pump/tui/screens/chat_screen.py`
+4. Modify `src/agent_pump/tui/app.py` (register screen/binding)
+5. Modify `src/agent_pump/keybindings.py`
+6. Create `tests/unit/test_chat_service.py`
