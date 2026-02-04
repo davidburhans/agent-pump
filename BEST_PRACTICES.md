@@ -552,3 +552,8 @@ Before committing:
 ### Commit Strategy
 - **Atomic Commits**: Ensure commits are atomic and represent a single logical change or feature.
 - **Pre-commit Checks**: Always run `git status` and `git diff` before committing to verify exactly what is being staged.
+
+### TUI Chat Implementation
+- **RichLog Output**: `RichLog` adds new entries for each `write()` call. For streaming content that should appear on a single line or block, accumulate the content and write it once, or use a custom widget strategy if character-by-character streaming is required.
+- **Async Interactions**: Testing async UI interactions (like `Input.Submitted`) requires ensuring the widget is focused and the event loop has time to process (`pilot.pause()`).
+- **File Writing**: When writing Python code that generates files with literal newlines (e.g., inside f-strings), ensure newlines are properly escaped (`\\n`) in the source string to avoid syntax errors in the generated file.

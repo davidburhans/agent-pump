@@ -123,6 +123,12 @@ KEYBINDINGS: list[Keybinding] = [
         description="Bootstrap",
         scope="global",
     ),
+    Keybinding(
+        key="?",
+        action="show_chat",
+        description="Chat",
+        scope="global",
+    ),
     # Project-Specific Bindings (Active when a project is selected)
     Keybinding(
         key="delete",

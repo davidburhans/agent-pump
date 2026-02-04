@@ -102,6 +102,9 @@ uv run agent-pump project list
 
 # Run with specific projects (launches TUI)
 uv run agent-pump ./my-project ./another-project
+
+# Chat with your codebase
+uv run agent-pump ask "How does the event bus work?" ./my-project
 ```
 
 ### Web Server Mode
@@ -263,6 +266,7 @@ The system includes security validation to prevent dangerous command patterns li
 | `s` | **Start** selected project |
 | `x` | **Stop** selected project |
 | `k` | **Skip** current feature (mark as failed) |
+| `?` | **Chat** with the project |
 | `escape` | **Quit** the application |
 
 

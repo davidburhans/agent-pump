@@ -1306,3 +1306,37 @@ def budget_disable() -> None:
     new_config = current_config.model_copy(update={"enabled": False})
     cost_service.update_budget_config(new_config)
     console.print("[green]✓ Budget enforcement disabled[/green]")
+
+
+@main.command(name="ask")
+@click.argument("query")
+@click.argument(
+    "path",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
+    required=False,
+    default=Path("."),
+)
+def ask(query: str, path: Path) -> None:
+    """Ask a question about the project."""
+    import asyncio
+
+    from agent_pump.events.bus import EventBus
+    from agent_pump.services.chat_service import ChatService
+
+    async def _run_chat() -> None:
+        event_bus = EventBus()
+        service = ChatService(event_bus)
+
+        console.print(f"[bold blue]Chatting with project: {path}[/bold blue]")
+        console.print(f"[dim]Question: {query}[/dim]\n")
+
+        console.print("[bold]Assistant:[/bold]", end=" ")
+
+        async for chunk in service.chat_stream(query, path):
+            console.print(chunk, end="")
+        console.print()  # Newline at end
+
+    try:
+        asyncio.run(_run_chat())
+    except Exception as e:
+        console.print(f"\n[bold red]Error: {e}[/bold red]")

@@ -44,6 +44,7 @@ from agent_pump.tui.screens import (
     AddProjectModal,
     BackendConfigModal,
     BootstrapModal,
+    ChatScreen,
     GlobalPromptModal,
     IdeaInputModal,
     MetricsModal,
@@ -1180,6 +1181,14 @@ class AgentPumpApp(App):
         # Use currently selected project as initial path if available
         initial_path = self.selected_project
         self.push_screen(BootstrapModal(initial_path=initial_path), handle_bootstrap_result)
+
+    def action_show_chat(self) -> None:
+        """Open the interactive chat screen."""
+        if not self.selected_project:
+            self._log("No project selected for chat. Select a project first.")
+            return
+
+        self.push_screen(ChatScreen(self.selected_project))
 
     async def _bootstrap_project(self, path: Path, backend_name: str, dry_run: bool) -> None:
         """Execute the bootstrap operation.

@@ -545,6 +545,17 @@ You can "pair program" with the agent by feeding it ideas while it works.
 - **CLI**: Idea commands
 - **Documentation**: Complete
 
+### Interactive Chat Interface 💬
+- **Description**: Ask questions about your project and get context-aware answers directly from the CLI or TUI. The agent analyzes relevant files to provide accurate explanations.
+- **Usage**:
+    - **CLI**: `agent-pump ask "How does the event bus work?"`
+    - **TUI**: Press `?` to open the Chat Screen.
+- **Implementation Status**: ✅ Fully implemented
+  - Code: `src/agent_pump/services/chat_service.py`, `src/agent_pump/tui/screens/chat_screen.py`
+  - Tests: `tests/unit/test_chat_service.py`, `tests/tui/test_chat_screen.py`
+  - TUI: Chat screen with history and streaming
+  - CLI: `ask` command
+
 ### Roadmap Management & Prioritization
 Take control of what the agent works on next.
 - **Feature**: Press `m` in the TUI to open the Roadmap Prioritization screen.

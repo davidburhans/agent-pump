@@ -3,6 +3,7 @@ from .add_roadmap_item_modal import AddRoadmapItemModal as AddRoadmapItemModal
 from .approval_gate_modal import ApprovalGateModal as ApprovalGateModal
 from .backend_config_modal import BackendConfigModal as BackendConfigModal
 from .bootstrap_modal import BootstrapModal as BootstrapModal
+from .chat_screen import ChatScreen as ChatScreen
 from .checkpoint_modal import CheckpointModal as CheckpointModal
 from .confirm_modal import ConfirmModal as ConfirmModal
 from .global_prompt_modal import GlobalPromptModal as GlobalPromptModal
