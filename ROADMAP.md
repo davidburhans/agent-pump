@@ -11,14 +11,13 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Current Sprint
 
-### 🔴 Interactive Chat Interface
-**Priority: High**
+### 🔴 Interactive Diff Viewer
+**Priority: Medium**
 
-Allow users to query the codebase and "chat" with the agent to ask questions, explain code, or brainstorm ideas without triggering a full workflow modification.
-
-- **CLI Command**: `agent-pump ask "how does the event bus work?"`
-- **TUI Integration**: Dedicated Chat Panel or Modal
-- **Context Awareness**: Uses `ContextManager` to answer based on current project files
+Visual diff viewer within the TUI to review changes.
+- View staged vs unstaged changes
+- View changes from checkpoints
+- Review "Dry Run" proposed changes before applying
 
 ---
 
@@ -29,14 +28,6 @@ For completed features, see [FEATURES.md](FEATURES.md).
 ---
 
 ## Future Enhancements
-
-### 🔴 Interactive Diff Viewer
-**Priority: Medium**
-
-Visual diff viewer within the TUI to review changes.
-- View staged vs unstaged changes
-- View changes from checkpoints
-- Review "Dry Run" proposed changes before applying
 
 ### 🔴 Plugin Marketplace UI
 **Priority: Low**
