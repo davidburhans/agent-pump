@@ -114,6 +114,8 @@ class GeminiBackend(AgentBackend):
 
         logger.debug(f"cleaned env vars: {keys_to_remove}")
 
+        from agent_pump.utils.subprocess_manager import SubprocessInfo, subprocess_manager
+
         if sys.platform == "win32":
             # On Windows, we use the shell to properly execute .CMD/.BAT files
             # CREATE_NO_WINDOW prevents console popups and ensures output goes through pipes
@@ -137,6 +139,19 @@ class GeminiBackend(AgentBackend):
                 env=env,
             )
 
+        # Track process for lifecycle management
+        await subprocess_manager.track_process(
+            process.pid,
+            SubprocessInfo(
+                pid=process.pid,
+                command=cmd_str,
+                project_path=project_path,
+                start_time=start_time,
+                timeout=timeout,
+                process=process,
+            ),
+        )
+
         logger.debug(f"Process started with PID: {process.pid}")
 
         # Write prompt to stdin
@@ -155,7 +170,9 @@ class GeminiBackend(AgentBackend):
                 elapsed = time.time() - start_time
                 if elapsed > timeout:
                     logger.warning(f"Process timeout after {timeout}s, terminating")
-                    process.terminate()
+                    from agent_pump.utils.subprocess_manager import subprocess_manager
+                    await subprocess_manager.record_timeout(process.pid)
+                    await subprocess_manager.terminate_process(process.pid)
                     yield f"\n[TIMEOUT] Process terminated after {timeout} seconds\n"
                     break
 
@@ -210,20 +227,22 @@ class GeminiBackend(AgentBackend):
 
         except asyncio.CancelledError:
             logger.info("Backend run cancelled, terminating process")
-            process.terminate()
+            await subprocess_manager.record_cancellation(process.pid)
+            await subprocess_manager.terminate_process(process.pid)
             raise
         finally:
             # Ensure process is terminated and resources released
             try:
                 if process.returncode is None:
                     logger.debug("Terminating process in finally block")
-                    try:
-                        process.terminate()
-                    except ProcessLookupError:
-                        pass
+                    await subprocess_manager.terminate_process(process.pid)
 
                 # Always wait to ensure pipes/transports are closed
                 await process.wait()
+
+                # Untrack from manager
+                await subprocess_manager.untrack_process(process.pid, process.returncode)
+
             except Exception as e:
                 logger.error(f"Error during process cleanup: {e}")
 

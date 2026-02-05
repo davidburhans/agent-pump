@@ -2,10 +2,18 @@
 
 import asyncio
 import sys
+import warnings
 from pathlib import Path
 from typing import Any
 
 import click
+
+# Suppress ResourceWarning for unclosed subprocess transports on Windows
+# These often occur during rapid shutdown even when resources are being reaped
+if sys.platform == "win32":
+    warnings.filterwarnings(
+        "ignore", category=ResourceWarning, message=".*unclosed transport.*"
+    )
 from rich.console import Console
 
 from agent_pump.models.app_state import AppState
@@ -135,7 +143,15 @@ def main(
             return
 
         # Start HTTP server
-        asyncio.run(_run_web_server(web_port))
+        from agent_pump.utils.subprocess_manager import subprocess_manager
+
+        async def _run_web_with_cleanup():
+            try:
+                await _run_web_server(web_port)
+            finally:
+                await subprocess_manager.cleanup()
+
+        asyncio.run(_run_web_with_cleanup())
         return
 
     if dry_run:
@@ -145,7 +161,16 @@ def main(
         if not all_projects:
             console.print("[bold red]No projects specified for headless mode.[/bold red]")
             return
-        asyncio.run(_run_headless(all_projects, max_iterations, branch, dry_run))
+
+        from agent_pump.utils.subprocess_manager import subprocess_manager
+
+        async def _run_headless_with_cleanup():
+            try:
+                await _run_headless(all_projects, max_iterations, branch, dry_run)
+            finally:
+                await subprocess_manager.cleanup()
+
+        asyncio.run(_run_headless_with_cleanup())
         return
 
     # Launch TUI app
@@ -217,47 +242,51 @@ def bootstrap_project(path: Path, backend: str, dry_run: bool) -> None:
     from agent_pump.services.bootstrap_service import BootstrapService
 
     async def _run_bootstrap() -> None:
-        event_bus = EventBus()
-        service = BootstrapService(event_bus)
-        backend_instance = get_backend(backend)
+        from agent_pump.utils.subprocess_manager import subprocess_manager
+        try:
+            event_bus = EventBus()
+            service = BootstrapService(event_bus)
+            backend_instance = get_backend(backend)
 
-        console.print(f"[bold blue]Bootstrapping project: {path}[/bold blue]")
-        console.print(f"[dim]Using backend: {backend}[/dim]")
+            console.print(f"[bold blue]Bootstrapping project: {path}[/bold blue]")
+            console.print(f"[dim]Using backend: {backend}[/dim]")
 
-        if dry_run:
-            console.print("[yellow]Dry run mode - no files will be written[/yellow]")
+            if dry_run:
+                console.print("[yellow]Dry run mode - no files will be written[/yellow]")
 
-        result = await service.bootstrap_project(
-            project_path=path,
-            backend=backend_instance,
-            dry_run=dry_run,
-        )
+            result = await service.bootstrap_project(
+                project_path=path,
+                backend=backend_instance,
+                dry_run=dry_run,
+            )
 
-        if result.success:
-            console.print("[bold green]Bootstrap complete![/bold green]")
-            if result.files_written:
-                console.print("[bold]Files created:[/bold]")
-                for f in result.files_written:
-                    console.print(f"  ✓ {f}")
-            elif dry_run:
-                console.print("\n[bold]Generated ROADMAP.md:[/bold]")
-                if result.roadmap_content:
-                    preview = (
-                        result.roadmap_content[:500] + "..."
-                        if len(result.roadmap_content) > 500
-                        else result.roadmap_content
-                    )
-                    console.print(preview)
-                console.print("\n[bold]Generated BEST_PRACTICES.md:[/bold]")
-                if result.best_practices_content:
-                    preview = (
-                        result.best_practices_content[:500] + "..."
-                        if len(result.best_practices_content) > 500
-                        else result.best_practices_content
-                    )
-                    console.print(preview)
-        else:
-            console.print(f"[bold red]Bootstrap failed: {result.error_message}[/bold red]")
+            if result.success:
+                console.print("[bold green]Bootstrap complete![/bold green]")
+                if result.files_written:
+                    console.print("[bold]Files created:[/bold]")
+                    for f in result.files_written:
+                        console.print(f"  ✓ {f}")
+                elif dry_run:
+                    console.print("\n[bold]Generated ROADMAP.md:[/bold]")
+                    if result.roadmap_content:
+                        preview = (
+                            result.roadmap_content[:500] + "..."
+                            if len(result.roadmap_content) > 500
+                            else result.roadmap_content
+                        )
+                        console.print(preview)
+                    console.print("\n[bold]Generated BEST_PRACTICES.md:[/bold]")
+                    if result.best_practices_content:
+                        preview = (
+                            result.best_practices_content[:500] + "..."
+                            if len(result.best_practices_content) > 500
+                            else result.best_practices_content
+                        )
+                        console.print(preview)
+            else:
+                console.print(f"[bold red]Bootstrap failed: {result.error_message}[/bold red]")
+        finally:
+            await subprocess_manager.cleanup()
 
     try:
         asyncio.run(_run_bootstrap())
@@ -1365,17 +1394,21 @@ def ask(query: str, path: Path) -> None:
     from agent_pump.services.chat_service import ChatService
 
     async def _run_chat() -> None:
-        event_bus = EventBus()
-        service = ChatService(event_bus)
+        from agent_pump.utils.subprocess_manager import subprocess_manager
+        try:
+            event_bus = EventBus()
+            service = ChatService(event_bus)
 
-        console.print(f"[bold blue]Chatting with project: {path}[/bold blue]")
-        console.print(f"[dim]Question: {query}[/dim]\n")
+            console.print(f"[bold blue]Chatting with project: {path}[/bold blue]")
+            console.print(f"[dim]Question: {query}[/dim]\n")
 
-        console.print("[bold]Assistant:[/bold]", end=" ")
+            console.print("[bold]Assistant:[/bold]", end=" ")
 
-        async for chunk in service.chat_stream(query, path):
-            console.print(chunk, end="")
-        console.print()  # Newline at end
+            async for chunk in service.chat_stream(query, path):
+                console.print(chunk, end="")
+            console.print()  # Newline at end
+        finally:
+            await subprocess_manager.cleanup()
 
     try:
         asyncio.run(_run_chat())

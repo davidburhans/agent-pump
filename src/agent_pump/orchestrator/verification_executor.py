@@ -66,6 +66,9 @@ class VerificationExecutor:
             # Create the subprocess with platform-specific flags
             import subprocess
             import sys
+            import time
+
+            from agent_pump.utils.subprocess_manager import SubprocessInfo, subprocess_manager
 
             if sys.platform == "win32":
                 # CREATE_NO_WINDOW prevents console popups and ensures output goes through pipes
@@ -86,6 +89,19 @@ class VerificationExecutor:
                     cwd=self.project_path,
                 )
 
+            # Track process for lifecycle management
+            await subprocess_manager.track_process(
+                proc.pid,
+                SubprocessInfo(
+                    pid=proc.pid,
+                    command=cmd,
+                    project_path=self.project_path,
+                    start_time=time.time(),
+                    timeout=timeout,
+                    process=proc,
+                ),
+            )
+
             try:
                 # Wait for the process to complete with timeout
                 stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
@@ -103,6 +119,9 @@ class VerificationExecutor:
                     f"Command completed: {cmd} (exit code: {exit_code}, duration: {duration:.2f}s)"
                 )
 
+                # Untrack from manager
+                await subprocess_manager.untrack_process(proc.pid, exit_code)
+
                 return VerificationResult(
                     success=success,
                     command=cmd,
@@ -113,6 +132,9 @@ class VerificationExecutor:
                 )
 
             except TimeoutError:
+                # Record timeout
+                await subprocess_manager.record_timeout(proc.pid)
+
                 # Terminate the process if it times out
                 proc.terminate()
                 try:
@@ -122,6 +144,9 @@ class VerificationExecutor:
                     # Force kill if it doesn't terminate
                     proc.kill()
                     await proc.wait()
+
+                # Ensure it is untracked
+                await subprocess_manager.untrack_process(proc.pid)
 
                 duration = asyncio.get_event_loop().time() - start_time
                 logger.warning(f"Command timed out after {timeout}s: {cmd}")
@@ -134,6 +159,13 @@ class VerificationExecutor:
                     exit_code=None,
                     duration=duration,
                 )
+            except asyncio.CancelledError:
+                # Record cancellation
+                await subprocess_manager.record_cancellation(proc.pid)
+                proc.terminate()
+                await proc.wait()
+                await subprocess_manager.untrack_process(proc.pid)
+                raise
 
         except FileNotFoundError:
             duration = asyncio.get_event_loop().time() - start_time
