@@ -1771,9 +1771,7 @@ class PluginConfig(BaseModel):
 
 1. **Web Dashboard UI**: Requires frontend build step. The API server is fully functional, but the React-based UI needs to be built separately. This is noted in the documentation.
 
-2. **Template TUI Integration**: Project templates are CLI-only. TUI integration would be a nice enhancement but is not critical.
-
-3. **Bootstrap TUI Integration**: Project bootstrap is CLI-only. TUI integration would be a nice enhancement but is not critical.
+2. **Bootstrap TUI Integration**: Project bootstrap is CLI-only. TUI integration would be a nice enhancement but is not critical.
 
 ### Test Coverage Summary
 

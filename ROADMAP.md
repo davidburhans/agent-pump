@@ -11,15 +11,7 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Current Sprint
 
-### 🔴 Template TUI Integration
-**Priority: High**
-
-Add TUI screens for browsing and applying project templates.
-- Create `TemplateBrowserScreen` to list available templates (built-in and user-defined)
-- Show template details (description, backend config, verification commands)
-- Allow applying a template to the current project
-- Allow creating a new project from a template via the TUI
-- Bind to `t` key in the TUI
+*No items currently in sprint.*
 
 ---
 

@@ -597,3 +597,7 @@ Before committing:
 - **Optional Imports**: Use `try/except ImportError` blocks for optional dependencies (like `psutil`) rather than `importlib.util.find_spec`, especially when compatibility with mocked `sys.modules` in tests is required.
 - **Mock Naming**: When capturing mocks in `with` statements, use snake_case names (e.g., `mock_service_cls`) instead of PascalCase (e.g., `MockService`) to comply with `N806` naming conventions.
 - **Breaking Long Lines**: When fixing `E501` (line too long), ensure that split lines remain syntactically valid. For `patch.object` calls, use parentheses to wrap arguments across multiple lines.
+
+### Documentation Synchronization
+- **Code vs Docs**: Always ensure `ROADMAP.md` and `FEATURES.md` are updated immediately after feature implementation. Code existing without documentation updates leads to confusion for future agents/developers.
+- **Audit Consistency**: When auditing features, check both the main feature description and any "Minor Issues" or summary sections to ensure they are consistent.
