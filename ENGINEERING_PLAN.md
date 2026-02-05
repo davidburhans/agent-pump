@@ -1,62 +1,51 @@
-# Engineering Plan: Global Backend Configuration
+# Engineering Plan: OpenCode API Backend
 
 ## Objective
-Refactor backend configuration to allow defining named backend configurations at the project or global (workspace) level, and referencing them by name in workflow phases. This reduces duplication and enables centralized management of backend settings (models, args, timeouts).
+Implement a new backend `OpenCodeAPIBackend` that uses the `opencode-ai` SDK to interact with OpenCode. This replaces or supplements the existing CLI-based backend, providing better programmatic control, improved exception handling, and better reliability.
 
 ## Current State
-- `BackendInstance`: Stores name (type) and args.
-- `PhaseBackends`: Stores `BackendFallback` (list of `BackendInstance`) for each phase.
-- `ProjectConfig`: Contains `PhaseBackends`.
-- `Workspace`: Contains `backend_presets` (named `BackendFallback`s).
-- Configuration is largely denormalized; changing a preset in the workspace doesn't update projects unless explicitly re-applied.
-- `config.yml` loading in `src/agent_pump/config.py` is simple and doesn't fully expose the `ProjectConfig` capabilities or named definitions.
+- `OpenCodeBackend` in `src/agent_pump/backends/opencode.py` uses `subprocess` to call the `opencode` CLI.
+- `opencode-ai` SDK is already included in `pyproject.toml`.
 
 ## Proposed Changes
 
-### 1. Model Updates (`src/agent_pump/models/workspace.py`)
-- Update `ProjectConfig` to include:
-  - `defined_backends`: `dict[str, BackendInstance]` - Local named backend definitions.
-- Update `BackendInstance`:
-  - Ensure it's flexible enough to serve as a definition (it already has `name` and `args`). Note: `name` in `BackendInstance` is currently the *backend type* (e.g., "gemini"). We might need to distinguish between "configuration name" (key in dict) and "backend engine name" (value in instance).
-  - *Correction*: `BackendInstance.name` is the engine type (gemini/claude). The key in `defined_backends` will be the configuration name.
+### 1. New Backend Class
+Create `src/agent_pump/backends/opencode_api.py` containing `OpenCodeAPIBackend`.
 
-### 2. Configuration Schema Update (`src/agent_pump/config.py`)
-- Update `Config` model (used for `config.yml` parsing) to support:
-  - `backends`: `dict[str, BackendConfigDict]` section.
-  - `workflow`: Support string values for phases (e.g., `planning: "my-custom-backend"`).
+- **Name**: "OpenCode API"
+- **Internal ID**: "opencode-api"
+- **SDK**: Use `opencode_ai.AsyncOpencode`.
+- **Base URL**: Default to `http://localhost:54321` (OpenCode default) or `OPENCODE_BASE_URL` env var.
+- **Availability**: Available if the local OpenCode server is reachable or SDK is importable (depending on preferred check). We'll check if we can connect to the base URL.
 
-### 3. Logic Refactor (`src/agent_pump/config.py` & `src/agent_pump/services/project_service.py`)
-- Implement resolution logic:
-  - When loading configuration, if a phase specifies a string name:
-    1. Look in `ProjectConfig.defined_backends`.
-    2. Look in `Workspace.backend_presets`.
-    3. If found, instantiate the backend using the defined config.
-    4. If not found, raise validation error or fallback.
+### 2. Workflow Integration
+- Use `client.session.init` to start a session.
+- Use `client.session.chat` to send prompts.
+- Implement streaming support using `client.with_streaming_response.session.chat`.
 
-### 4. CLI/TUI Updates
-- Ensure `config` commands and TUI settings panels expose these new capabilities.
-- (Scope limit: Focus on the underlying plumbing and `config.yml` support first. TUI updates can be a follow-up if extensive).
+### 3. Error Handling
+- Use SDK-specific exceptions (`APIError`, `APITimeoutError`, etc.) for robust error reporting and retries.
 
-## Implementation Steps
+### 4. Registry Update
+- Register the new backend in `src/agent_pump/backends/__init__.py`.
 
-### Step 1: Model Enhancements
-- [ ] Modify `ProjectConfig` in `src/agent_pump/models/workspace.py` to add `defined_backends`.
-- [ ] Ensure serialization/deserialization works correctly.
+## Tasks
 
-### Step 2: Configuration Loader Refactor
-- [ ] Update `src/agent_pump/config.py` to parse the new `backends` section in `config.yml`.
-- [ ] Implement the resolution logic in `Config.load` (or a post-processing step) to link named backends to phase configurations.
+### Implementation
+- [ ] Create `src/agent_pump/backends/opencode_api.py`.
+- [ ] Implement `OpenCodeAPIBackend._check_availability` to verify server connectivity.
+- [ ] Implement `OpenCodeAPIBackend.run` with `AsyncOpencode` and streaming.
+- [ ] Add `OpenCodeAPIBackend` to `BACKEND_REGISTRY` in `src/agent_pump/backends/__init__.py`.
+- [ ] Ensure `extra_args` (like `--model`) are passed correctly to the SDK calls.
 
-### Step 3: Verification
-- [ ] Create a test case with a `config.yml` using named backends.
-- [ ] Verify that `ProjectConfig` loads correctly with the resolved backend instances.
-- [ ] Verify inheritance from Workspace presets.
+### Testing
+- [ ] Create `tests/unit/test_opencode_api.py`.
+- [ ] Mock `AsyncOpencode` and its session resources to test:
+    - Successful chat and streaming.
+    - Error handling (e.g., connection refused, timeout).
+    - Availability check.
 
-## Files to Modify
-- `src/agent_pump/models/workspace.py`
-- `src/agent_pump/config.py`
-- `tests/unit/test_config_creation.py` (or new test file)
-
-## Verification Plan
-- Run `uv run pytest tests/unit/test_config_creation.py`
-- Create a manual `config.yml` in a temporary project and verify `agent-pump config show` reflects the correct resolved backends.
+### Documentation & Cleanup
+- [ ] Update `ROADMAP.md` to mark the feature as in progress (🟡).
+- [ ] Update `FEATURES.md` with information about the new API backend.
+- [ ] Reflect on the work done and update BEST_PRACTICES.md with any lessons learned, and check if README.md needs updates as a result.
