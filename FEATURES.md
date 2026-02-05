@@ -950,12 +950,28 @@ Comprehensive debugging, monitoring, and observability features for diagnosing i
     - **Dark Mode**: Default dark theme matching the terminal aesthetic.
     - **Access**: Available at `http://localhost:8000` when running with `--web`.
 
-### Audit Status: 🟡 Partially implemented
-- **Implementation**: `src/agent_pump/api/static/` (if built)
-- **Tests**: `tests/integration/test_web_ui.py`
-- **CLI**: `--web` flag starts server
-- **Documentation**: Complete
-- **Note**: The Web UI requires building the frontend assets. If `src/agent_pump/api/static/` doesn't exist, the server logs a warning but continues to function for API access.
+### Automated Web UI Build 🏗️
+- **Description**: A robust CLI command group for building and deploying the React frontend.
+- **Features**:
+    - **Real-time Streaming**: Building process (npm install & npm run build) output is streamed directly to the terminal using subprocess pipes.
+    - **Progress Feedback**: Visual indicators (>>> title) and dimmed output for build logs.
+    - **Automatic Deployment**: Compiled assets are automatically placed in the FastAPI static directory.
+    - **Dependency Management**: Smart detection of node_modules with a `--force` flag for clean installs.
+    - **Error Handling**: Comprehensive checks for Node.js/npm prerequisites and detailed failure reports.
+- **Usage**:
+  ```bash
+  # Build the UI
+  uv run agent-pump ui build
+  
+  # Reinstall dependencies and build
+  uv run agent-pump ui build --force
+  ```
+
+### Audit Status: ✅ Fully implemented
+- **Implementation**: `src/agent_pump/utils/ui_build.py`, `src/agent_pump/cli.py`
+- **Tests**: `tests/unit/test_cli_ui.py`, `tests/integration/test_ui_build_cli.py`, `tests/integration/test_web_ui.py`
+- **CLI**: `ui` command group fully functional
+- **Documentation**: README.md updated with usage instructions
 
 ---
 
@@ -1763,15 +1779,13 @@ class PluginConfig(BaseModel):
 ### Overall Status: ✅ **Well-implemented and Documented**
 
 **Total Features Audited**: 40+
-**Fully Implemented (✅)**: 38
-**Partially Implemented (🟡)**: 2
+**Fully Implemented (✅)**: 39
+**Partially Implemented (🟡)**: 1
 **Not Implemented (🔴)**: 0
 
 ### Minor Issues Found
 
-1. **Web Dashboard UI**: Requires frontend build step. The API server is fully functional, but the React-based UI needs to be built separately. This is noted in the documentation.
-
-2. **Bootstrap TUI Integration**: Project bootstrap is CLI-only. TUI integration would be a nice enhancement but is not critical.
+1. **Bootstrap TUI Integration**: Project bootstrap is CLI-only. TUI integration would be a nice enhancement but is not critical.
 
 ### Test Coverage Summary
 
@@ -1784,7 +1798,7 @@ class PluginConfig(BaseModel):
 
 1. All critical features are fully implemented and tested
 2. Documentation is comprehensive and accurate
-3. The two partially implemented features (Web Dashboard UI and TUI integrations for templates/bootstrap) are documented as CLI-only and don't impact core functionality
+3. The one partially implemented feature (TUI integrations for templates/bootstrap) is documented as CLI-only and doesn't impact core functionality
 4. No new roadmap items needed - all documented features are working
 
 ---

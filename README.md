@@ -132,12 +132,23 @@ uv run agent-pump --web --web-port 8080
 ```bash
 # Check server health
 curl http://localhost:8000/health
-
-# Response:
-# {"status": "ok", "timestamp": "2025-01-15T10:30:00", "version": "0.1.0"}
 ```
 
 See [docs/api.md](docs/api.md) for complete API documentation.
+
+### UI Build Commands
+
+If you are developing or customizing the web dashboard, you can build the React frontend directly from the CLI:
+
+```bash
+# Build the UI assets
+uv run agent-pump ui build
+
+# Force re-installation of dependencies and build
+uv run agent-pump ui build --force
+```
+
+The build process streams output in real-time and places the compiled assets in `src/agent_pump/api/static`, where they are served by the FastAPI backend.
 
 ### Verification Commands
 

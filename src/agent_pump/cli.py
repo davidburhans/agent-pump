@@ -396,6 +396,37 @@ async def _run_web_server(port: int) -> None:
 
 
 # ============================================================================
+# UI Commands
+# ============================================================================
+
+
+@main.group(name="ui")
+def ui_group() -> None:
+    """Manage the Web UI."""
+    pass
+
+
+@ui_group.command(name="build")
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Force re-installation of dependencies (npm install)",
+)
+def build_ui(force: bool) -> None:
+    """Build the React frontend."""
+    from agent_pump.utils.ui_build import UIBuildError, run_ui_build
+
+    try:
+        run_ui_build(force_install=force)
+    except UIBuildError as e:
+        console.print(f"[bold red]Error building UI: {e}[/bold red]")
+        sys.exit(1)
+    except Exception as e:
+        console.print(f"[bold red]Unexpected error: {e}[/bold red]")
+        sys.exit(1)
+
+
+# ============================================================================
 # Workspace Commands
 # ============================================================================
 

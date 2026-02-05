@@ -570,6 +570,7 @@ Before committing:
 - **Diff Verification**: Carefully review the total diff before committing to ensure no accidental deletions or sensitive information leaks.
 - **Atomic Commits**: Group related changes into atomic commits that represent a single logical change or feature. This makes the history easier to follow and simplifies potential reverts or cherry-picks.
 - **Staging by Feature**: When working on multiple features simultaneously (common in agentic workflows), use `git add <file>` or `git add -p` to stage changes selectively rather than `git add .`, ensuring each commit remains focused.
+- **Squashing Checkpoints**: During the final committing phase, squash intermediate auto-checkpoints into a single, well-descriptive feature commit following conventional commit standards. This maintains a high-quality project history while allowing for safety during development.
 
 ### Python Syntax in Tests
 - **Multi-line Context Managers**: Use parentheses for multi-line `with` statements (Python 3.10+) instead of backslashes. It is cleaner and less prone to syntax errors during refactoring or tooling updates.
@@ -601,3 +602,17 @@ Before committing:
 ### Documentation Synchronization
 - **Code vs Docs**: Always ensure `ROADMAP.md` and `FEATURES.md` are updated immediately after feature implementation. Code existing without documentation updates leads to confusion for future agents/developers.
 - **Audit Consistency**: When auditing features, check both the main feature description and any "Minor Issues" or summary sections to ensure they are consistent.
+
+### Windows Subprocess & CLI Compatibility
+
+- **Shell=True**: When running npm/node scripts via `subprocess.run` or `subprocess.Popen` on Windows, `shell=True` is often required because they are batch files/cmd scripts, not executables.
+
+- **F-Strings and Newlines**: Do not put literal newlines inside f-strings within Python code generated or modified by tools. Use `\n` or triple-quoted strings to avoid `SyntaxError`.
+
+- **Mocking shutil.which**: When mocking `shutil.which` in tests, remember that it might be called implicitly by other library functions. Ensure your mock return values align with expectations (e.g. returning a string path or None).
+
+- **Streaming Output**: For long-running CLI operations, use `subprocess.Popen` with `stdout=subprocess.PIPE` and `stderr=subprocess.STDOUT` to stream real-time progress to the user. This improves perceived performance and debuggability compared to blocking calls like `subprocess.run`.
+
+- **Atomic Refinement Commits**: When a feature is implemented in stages (e.g., core logic followed by UI refinement), use clear commit messages that distinguish between the initial implementation and subsequent refinements. Consider squashing checkpoints into a single high-quality feature commit before finalization.
+
+- **Indentation in Replacements**: Be extremely careful with indentation when using the `replace` tool on multi-line blocks, especially within `with` or `def` statements, to avoid `IndentationError`.

@@ -11,11 +11,15 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Current Sprint
 
-*No items currently in sprint.*
+(No active sprint items)
 
 ---
 
 ## Completed Features
+
+### ✅ Automated Web UI Build Command
+Integrate the React frontend build process into the Agent Pump CLI to allow for one-step installation and deployment of the web dashboard.
+(Moved to FEATURES.md)
 
 For completed features, see [FEATURES.md](FEATURES.md).
 
