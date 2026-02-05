@@ -27,6 +27,7 @@ from agent_pump.models.template import ProjectTemplate
 from agent_pump.models.workspace import (
     GlobalPromptSettings,
     PhaseBackends,
+    Workspace,
 )
 from agent_pump.orchestrator.workflow_definition import (
     WorkflowDefinition,
@@ -45,6 +46,7 @@ from agent_pump.tui.screens import (
     BackendConfigModal,
     BootstrapModal,
     ChatScreen,
+    DiffViewerScreen,
     GlobalPromptModal,
     IdeaInputModal,
     MetricsModal,
@@ -130,6 +132,8 @@ class AgentPumpApp(App):
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
         yield Header()
+        workspace_path = Workspace.get_workspace_path(self.workspace.name)
+        yield Static(f"Workspace: {self.workspace.name} ({workspace_path})", id="workspace-bar")
         with Container(id="app-container"):
             with Horizontal(id="main-layout"):
                 with Vertical(id="sidebar"):
@@ -671,7 +675,6 @@ class AgentPumpApp(App):
 
     def action_templates(self) -> None:
         """Open the template browser modal."""
-        from agent_pump.services.template_service import TemplateService
 
         # Get all available templates
         template_service = TemplateService(self.event_bus, self.workspace)
@@ -789,7 +792,6 @@ class AgentPumpApp(App):
 
     def action_switch_workspace(self) -> None:
         """Open the workspace switcher modal."""
-        from agent_pump.models.workspace import Workspace
 
         workspaces = Workspace.list_workspaces()
         current = self.workspace.name if self.workspace else "default"
@@ -820,6 +822,14 @@ class AgentPumpApp(App):
 
         # Update local workspace reference
         self.workspace = new_workspace
+
+        # Update workspace bar
+        try:
+            bar = self.query_one("#workspace-bar", Static)
+            workspace_path = Workspace.get_workspace_path(self.workspace.name)
+            bar.update(f"Workspace: {self.workspace.name} ({workspace_path})")
+        except Exception:
+            pass
 
         # Clear current projects from UI
         await self._clear_all_projects()
@@ -861,7 +871,6 @@ class AgentPumpApp(App):
 
     def _create_and_switch_workspace(self, name: str) -> None:
         """Create a new workspace and switch to it."""
-        from agent_pump.models.workspace import Workspace
 
         name = name.strip()
         existing = Workspace.list_workspaces()
@@ -1010,6 +1019,14 @@ class AgentPumpApp(App):
             handle_result,
         )
 
+    def action_show_diffs(self) -> None:
+        """Show the interactive diff viewer for the selected project."""
+        if not self.selected_project:
+            self._log("No project selected. Select a project first.")
+            return
+
+        self.push_screen(DiffViewerScreen(self.selected_project))
+
     async def _do_rollback(self, checkpoint_id: str) -> None:
         """Perform the actual rollback operation."""
         if not self.selected_project:
@@ -1073,6 +1090,8 @@ class AgentPumpApp(App):
         import asyncio
         import warnings
 
+        from agent_pump.utils.subprocess_manager import subprocess_manager
+
         # Stop all workflows via service (fire and forget cancellation)
         await self.workflow_service.stop_all()
 
@@ -1081,6 +1100,9 @@ class AgentPumpApp(App):
 
         # Gracefully shutdown workflow service and wait for tasks
         await self.workflow_service.shutdown()
+
+        # Cleanup all tracked subprocesses
+        await subprocess_manager.cleanup()
 
         # Cancel all Textual workers (background tasks)
         self.workers.cancel_all()

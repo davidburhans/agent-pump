@@ -264,6 +264,7 @@ Smart branch management for feature development to avoid cluttering the main bra
 - **Automatic Feature Branch Creation**: Before the planning phase, automatically create a feature branch with a standardized naming convention
 - **Branch Naming Convention**: Branches are named automatically from the feature title (e.g., `feature/add-login-page`)
 - **Auto-merge**: Optionally merge the feature branch back to the base branch after successful verification
+- **Branch Cleanup**: Optionally delete the feature branch after a successful merge
 - **Merge Conflict Handling**: Gracefully detects and handles merge conflicts by pausing the workflow for manual resolution
 
 ### Configuration
@@ -275,6 +276,8 @@ branch_strategy:
   enabled: true                    # Enable branch strategy (default: false)
   auto_create_branch: true         # Create feature branch before planning
   auto_merge: false               # Auto-merge after verification (use with caution)
+  delete_on_merge: true           # Delete feature branch after merge (default: true)
+  allow_fast_forward: true        # Allow fast-forward merges (default: true)
   branch_prefix: "feature"        # Prefix for feature branches
   base_branch: "main"             # Base branch to create from
   require_clean_worktree: true    # Require clean git status
@@ -555,6 +558,24 @@ You can "pair program" with the agent by feeding it ideas while it works.
   - Tests: `tests/unit/test_chat_service.py`, `tests/tui/test_chat_screen.py`
   - TUI: Chat screen with history and streaming
   - CLI: `ask` command
+
+### Interactive Diff Viewer
+- **Description**: A visual diff viewer within the TUI to review changes from git (staged/unstaged), checkpoints, or dry runs.
+- **Features**:
+    - **Side-by-Side View**: Compare changes with a clear before/after split view.
+    - **Unified View**: Toggle to a traditional unified diff view.
+    - **Navigation**: Full keyboard support (`j`/`k` to scroll, `Tab` to switch panels).
+    - **Source Selection**: View diffs from Working Directory, Staged area, or specific Checkpoints.
+- **Usage**:
+    - Press `d` in the TUI (if bound) or access via Command Palette (`Ctrl+P` > "Diff Viewer").
+    - Automatically opens when reviewing Dry Run results.
+
+### Audit Status: ✅ Fully implemented
+- **Implementation**: `src/agent_pump/tui/screens/diff_viewer.py`, `src/agent_pump/utils/diff_parser.py`
+- **Tests**: `tests/unit/test_diff_parser.py`, `tests/tui/screens/test_diff_viewer.py`
+- **TUI**: Fully functional screen
+- **CLI**: Integrated into dry-run reports
+- **Documentation**: Complete
 
 ### Roadmap Management & Prioritization
 Take control of what the agent works on next.

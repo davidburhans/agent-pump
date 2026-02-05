@@ -6,6 +6,7 @@ from .bootstrap_modal import BootstrapModal as BootstrapModal
 from .chat_screen import ChatScreen as ChatScreen
 from .checkpoint_modal import CheckpointModal as CheckpointModal
 from .confirm_modal import ConfirmModal as ConfirmModal
+from .diff_viewer import DiffViewerScreen as DiffViewerScreen
 from .global_prompt_modal import GlobalPromptModal as GlobalPromptModal
 from .idea_input_modal import IdeaInputModal as IdeaInputModal
 from .log_filter_modal import LogFilterModal as LogFilterModal

@@ -14,7 +14,9 @@ from git import GitCommandError, Repo
 
 from agent_pump.events.bus import EventBus
 from agent_pump.models.checkpoint import Checkpoint
+from agent_pump.models.diff import DiffFile
 from agent_pump.services.base import BaseService
+from agent_pump.utils.diff_parser import parse_git_diff
 
 logger = logging.getLogger(__name__)
 
@@ -264,3 +266,23 @@ class CheckpointService(BaseService):
             logger.warning(f"Error listing checkpoint commits: {e}")
 
         return checkpoints
+
+    def get_checkpoint_diffs(self, checkpoint_id: str) -> list[DiffFile]:
+        """Get diffs for a specific checkpoint vs its parent.
+
+        Args:
+            checkpoint_id: The git commit hash of the checkpoint
+
+        Returns:
+            List of DiffFile objects
+        """
+        try:
+            # Diff this commit against its parent (HEAD^)
+            # We assume the checkpoint is a commit.
+            # We use git diff checkpoint^..checkpoint
+            diff_output = self.repo.git.diff(f"{checkpoint_id}^", checkpoint_id, "--unified=3")
+            return parse_git_diff(diff_output)
+        except GitCommandError as e:
+            logger.error(f"Failed to get checkpoint diffs: {e}")
+            return []
+

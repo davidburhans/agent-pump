@@ -173,6 +173,12 @@ KEYBINDINGS: list[Keybinding] = [
         scope="project",
     ),
     Keybinding(
+        key="D",
+        action="show_diffs",
+        description="Diffs",
+        scope="project",
+    ),
+    Keybinding(
         key="b",
         action="config_backends",
         description="Back",
