@@ -11,13 +11,23 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Current Sprint
 
-### 🔴 Interactive Diff Viewer
+### 🟡 Global Backend Configuration
+**Priority: High**
+
+Refactor backend configuration to be defined at the global or project level.
+- Configure available backends (e.g., "production-gemini", "experimental-opencode") at project/global level
+- Workflow states simply select from pre-defined backends
+- Allow states to specify one-off backends if needed
+- Reduces duplication and simplifies configuration management
+
+### 🔴 OpenCode API Backend
 **Priority: Medium**
 
-Visual diff viewer within the TUI to review changes.
-- View staged vs unstaged changes
-- View changes from checkpoints
-- Review "Dry Run" proposed changes before applying
+Add a backend that uses the [opencode-sdk-python](https://github.com/anomalyco/opencode-sdk-python) library.
+- Library is already added as a dependency to the project
+- interact with OpenCode via SDK instead of CLI
+- Improve exception handling and reliability
+- Support all OpenCode features programmatically
 
 ---
 
@@ -28,19 +38,6 @@ For completed features, see [FEATURES.md](FEATURES.md).
 ---
 
 ## Future Enhancements
-
-### 🔴 Plugin Marketplace UI
-**Priority: Low**
-
-UI for browsing and managing installed plugins.
-
----
-
-
-
-## Deferred
-
-*Features postponed for later consideration.*
 
 ### ⚫ Voice Control
 **Priority: Low**
