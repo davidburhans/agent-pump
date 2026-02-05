@@ -151,7 +151,7 @@ class TestDryRunBackend:
         """Test log_command in dry-run mode."""
         project_path = Path("/test/project")
 
-        result = await dry_run_backend.log_command(
+        await dry_run_backend.log_command(
             project_path,
             "test_cmd.log",
             "gemini --yolo",
