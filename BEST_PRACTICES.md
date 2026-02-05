@@ -563,9 +563,9 @@ Before committing:
 - **Focus States**: Always provide visual feedback for focus states to guide the user.
 
 ### Git Commit Hygiene
-- **Conventional Commits**: Use conventional commit format (e.g., `feat:`, `fix:`) to maintain a clean and searchable history.
-- **Squashing**: Squash intermediate "auto-checkpoint" commits before final delivery to present a coherent narrative of the feature development.
 - **Diff Verification**: Carefully review the total diff before committing to ensure no accidental deletions or sensitive information leaks.
+- **Atomic Commits**: Group related changes into atomic commits that represent a single logical change or feature. This makes the history easier to follow and simplifies potential reverts or cherry-picks.
+- **Staging by Feature**: When working on multiple features simultaneously (common in agentic workflows), use `git add <file>` or `git add -p` to stage changes selectively rather than `git add .`, ensuring each commit remains focused.
 
 ### Python Syntax in Tests
 - **Multi-line Context Managers**: Use parentheses for multi-line `with` statements (Python 3.10+) instead of backslashes. It is cleaner and less prone to syntax errors during refactoring or tooling updates.
