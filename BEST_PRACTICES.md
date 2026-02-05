@@ -579,6 +579,16 @@ Before committing:
   ```
 - **Pydantic Validation in Tests**: When instantiating Pydantic models in tests, ensure all required fields (like `path` in `ProjectConfig`) are provided, even if they seem irrelevant to the specific test case. `ValidationError` will block test collection/execution.
 
+### SDK Inspection & Mocking
+- **Reverse Engineering**: When documentation is scarce, write small scripts to inspect `dir(obj)` and `inspect.signature(obj)` to understand API surface areas before implementation.
+- **Mocking Async Iterators**: Correctly mocking `async for` loops requires careful setup. Using a local async generator function as the return value of `__aenter__` is often cleaner than mocking `__aiter__` chain.
+  ```python
+  async def async_gen():
+      yield "chunk1"
+  mock_context.__aenter__.return_value = async_gen()
+  ```
+- **Tool Call Safety**: When using tools to write Python code, ensure newlines in strings are properly escaped (`\\n`) or use single-line strings to avoid syntax errors in the generated file.
+
 ### Verification Command Best Practices
 - **Optional Imports**: Use `try/except ImportError` blocks for optional dependencies (like `psutil`) rather than `importlib.util.find_spec`, especially when compatibility with mocked `sys.modules` in tests is required.
 - **Mock Naming**: When capturing mocks in `with` statements, use snake_case names (e.g., `mock_service_cls`) instead of PascalCase (e.g., `MockService`) to comply with `N806` naming conventions.

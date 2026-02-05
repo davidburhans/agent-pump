@@ -468,6 +468,7 @@ Configure which AI coding agent powers each phase of your workflow.
 | **Gemini** | `gemini` | Google's AI with `--yolo` and `--checkpointing` flags |
 | **Claude Code** | `claude` | Anthropic's Claude Code CLI |
 | **OpenCode** | `opencode` | OpenCode CLI assistant |
+| **OpenCode API** | `opencode-api` | Uses OpenCode SDK to talk to server (http://localhost:54321) |
 | **Qwen** | `qwen` | Alibaba's Qwen CLI with `--yolo` flag |
 
 **Configuration:**

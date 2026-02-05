@@ -20,15 +20,6 @@ Refactor backend configuration to be defined at the global or project level.
 - Allow states to specify one-off backends if needed
 - Reduces duplication and simplifies configuration management
 
-### 🟡 OpenCode API Backend
-**Priority: Medium**
-
-Add a backend that uses the [opencode-sdk-python](https://github.com/anomalyco/opencode-sdk-python) library.
-- Library is already added as a dependency to the project
-- interact with OpenCode via SDK instead of CLI
-- Improve exception handling and reliability
-- Support all OpenCode features programmatically
-
 ---
 
 ## Completed Features
