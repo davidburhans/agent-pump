@@ -196,7 +196,7 @@ class TestApprovalGateModalButtonHandling:
         """Test handling cancel button press."""
         with patch.object(modal, "dismiss") as mock_dismiss:
             modal.query_one = MagicMock()
-            
+
             # Create mock button event
             mock_button = MagicMock()
             mock_button.id = "btn-cancel"

@@ -248,8 +248,12 @@ class TestWorkspace:
         workspace = Workspace(name="test-workspace")
         workspace.add_idea("Test idea")
 
-        # Mock the workspaces directory
-        with patch.object(Workspace, "get_workspaces_dir", return_value=tmp_path):
+        # Mock both directory and validation logic
+        def mock_get_workspace_path(name):
+            return tmp_path / f"{name}.json"
+
+        with patch.object(Workspace, "get_workspaces_dir", return_value=tmp_path), \
+             patch.object(Workspace, "get_workspace_path", side_effect=mock_get_workspace_path):
             workspace.save()
 
             # Load and verify
@@ -277,7 +281,11 @@ class TestWorkspace:
         workspace_file = tmp_path / "test-workspace.json"
         workspace_file.write_text('{"name": "test-workspace"}')
 
-        with patch.object(Workspace, "get_workspaces_dir", return_value=tmp_path):
+        def mock_get_workspace_path(name):
+            return tmp_path / f"{name}.json"
+
+        with patch.object(Workspace, "get_workspaces_dir", return_value=tmp_path), \
+             patch.object(Workspace, "get_workspace_path", side_effect=mock_get_workspace_path):
             # Delete should succeed
             result = Workspace.delete("test-workspace")
             assert result is True
@@ -289,6 +297,10 @@ class TestWorkspace:
 
     def test_delete_nonexistent_workspace(self, tmp_path):
         """Test deleting a workspace that doesn't exist."""
-        with patch.object(Workspace, "get_workspaces_dir", return_value=tmp_path):
+        def mock_get_workspace_path(name):
+            return tmp_path / f"{name}.json"
+
+        with patch.object(Workspace, "get_workspaces_dir", return_value=tmp_path), \
+             patch.object(Workspace, "get_workspace_path", side_effect=mock_get_workspace_path):
             result = Workspace.delete("nonexistent")
             assert result is False

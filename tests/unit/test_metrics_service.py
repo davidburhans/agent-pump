@@ -113,11 +113,12 @@ class TestMetricsService:
     def event_bus(self):
         """Create a mock event bus."""
         bus = MagicMock(spec=EventBus)
-        
+
         # event_bus.subscribe() returns an AsyncGenerator
         async def mock_subscribe():
-            if False: yield None # Make it a generator
-            
+            if False:
+                yield None  # Make it a generator
+
         bus.subscribe.return_value = mock_subscribe()
         return bus
 
@@ -503,11 +504,12 @@ class TestMetricsServiceAsync:
     async def test_start_service(self):
         """Test starting the service."""
         event_bus = MagicMock(spec=EventBus)
-        
+
         # event_bus.subscribe() returns an AsyncGenerator
         async def mock_subscribe():
-            if False: yield None
-            
+            if False:
+                yield None
+
         event_bus.subscribe.return_value = mock_subscribe()
 
         service = MetricsService(event_bus)
@@ -518,7 +520,7 @@ class TestMetricsServiceAsync:
         # Should create a task to listen for events
         assert service._listen_task is not None
         assert not service._listen_task.done()
-        
+
         # Clean up
         service._listen_task.cancel()
         try:

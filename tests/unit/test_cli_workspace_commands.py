@@ -21,8 +21,13 @@ class TestWorkspaceCommands:
         workspaces_dir = tmp_path / "workspaces"
         workspaces_dir.mkdir()
 
+        # We need to ensure both directory retrieval and path resolution use our temp dir
+        # This overrides the global session-scoped mock for these tests
         with patch(
             "agent_pump.models.workspace.Workspace.get_workspaces_dir", return_value=workspaces_dir
+        ), patch(
+            "agent_pump.models.workspace.Workspace.get_workspace_path",
+            side_effect=lambda name="default": workspaces_dir / f"{name}.json",
         ):
             yield workspaces_dir
 

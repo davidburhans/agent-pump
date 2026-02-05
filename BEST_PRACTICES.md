@@ -557,3 +557,29 @@ Before committing:
 - **RichLog Output**: `RichLog` adds new entries for each `write()` call. For streaming content that should appear on a single line or block, accumulate the content and write it once, or use a custom widget strategy if character-by-character streaming is required.
 - **Async Interactions**: Testing async UI interactions (like `Input.Submitted`) requires ensuring the widget is focused and the event loop has time to process (`pilot.pause()`).
 - **File Writing**: When writing Python code that generates files with literal newlines (e.g., inside f-strings), ensure newlines are properly escaped (`\\n`) in the source string to avoid syntax errors in the generated file.
+
+### TUI Development
+- **Keyboard Navigation**: Ensure keyboard navigation is consistent across screens (e.g., `j`/`k` for lists, `Escape` to close modals).
+- **Focus States**: Always provide visual feedback for focus states to guide the user.
+
+### Git Commit Hygiene
+- **Conventional Commits**: Use conventional commit format (e.g., `feat:`, `fix:`) to maintain a clean and searchable history.
+- **Squashing**: Squash intermediate "auto-checkpoint" commits before final delivery to present a coherent narrative of the feature development.
+- **Diff Verification**: Carefully review the total diff before committing to ensure no accidental deletions or sensitive information leaks.
+
+### Python Syntax in Tests
+- **Multi-line Context Managers**: Use parentheses for multi-line `with` statements (Python 3.10+) instead of backslashes. It is cleaner and less prone to syntax errors during refactoring or tooling updates.
+  ```python
+  # Good
+  with (
+      patch("module.Thing1") as mock1,
+      patch("module.Thing2") as mock2
+  ):
+      ...
+  ```
+- **Pydantic Validation in Tests**: When instantiating Pydantic models in tests, ensure all required fields (like `path` in `ProjectConfig`) are provided, even if they seem irrelevant to the specific test case. `ValidationError` will block test collection/execution.
+
+### Verification Command Best Practices
+- **Optional Imports**: Use `try/except ImportError` blocks for optional dependencies (like `psutil`) rather than `importlib.util.find_spec`, especially when compatibility with mocked `sys.modules` in tests is required.
+- **Mock Naming**: When capturing mocks in `with` statements, use snake_case names (e.g., `mock_service_cls`) instead of PascalCase (e.g., `MockService`) to comply with `N806` naming conventions.
+- **Breaking Long Lines**: When fixing `E501` (line too long), ensure that split lines remain syntactically valid. For `patch.object` calls, use parentheses to wrap arguments across multiple lines.

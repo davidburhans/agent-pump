@@ -31,7 +31,7 @@ class ChatScreen(ModalScreen):
         border: solid $secondary;
         margin-bottom: 1;
     }
-    
+
     #chat-input {
         dock: bottom;
     }
@@ -45,7 +45,9 @@ class ChatScreen(ModalScreen):
     def compose(self) -> ComposeResult:
         with Vertical(id="chat-container"):
             yield RichLog(id="chat-history", highlight=True, markup=True, wrap=True)
-            yield Input(placeholder="Ask a question about the project... (Esc to close)", id="chat-input")
+            yield Input(
+                placeholder="Ask a question about the project... (Esc to close)", id="chat-input"
+            )
 
     def on_mount(self) -> None:
         self.query_one("#chat-input").focus()
@@ -89,12 +91,16 @@ class ChatScreen(ModalScreen):
 
         response_content = ""
         try:
-            # We don't have a way to update the SAME line in RichLog easily for streaming "typing" effect
-            # without writing separate segments.
+            # We don't have a way to update the SAME line in RichLog easily for
+            # streaming "typing" effect without writing separate segments.
             # RichLog.write appends.
-            # So we will write chunks. It might look a bit fragmented if chunks are small, but RichLog handles it okay usually.
-            async for chunk in service.chat_stream(query, self.project_path, history=self.history):
-                # log.write(chunk) - RichLog writes new lines for each write, so we accumulate and write once
+            # So we will write chunks. It might look a bit fragmented if chunks are small,
+            # but RichLog handles it okay usually.
+            async for chunk in service.chat_stream(
+                query, self.project_path, history=self.history
+            ):
+                # log.write(chunk) - RichLog writes new lines for each write,
+                # so we accumulate and write once
                 response_content += chunk
 
             # Since we can't easily stream into RichLog, let's just write the full response for now

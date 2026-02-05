@@ -25,7 +25,7 @@ class WorkflowState(BaseModel):
     """Persisted state of a project's workflow."""
 
     # Maximum number of phase logs to retain
-    MAX_PHASE_LOGS: int = 1000
+    MAX_PHASE_LOGS: int = 50
 
     project_path: Path
     current_state: str = Field(default="idle")
@@ -53,7 +53,7 @@ class WorkflowState(BaseModel):
         state_file = project_path / ".agent-pump" / "state.json"
         if not state_file.exists():
             return None
-        return cls.model_validate_json(state_file.read_text())
+        return cls.model_validate_json(state_file.read_text(encoding="utf-8"))
 
     def log_phase_start(self, phase: str) -> None:
         """Log the start of a phase."""
@@ -62,8 +62,7 @@ class WorkflowState(BaseModel):
 
         # Trim old entries to prevent unbounded growth
         if len(self.phase_logs) > self.MAX_PHASE_LOGS:
-            trim_count = self.MAX_PHASE_LOGS // 10
-            self.phase_logs = self.phase_logs[trim_count:]
+            self.phase_logs = self.phase_logs[-self.MAX_PHASE_LOGS :]
 
     def log_phase_complete(
         self,

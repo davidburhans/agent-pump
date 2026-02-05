@@ -296,7 +296,7 @@ class TestWorkflowVerificationHooks:
 
         plugin_manager.get_custom_verification_steps = MagicMock(return_value=[])
 
-        result = await workflow._run_custom_verification()
+        await workflow._run_custom_verification()
 
         # Post-verification hook should have been called with results
         post_calls = [c for c in hook_calls if c.get("type") == "post-verify"]
@@ -345,7 +345,7 @@ class TestCustomVerificationSteps:
 
         plugin_manager.execute_phase_hooks = AsyncMock()
 
-        result = await workflow._run_custom_verification()
+        await workflow._run_custom_verification()
 
         # Custom steps should have been executed
         assert "echo test1" in executed_steps

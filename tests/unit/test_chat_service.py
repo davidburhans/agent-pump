@@ -38,8 +38,8 @@ async def test_chat_stream_success(chat_service):
     # Mock get_backend
     with patch("agent_pump.services.chat_service.get_backend", return_value=mock_backend):
         # Mock ContextManager
-        with patch("agent_pump.services.chat_service.ContextManager") as MockCM:
-            mock_cm = MockCM.return_value
+        with patch("agent_pump.services.chat_service.ContextManager") as mock_cm_cls:
+            mock_cm = mock_cm_cls.return_value
             mock_cm.get_context_files.return_value = [
                 ContextFile(path="main.py", content="print('hello')", token_count=10, score=1.0)
             ]

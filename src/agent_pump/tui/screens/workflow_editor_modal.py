@@ -258,7 +258,7 @@ class WorkflowEditorModal(ModalScreen[WorkflowDefinition | None]):
                 ),
                 Horizontal(
                     Label("On Success:"),
-                    Select([], id="phase-on-success", allow_blank=False),
+                    Select([], id="phase-on-success"),
                     classes="input-row",
                 ),
                 Horizontal(

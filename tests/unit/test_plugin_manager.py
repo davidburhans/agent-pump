@@ -293,11 +293,11 @@ from agent_pump.models.plugin import PluginInfo, HookContext
 
 class LifecyclePlugin(Plugin):
     initialized = False
-    
+
     @property
     def info(self):
         return PluginInfo(name="lifecycle-plugin", version="1.0.0")
-    
+
     def initialize(self, context: PluginContext):
         self.initialized = True
         self.ctx = context
@@ -325,12 +325,12 @@ class UnloadPlugin(Plugin):
     @property
     def info(self):
         return PluginInfo(name="unload-plugin", version="1.0.0")
-    
+
     def shutdown(self):
         self.shut_down = True
 """)
 
-        state = plugin_manager.load_plugin(plugin_file)
+        plugin_manager.load_plugin(plugin_file)
         plugin_manager.unload_plugin("unload-plugin")
 
         assert "unload-plugin" not in plugin_manager.loaded_plugins

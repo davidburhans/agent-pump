@@ -60,7 +60,7 @@ class CostTrackingService:
             costs_dir = self._storage_path
         else:
             costs_dir = Path.home() / ".config" / "agent-pump" / "costs"
-        
+
         costs_dir.mkdir(parents=True, exist_ok=True)
         return costs_dir / f"{self.workspace.name}.json"
 

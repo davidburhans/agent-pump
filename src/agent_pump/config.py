@@ -92,7 +92,7 @@ class Config(BaseModel):
         # User-level config
         user_config = Path.home() / ".config" / "agent-pump" / "config.yml"
         if user_config.exists():
-            with open(user_config) as f:
+            with open(user_config, encoding="utf-8") as f:
                 user_data = yaml.safe_load(f) or {}
                 config_data.update(user_data)
 
@@ -126,7 +126,7 @@ class Config(BaseModel):
 
         # Load project config
         if new_config_file.exists():
-            with open(new_config_file) as f:
+            with open(new_config_file, encoding="utf-8") as f:
                 project_data = yaml.safe_load(f) or {}
                 config_data.update(project_data)
 

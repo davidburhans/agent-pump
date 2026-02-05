@@ -33,8 +33,8 @@ async def test_chat_screen_flow():
         assert "Chatting with test_project" in log.lines[0].text
 
         # Mock ChatService
-        with patch("agent_pump.tui.screens.chat_screen.ChatService") as MockService:
-            mock_instance = MockService.return_value
+        with patch("agent_pump.tui.screens.chat_screen.ChatService") as mock_service_cls:
+            mock_instance = mock_service_cls.return_value
 
             async def mock_stream(*args, **kwargs):
                 yield "AI Response"

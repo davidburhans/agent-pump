@@ -53,7 +53,8 @@ class ChatService(BaseService):
 
         # 2. Prepare Context
         context_manager = ContextManager(project_path)
-        # Use a reasonable default for chat (maybe slightly less than full coding limit to be faster?)
+        # Use a reasonable default for chat
+        # (maybe slightly less than full coding limit to be faster?)
         # For now, just use what context manager gives us.
         context_files = context_manager.get_context_files()
 
