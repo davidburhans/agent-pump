@@ -549,6 +549,10 @@ Before committing:
           self.post_message(self.BackendConfigRequested(self.project, self))
   ```
 
+### Configuration Consistency
+- **Copy to All**: When managing multiple projects, use the "Apply to All Projects" feature in backend/prompt configuration to ensure consistency across your workspace.
+- **Workspace Presets**: Define backend presets at the workspace level for common configurations (e.g. "Cheap/Fast", "Smart/Slow") to reuse them easily.
+
 ### Commit Strategy
 - **Atomic Commits**: Ensure commits are atomic and represent a single logical change or feature.
 - **Pre-commit Checks**: Always run `git status` and `git diff` before committing to verify exactly what is being staged.

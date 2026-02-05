@@ -11,14 +11,15 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Current Sprint
 
-### 🟡 Global Backend Configuration
+### 🔴 Template TUI Integration
 **Priority: High**
 
-Refactor backend configuration to be defined at the global or project level.
-- Configure available backends (e.g., "production-gemini", "experimental-opencode") at project/global level
-- Workflow states simply select from pre-defined backends
-- Allow states to specify one-off backends if needed
-- Reduces duplication and simplifies configuration management
+Add TUI screens for browsing and applying project templates.
+- Create `TemplateBrowserScreen` to list available templates (built-in and user-defined)
+- Show template details (description, backend config, verification commands)
+- Allow applying a template to the current project
+- Allow creating a new project from a template via the TUI
+- Bind to `t` key in the TUI
 
 ---
 
