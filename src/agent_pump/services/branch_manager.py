@@ -206,7 +206,11 @@ class BranchManager:
             self.repo.git.checkout(self.config.base_branch)
 
             # Perform merge
-            self.repo.git.merge(feature_branch, "-m", commit_message)
+            merge_args = [feature_branch, "-m", commit_message]
+            if not self.config.allow_fast_forward:
+                merge_args.append("--no-ff")
+
+            self.repo.git.merge(*merge_args)
 
             return MergeResult(success=True)
 

@@ -1356,14 +1356,27 @@ class ProjectWorkflow:
                         self._emit_output("[WARNING] Failed to push to remote\n")
 
                 # Optionally delete the feature branch
-                branch_manager.delete_branch(feature_branch)
+                if self.branch_config.delete_on_merge:
+                    if branch_manager.delete_branch(feature_branch):
+                        self._emit_output(f"[BRANCH] Deleted feature branch {feature_branch}\n")
+                    else:
+                        self._emit_output(
+                            f"[WARNING] Failed to delete feature branch {feature_branch}\n"
+                        )
 
             elif result.has_conflicts:
                 self.branch_state.mark_conflicts()
-                self._emit_output(
-                    f"\n[MERGE CONFLICT] Automatic merge failed. "
-                    "Please resolve conflicts manually on branch "
-                    f"{self.branch_config.base_branch}.\n"
+                msg = (
+                    f"Automatic merge of {feature_branch} failed due to conflicts. "
+                    f"Please resolve conflicts manually on branch {self.branch_config.base_branch} "
+                    "and then resume the workflow."
+                )
+                self._emit_output(f"\n[MERGE CONFLICT] {msg}\n")
+
+                # Send explicit notification for conflict
+                Notifier.send(
+                    title="Merge Conflict Detected",
+                    message=msg,
                 )
             else:
                 self._emit_output(f"\n[MERGE FAILED] {result.error}\n")

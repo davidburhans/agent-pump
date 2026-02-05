@@ -274,6 +274,23 @@ class TestMergeOperations:
                 "feature/test", "-m", "Merge feature: Test feature"
             )
 
+    def test_merge_to_base_no_fast_forward(self, tmp_path):
+        """Test merge with allow_fast_forward=False."""
+        with patch("agent_pump.services.branch_manager.Repo") as mock_repo:
+            mock_instance = MagicMock()
+            mock_instance.active_branch.name = "feature/test"
+            mock_repo.return_value = mock_instance
+
+            config = BranchStrategyConfig(allow_fast_forward=False)
+            manager = BranchManager(tmp_path, config=config)
+
+            result = manager.merge_to_base("feature/test", "Merge feature: Test feature")
+
+            assert result.success is True
+            mock_instance.git.merge.assert_called_once_with(
+                "feature/test", "-m", "Merge feature: Test feature", "--no-ff"
+            )
+
     def test_merge_to_base_with_conflicts(self, tmp_path):
         """Test merge with conflicts."""
         with patch("agent_pump.services.branch_manager.Repo") as mock_repo:

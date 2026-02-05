@@ -32,4 +32,10 @@ class BranchStrategyConfig(BaseModel):
     require_clean_worktree: bool = Field(
         default=True, description="Require clean worktree before creating/switching branches"
     )
+    allow_fast_forward: bool = Field(
+        default=True, description="Allow fast-forward merges (if False, uses --no-ff)"
+    )
+    delete_on_merge: bool = Field(
+        default=True, description="Delete feature branch after successful merge"
+    )
     push_on_merge: bool = Field(default=False, description="Push to remote after successful merge")
