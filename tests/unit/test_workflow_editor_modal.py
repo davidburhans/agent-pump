@@ -24,8 +24,8 @@ class TestWorkflowEditorModal:
     @pytest.mark.asyncio
     async def test_modal_composition_no_crash(self, tmp_path):
         """Test that the modal can be composed without crashing (fix for EmptySelectError)."""
-        # Create a mock workspace in tmp_path
-        workspace = Workspace(path=tmp_path)
+        # Create a mock workspace
+        workspace = Workspace(name="test-workspace")
 
         app = WorkflowEditorTestApp(workspace=workspace)
         async with app.run_test():

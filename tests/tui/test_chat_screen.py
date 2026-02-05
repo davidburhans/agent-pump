@@ -13,6 +13,7 @@ async def test_chat_screen_flow():
     project_path = Path("/tmp/test_project")
 
     class TestApp(App):
+        event_bus: MagicMock | None = None
         def on_mount(self):
             self.push_screen(ChatScreen(project_path))
 

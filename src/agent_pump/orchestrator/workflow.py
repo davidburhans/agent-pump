@@ -198,8 +198,11 @@ class ProjectWorkflow:
         self.project.completed_features = self.workflow_state.completed_features.copy()
         self.project.failed_features = self.workflow_state.failed_features.copy()
 
+        if TYPE_CHECKING:
+            from agent_pump.models.workspace import Workspace
+
         # Workspace reference (optional)
-        self.workspace = None
+        self.workspace: Workspace | None = None
 
         # Initialize cost tracking service (will be set when workspace is assigned)
         self.cost_tracking_service: CostTrackingService | None = None
@@ -1133,7 +1136,7 @@ class ProjectWorkflow:
             edges=edges,
         )
 
-    async def _prepare_phase(self, phase_name: str, context: dict[str, str]) -> None:
+    async def _prepare_phase(self, phase_name: str, context: dict[str, Any]) -> None:
         """Run preparation logic before a phase starts."""
         # Create auto-checkpoint before each phase (skip if dry-run mode)
         if not self._dry_run:
@@ -1217,7 +1220,7 @@ class ProjectWorkflow:
 
         return True
 
-    async def _prepare_planning_phase(self, context: dict[str, str]) -> None:
+    async def _prepare_planning_phase(self, context: dict[str, Any]) -> None:
         """Logic to pick next task from roadmap if not set."""
         # Read TASK_NAME directly
         feature_request = await self._read_file_content("TASK_NAME")

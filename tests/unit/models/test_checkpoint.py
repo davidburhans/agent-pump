@@ -1,6 +1,7 @@
 """Tests for checkpoint model."""
 
 from datetime import datetime
+from typing import cast
 
 from agent_pump.models.checkpoint import Checkpoint, CheckpointCollection
 
@@ -313,5 +314,7 @@ class TestCheckpointCollection:
         collection.add(cp2)
 
         checkpoints = collection.list_all()
-        assert checkpoints[0].id == "first"
-        assert checkpoints[1].id == "second"
+        cp1 = cast(Checkpoint, checkpoints[0])
+        assert cp1.id == "first"
+        cp2 = cast(Checkpoint, checkpoints[1])
+        assert cp2.id == "second"

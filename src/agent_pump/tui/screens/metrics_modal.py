@@ -172,8 +172,7 @@ class MetricsModal(ModalScreen[None]):
             try:
 
                 app = self.app
-                if hasattr(app, "metrics_service"):
-                    self.metrics_service = app.metrics_service
+                self.metrics_service = getattr(app, "metrics_service", None)
             except Exception:
                 pass
 

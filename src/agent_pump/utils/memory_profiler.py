@@ -43,9 +43,6 @@ class MemoryProfiler:
 
             self._enabled = True
         except ImportError:
-            self._enabled = False
-            logger.info("Memory profiling enabled")
-        except ImportError:
             logger.warning("psutil not available, memory profiling disabled")
             self._enabled = False
 

@@ -734,7 +734,9 @@ class TestPersistence:
     """Tests for approval request persistence."""
 
     @pytest.mark.asyncio
-    async def test_save_and_load_pending_approvals(self, service, project_path, tmp_path):
+    async def test_save_and_load_pending_approvals(
+        self, service, project_path, tmp_path, event_bus
+    ):
         """Test saving and loading pending approvals."""
         config = ApprovalGateConfig(
             enabled=True,

@@ -55,7 +55,7 @@ class TestPluginInfo:
     def test_name_required(self):
         """Test that name is required."""
         with pytest.raises(ValidationError):
-            PluginInfo()
+            PluginInfo()  # type: ignore
 
     def test_immutable(self):
         """Test that PluginInfo is immutable."""
@@ -84,10 +84,10 @@ class TestPluginConfig:
 
     def test_extra_fields(self):
         """Test that extra fields are allowed."""
-        config = PluginConfig(custom_key="custom_value", another_field=123)
+        config = PluginConfig(custom_key="custom_value", another_field=123)  # type: ignore
 
-        assert config.custom_key == "custom_value"
-        assert config.another_field == 123
+        assert config.custom_key == "custom_value"  # type: ignore
+        assert config.another_field == 123  # type: ignore
 
 
 class TestHookContext:

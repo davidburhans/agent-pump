@@ -184,6 +184,7 @@ class TestTemplateListModalDismissal:
 
         # The modal should return the selected template when dismissed
         selected = modal.get_selected_template()
+        assert selected is not None
         assert selected == template
         assert selected.name == "test-template"
 

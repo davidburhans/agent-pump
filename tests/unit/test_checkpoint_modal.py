@@ -154,7 +154,7 @@ class TestCheckpointModalBindings:
         assert len(modal.BINDINGS) >= 2
 
         # Check for escape binding
-        binding_keys = [b.key for b in modal.BINDINGS]
+        binding_keys = [b.key for b in modal.BINDINGS]  # type: ignore
         assert "escape" in binding_keys
 
         # Check for 'r' binding (rollback)
@@ -246,7 +246,7 @@ class TestCheckpointModalDismissal:
         def mock_dismiss(result=None):
             dismissed_result.append(result)
 
-        modal.dismiss = mock_dismiss
+        modal.dismiss = mock_dismiss  # type: ignore
 
         # Call cancel action
         modal.action_cancel()
@@ -276,7 +276,7 @@ class TestCheckpointModalDismissal:
         def mock_dismiss(result=None):
             dismissed_result.append(result)
 
-        modal.dismiss = mock_dismiss
+        modal.dismiss = mock_dismiss  # type: ignore
 
         # Call rollback action
         modal.action_rollback_selected()
@@ -303,7 +303,7 @@ class TestCheckpointModalDismissal:
         def mock_dismiss(result=None):
             dismissed_result.append(result)
 
-        modal.dismiss = mock_dismiss
+        modal.dismiss = mock_dismiss  # type: ignore
 
         # Call rollback action
         modal.action_rollback_selected()

@@ -82,7 +82,7 @@ class TestApprovalGateModalComposition:
             project_name="test-project",
         )
 
-        binding_keys = [binding.key for binding in modal.BINDINGS]
+        binding_keys = [binding.key for binding in modal.BINDINGS]  # type: ignore
         assert "escape" in binding_keys
         assert "a" in binding_keys
         assert "r" in binding_keys

@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import git
+from git.exc import GitCommandError
 
 from agent_pump.models.diff import DiffFile
 from agent_pump.utils.diff_parser import parse_git_diff
@@ -44,5 +45,5 @@ class DiffService:
             # Diff this commit against its parent
             diff_output = self.repo.git.diff(f"{checkpoint_id}^", checkpoint_id, "--unified=3")
             return parse_git_diff(diff_output)
-        except git.exc.GitCommandError:
+        except GitCommandError:
             return []

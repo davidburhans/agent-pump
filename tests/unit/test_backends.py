@@ -400,8 +400,9 @@ def test_backend_registry_contains_all():
     assert "gemini" in BACKEND_REGISTRY
     assert "claude" in BACKEND_REGISTRY
     assert "opencode" in BACKEND_REGISTRY
+    assert "opencode-api" in BACKEND_REGISTRY
     assert "qwen" in BACKEND_REGISTRY
-    assert len(BACKEND_REGISTRY) == 4
+    assert len(BACKEND_REGISTRY) == 5
 
 
 def test_get_backend():
