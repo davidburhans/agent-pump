@@ -28,6 +28,13 @@ Enhance the `ContextManager` with vector search capabilities to index the entire
 
 ---
 
+### 🔴 Multiple Workflow Support
+**Priority: Medium**
+
+Allow defining multiple different workflows simultaneously. Users should be able to select which workflow to use on a project. A project should be able to swap between any number of workflows with no loss of functionality.
+
+---
+
 ### ⚫ Voice Control
 **Priority: Low**
 

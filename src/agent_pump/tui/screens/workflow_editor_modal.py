@@ -32,12 +32,216 @@ class PhaseListItem(ListItem):
     """A list item representing a workflow phase."""
 
     def __init__(self, phase: WorkflowPhase, **kwargs):
+        super().__init__(**kwargs)
         self.phase = phase
-        icon = phase.icon or "●"
-        text = f"{icon} {phase.name}"
-        if phase.description:
-            text += f" - {phase.description}"
-        super().__init__(Label(text), **kwargs)
+
+    def compose(self) -> ComposeResult:
+        icon = self.phase.icon or "●"
+        text = f"{icon} {self.phase.name}"
+        if self.phase.description:
+            text += f" - {self.phase.description}"
+        
+        yield Label(text)
+        
+        # Row action buttons
+        with Horizontal(classes="row-buttons"):
+            yield Button("↑", classes="btn-row-up", variant="default", tooltip="Move Up (Ctrl+Up)")
+            yield Button("↓", classes="btn-row-down", variant="default", tooltip="Move Down (Ctrl+Down)")
+            yield Button("✏️", classes="btn-row-edit", variant="default", tooltip="Edit (Enter)")
+            yield Button("🗑️", classes="btn-row-remove", variant="default", tooltip="Remove (Del)")
+
+
+class PhaseEditorModal(ModalScreen[WorkflowPhase | None]):
+    """Modal for creating and editing a single workflow phase."""
+
+    DEFAULT_CSS = """
+    PhaseEditorModal {
+        align: center middle;
+    }
+
+    #phase-editor-container {
+        width: 80%;
+        height: auto;
+        background: $surface;
+        border: thick $primary;
+        padding: 1 2;
+    }
+
+    .section-label {
+        text-style: bold;
+        margin-top: 1;
+        margin-bottom: 1;
+    }
+
+    .input-row {
+        height: auto;
+        margin-bottom: 1;
+    }
+
+    .input-row Label {
+        width: 20;
+    }
+
+    .input-row Input, .input-row Select {
+        width: 1fr;
+    }
+
+    .button-row {
+        height: 3;
+        align: center middle;
+        margin-top: 1;
+    }
+
+    .button-row Button {
+        margin: 0 1;
+    }
+    """
+
+    def __init__(
+        self,
+        phase: WorkflowPhase | None = None,
+        existing_names: list[str] | None = None,
+        available_states: list[str] | None = None,
+        name: str | None = None,
+        id: str | None = None,
+        classes: str | None = None,
+    ):
+        super().__init__(name=name, id=id, classes=classes)
+        self.phase = phase
+        self.existing_names = existing_names or []
+        self.available_states = available_states or []
+        self.is_new = phase is None
+
+    def compose(self) -> ComposeResult:
+        """Compose the modal's widgets."""
+        title = "Edit Phase" if not self.is_new else "Add Phase"
+        
+        # Determine initial values
+        initial_name = self.phase.name if self.phase else ""
+        initial_desc = self.phase.description if self.phase else ""
+        initial_icon = self.phase.icon if self.phase else ""
+        initial_success = self.phase.on_success if self.phase else "completed"
+        initial_failure = self.phase.on_failure if self.phase and self.phase.on_failure else None
+        initial_timeout = str(self.phase.timeout) if self.phase and self.phase.timeout else ""
+        initial_retries = str(self.phase.max_retries) if self.phase else "0"
+
+        # Build options for selects
+        state_options = [(s, s) for s in self.available_states]
+        failure_options = [("", None)] + state_options
+
+        with Container(id="phase-editor-container"):
+            yield Label(title, classes="section-label")
+            
+            yield Horizontal(
+                Label("Name:"),
+                Input(initial_name, placeholder="phase_name", id="phase-name"),
+                classes="input-row",
+            )
+            yield Horizontal(
+                Label("Description:"),
+                Input(initial_desc, placeholder="Description...", id="phase-description"),
+                classes="input-row",
+            )
+            yield Horizontal(
+                Label("Icon:"),
+                Input(initial_icon, placeholder="📋", id="phase-icon"),
+                classes="input-row",
+            )
+            yield Horizontal(
+                Label("On Success:"),
+                Select(state_options, value=initial_success, id="phase-on-success"),
+                classes="input-row",
+            )
+            yield Horizontal(
+                Label("On Failure:"),
+                Select(failure_options, value=initial_failure, id="phase-on-failure"),
+                classes="input-row",
+            )
+            yield Horizontal(
+                Label("Timeout:"),
+                Input(initial_timeout, placeholder="seconds (optional)", id="phase-timeout", type="integer"),
+                classes="input-row",
+            )
+            yield Horizontal(
+                Label("Max Retries:"),
+                Input(initial_retries, placeholder="0", id="phase-retries", type="integer"),
+                classes="input-row",
+            )
+            
+            yield Horizontal(
+                Button("Save", variant="success", id="btn-save-phase"),
+                Button("Cancel", variant="error", id="btn-cancel-phase"),
+                classes="button-row",
+            )
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-save-phase":
+            self._save_phase()
+        elif event.button.id == "btn-cancel-phase":
+            self.dismiss(None)
+
+    def _save_phase(self) -> None:
+        name_input = self.query_one("#phase-name", Input)
+        name = name_input.value.strip()
+
+        if not name:
+            name_input.add_class("error")
+            return
+
+        # Check uniqueness
+        if name in self.existing_names:
+            # If we are editing, we can reuse our own name
+            if not self.phase or self.phase.name != name:
+                name_input.add_class("error")
+                self.notify("Phase name must be unique", severity="error")
+                return
+
+        desc_input = self.query_one("#phase-description", Input)
+        icon_input = self.query_one("#phase-icon", Input)
+        success_select = self.query_one("#phase-on-success", Select)
+        failure_select = self.query_one("#phase-on-failure", Select)
+        timeout_input = self.query_one("#phase-timeout", Input)
+        retries_input = self.query_one("#phase-retries", Input)
+
+        # Parse numeric fields
+        timeout = None
+        if timeout_input.value:
+            try:
+                timeout = int(timeout_input.value)
+                if timeout <= 0:
+                    timeout = None
+            except ValueError:
+                timeout_input.add_class("error")
+                return
+
+        max_retries = 0
+        if retries_input.value:
+            try:
+                max_retries = int(retries_input.value)
+                if max_retries < 0:
+                    max_retries = 0
+            except ValueError:
+                retries_input.add_class("error")
+                return
+        
+        failure_value = failure_select.value
+        failure_target = None
+        if isinstance(failure_value, str) and failure_value:
+            failure_target = failure_value
+
+        phase_kwargs: dict[str, Any] = {
+            "name": name,
+            "description": desc_input.value.strip(),
+            "icon": icon_input.value.strip(),
+            "on_success": str(success_select.value) if success_select.value else "completed",
+            "timeout": timeout,
+            "max_retries": max_retries,
+        }
+
+        if failure_target:
+            phase_kwargs["on_failure"] = failure_target
+
+        self.dismiss(WorkflowPhase(**phase_kwargs))
 
 
 class WorkflowEditorModal(ModalScreen[WorkflowDefinition | None]):
@@ -49,6 +253,12 @@ class WorkflowEditorModal(ModalScreen[WorkflowDefinition | None]):
         Binding("ctrl+shift+s", "save_as", "Save As"),
         Binding("ctrl+o", "import_workflow", "Import"),
         Binding("ctrl+e", "export_workflow", "Export"),
+        # Phase list shortcuts
+        Binding("ctrl+up", "move_phase_up", "Move Up", show=False),
+        Binding("ctrl+down", "move_phase_down", "Move Down", show=False),
+        Binding("delete", "remove_phase", "Remove", show=False),
+        Binding("enter", "edit_phase", "Edit", show=False),
+        Binding("e", "edit_phase", "Edit", show=False),
     ]
 
     DEFAULT_CSS = """
@@ -75,6 +285,14 @@ class WorkflowEditorModal(ModalScreen[WorkflowDefinition | None]):
     .tab-content {
         height: 1fr;
         padding: 1;
+    }
+
+    TabbedContent {
+        height: 1fr;
+    }
+
+    ContentSwitcher {
+        height: 1fr;
     }
 
     .section-label {
@@ -112,13 +330,6 @@ class WorkflowEditorModal(ModalScreen[WorkflowDefinition | None]):
         margin: 1 0;
     }
 
-    #phase-form {
-        height: auto;
-        border: solid $surface-lighten-2;
-        padding: 1;
-        margin: 1 0;
-    }
-
     .phase-actions {
         height: auto;
         margin-top: 1;
@@ -132,6 +343,45 @@ class WorkflowEditorModal(ModalScreen[WorkflowDefinition | None]):
 
     ListView:focus {
         border: solid $primary;
+    }
+
+    /* Phase List Row Styling */
+    PhaseListItem {
+        layout: horizontal;
+        height: auto;
+        padding: 0 1;  /* Reduced vertical padding */
+        align-vertical: middle;
+    }
+
+    PhaseListItem Label {
+        width: 1fr;
+        content-align: left middle;
+    }
+
+    .row-buttons {
+        width: auto;
+        height: auto;
+        align-horizontal: right;
+    }
+    
+    .row-buttons Button {
+        height: 1;
+        width: 5;
+        min-width: 5;
+        margin: 0;
+        padding: 0;
+        border: none;
+        background: transparent; 
+        color: $text;
+        content-align: center middle;
+    }
+
+    .row-buttons Button:hover, .row-buttons Button:focus {
+        background: $boost;
+        color: $accent;
+        border: none;
+        padding: 0;
+        margin: 0;
     }
     """
 
@@ -164,7 +414,7 @@ class WorkflowEditorModal(ModalScreen[WorkflowDefinition | None]):
 
     def compose(self) -> ComposeResult:
         """Compose the modal's widgets."""
-        with Container(id="editor-container"):
+        with Vertical(id="editor-container"):
             yield Static(f"⚙️ Workflow Editor: {self.workflow.name}", id="editor-title")
 
             with TabbedContent():
@@ -226,70 +476,24 @@ class WorkflowEditorModal(ModalScreen[WorkflowDefinition | None]):
         """Compose the Phases tab content."""
         # Build phase list items
         phase_items = [
-            PhaseListItem(p, id=f"phase-{i}") for i, p in enumerate(self.workflow.phases)
+            PhaseListItem(p) for p in self.workflow.phases
         ]
 
         return Vertical(
-            Label("Workflow Phases (drag to reorder):", classes="section-label"),
+            Label("Workflow Phases:", classes="section-label"),
             ListView(*phase_items, id="phase-list"),
+            # Global 'Add' button
             Horizontal(
                 Button("Add Phase", variant="primary", id="btn-add-phase"),
-                Button("Edit Phase", variant="primary", id="btn-edit-phase"),
-                Button("Remove Phase", variant="error", id="btn-remove-phase"),
-                classes="phase-actions",
+                classes="dialog-buttons",  # Reuse right-aligned styling
             ),
-            # Phase editing form (initially hidden)
-            Vertical(
-                Label("Phase Configuration:", classes="section-label"),
-                Horizontal(
-                    Label("Name:"),
-                    Input(placeholder="phase_name", id="phase-name"),
-                    classes="input-row",
-                ),
-                Horizontal(
-                    Label("Description:"),
-                    Input(placeholder="Description...", id="phase-description"),
-                    classes="input-row",
-                ),
-                Horizontal(
-                    Label("Icon:"),
-                    Input(placeholder="📋", id="phase-icon"),
-                    classes="input-row",
-                ),
-                Horizontal(
-                    Label("On Success:"),
-                    Select([], id="phase-on-success"),
-                    classes="input-row",
-                ),
-                Horizontal(
-                    Label("On Failure:"),
-                    Select([], id="phase-on-failure"),
-                    classes="input-row",
-                ),
-                Horizontal(
-                    Label("Timeout:"),
-                    Input(
-                        placeholder="seconds (optional)",
-                        id="phase-timeout",
-                        type="integer",
-                    ),
-                    classes="input-row",
-                ),
-                Horizontal(
-                    Label("Max Retries:"),
-                    Input(
-                        placeholder="0",
-                        id="phase-retries",
-                        type="integer",
-                    ),
-                    classes="input-row",
-                ),
-                Horizontal(
-                    Button("Save Phase", variant="success", id="btn-save-phase"),
-                    Button("Cancel", variant="primary", id="btn-cancel-phase"),
-                    classes="phase-actions",
-                ),
-                id="phase-form",
+            Label(
+                "Info: Workflow starts in 'idle', then auto-transitions to the first phase.",
+                classes="dim",
+            ),
+            Label(
+                "Flow: 'On Success' triggers next phase. Terminal states ('completed'/'error') reset to 'idle'.",
+                classes="dim",
             ),
             classes="tab-content",
         )
@@ -384,73 +588,70 @@ class WorkflowEditorModal(ModalScreen[WorkflowDefinition | None]):
         except Exception as e:
             self.notify(f"Error saving workflow: {e}", severity="error")
 
-    def _edit_phase(self, phase: WorkflowPhase | None = None) -> None:
-        """Open phase editor for selected or new phase."""
-        # Show phase form
-        form = self.query_one("#phase-form", Vertical)
-        form.styles.display = "block"
-
-        if phase:
-            # Populate form with phase data
-            name_input = self.query_one("#phase-name", Input)
-            name_input.value = phase.name
-
-            desc_input = self.query_one("#phase-description", Input)
-            desc_input.value = phase.description
-
-            icon_input = self.query_one("#phase-icon", Input)
-            icon_input.value = phase.icon
-
-            # Update state selectors
-            self._update_state_selectors()
-
-            success_select = self.query_one("#phase-on-success", Select)
-            success_select.value = phase.on_success
-
-            failure_select = self.query_one("#phase-on-failure", Select)
-            failure_select.value = phase.on_failure if phase.on_failure else None
-
-            timeout_input = self.query_one("#phase-timeout", Input)
-            timeout_input.value = str(phase.timeout) if phase.timeout else ""
-
-            retries_input = self.query_one("#phase-retries", Input)
-            retries_input.value = str(phase.max_retries)
-
-    def _update_state_selectors(self) -> None:
-        """Update state selector options based on current workflow."""
-        states = self.workflow.get_states()
-        options = [(s, s) for s in states]
-
-        success_select = self.query_one("#phase-on-success", Select)
-        success_select.set_options(options)
-
-        failure_select = self.query_one("#phase-on-failure", Select)
-        failure_select.set_options([("", None)] + options)
+    # Removed _update_state_selectors as it is now handled in PhaseEditorModal
 
     def _add_phase(self) -> None:
         """Add a new phase to the workflow."""
-        new_phase = WorkflowPhase(
-            name=f"phase_{len(self.workflow.phases) + 1}",
-            on_success="completed",
-            icon="●",
+        existing_names = [p.name for p in self.workflow.phases]
+        states = self.workflow.get_states()
+        
+        def _on_phase_created(phase: WorkflowPhase | None) -> None:
+            if phase:
+                phases_list = list(self.workflow.phases)
+                phases_list.append(phase)
+                self.workflow.phases = phases_list
+                self.unsaved_changes = True
+                self._refresh_phase_list()
+                self._refresh_transitions_tab()
+                
+        self.app.push_screen(
+            PhaseEditorModal(existing_names=existing_names, available_states=states),
+            _on_phase_created
         )
-        # Add to workflow phases list
-        phases_list = list(self.workflow.phases)
-        phases_list.append(new_phase)
-        self.workflow.phases = phases_list
-        self.unsaved_changes = True
 
-        # Refresh phase list
-        self._refresh_phase_list()
-        self._edit_phase(new_phase)
+    def _edit_phase(self, phase: WorkflowPhase) -> None:
+        """Open phase editor for selected phase."""
+        existing_names = [p.name for p in self.workflow.phases]
+        states = self.workflow.get_states()
+
+        def _on_phase_edited(updated_phase: WorkflowPhase | None) -> None:
+            if updated_phase:
+                phases_list = list(self.workflow.phases)
+                # Find and replace
+                for i, p in enumerate(phases_list):
+                    if p.name == phase.name: # Use original name to find, or index
+                        phases_list[i] = updated_phase
+                        break
+                    # Fallback check if name changed but object identity matches (unlikely in this flow)
+                    if p == phase:
+                        phases_list[i] = updated_phase
+                        break
+                
+                self.workflow.phases = phases_list
+                self.unsaved_changes = True
+                self.selected_phase = updated_phase
+                self._refresh_phase_list()
+                self._refresh_transitions_tab()
+
+        self.app.push_screen(
+            PhaseEditorModal(phase=phase, existing_names=existing_names, available_states=states),
+            _on_phase_edited
+        )
 
     def _refresh_phase_list(self) -> None:
         """Refresh the phase list view."""
         list_view = self.query_one("#phase-list", ListView)
+        # Store index to restore selection if possible
+        old_index = list_view.index
+
         list_view.clear()
-        for i, phase in enumerate(self.workflow.phases):
-            item = PhaseListItem(phase, id=f"phase-{i}")
+        for phase in self.workflow.phases:
+            item = PhaseListItem(phase)
             list_view.append(item)
+        
+        # Restore selection if valid
+        if old_index is not None and 0 <= old_index < len(self.workflow.phases):
+            list_view.index = old_index
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
@@ -466,16 +667,96 @@ class WorkflowEditorModal(ModalScreen[WorkflowDefinition | None]):
             self.action_export_workflow()
         elif button_id == "btn-add-phase":
             self._add_phase()
-        elif button_id == "btn-edit-phase":
-            if self.selected_phase:
-                self._edit_phase(self.selected_phase)
-        elif button_id == "btn-remove-phase":
-            if self.selected_phase:
-                self._remove_phase(self.selected_phase)
-        elif button_id == "btn-save-phase":
-            self._save_current_phase()
-        elif button_id == "btn-cancel-phase":
-            self._cancel_phase_edit()
+            
+        # Handle row buttons
+        elif event.button.has_class("btn-row-up") or event.button.has_class("btn-row-down") or \
+             event.button.has_class("btn-row-edit") or event.button.has_class("btn-row-remove"):
+            
+            # Find the parent PhaseListItem
+            item = None
+            node = event.button
+            while node:
+                if isinstance(node, PhaseListItem):
+                    item = node
+                    break
+                node = node.parent
+                
+            if item:
+                # Select this item first to ensure actions work on the right item
+                list_view = self.query_one("#phase-list", ListView)
+                list_view.index = list_view.children.index(item)
+                
+                # Force update selected_phase immediately, as on_highlighted might be async
+                self.selected_phase = item.phase
+
+                if event.button.has_class("btn-row-edit"):
+                    self.action_edit_phase()
+                elif event.button.has_class("btn-row-remove"):
+                    self.action_remove_phase()
+                elif event.button.has_class("btn-row-up"):
+                    self.action_move_phase_up()
+                elif event.button.has_class("btn-row-down"):
+                    self.action_move_phase_down()
+
+    def action_move_phase_up(self) -> None:
+        """Move the selected phase up."""
+        if not self.selected_phase:
+            return
+        self._move_phase_up()
+
+    def action_move_phase_down(self) -> None:
+        """Move the selected phase down."""
+        if not self.selected_phase:
+            return
+        self._move_phase_down()
+        
+    def action_edit_phase(self) -> None:
+        """Edit the selected phase."""
+        if not self.selected_phase:
+            return
+        self._edit_phase(self.selected_phase)
+        
+    def action_remove_phase(self) -> None:
+        """Remove the selected phase."""
+        if not self.selected_phase:
+            return
+        self._remove_phase(self.selected_phase)
+
+    def _move_phase_up(self) -> None:
+        """Move the selected phase up in the list."""
+        if not self.selected_phase:
+            return
+
+        phases = list(self.workflow.phases)
+        if self.selected_phase not in phases:
+            return
+
+        idx = phases.index(self.selected_phase)
+        if idx > 0:
+            phases[idx], phases[idx - 1] = phases[idx - 1], phases[idx]
+            self.workflow.phases = phases
+            self.unsaved_changes = True
+            self._refresh_phase_list()
+            # Restore selection
+            self.query_one("#phase-list", ListView).index = idx - 1
+
+    def _move_phase_down(self) -> None:
+        """Move the selected phase down in the list."""
+        if not self.selected_phase:
+            return
+
+        phases = list(self.workflow.phases)
+        if self.selected_phase not in phases:
+            return
+
+        idx = phases.index(self.selected_phase)
+        if idx < len(phases) - 1:
+            phases[idx], phases[idx + 1] = phases[idx + 1], phases[idx]
+            self.workflow.phases = phases
+            self.unsaved_changes = True
+            self._refresh_phase_list()
+            # Restore selection
+            self.query_one("#phase-list", ListView).index = idx + 1
 
     def _remove_phase(self, phase: WorkflowPhase) -> None:
         """Remove a phase from the workflow."""
@@ -484,112 +765,6 @@ class WorkflowEditorModal(ModalScreen[WorkflowDefinition | None]):
         self.unsaved_changes = True
         self.selected_phase = None
         self._refresh_phase_list()
-
-    def _save_current_phase(self) -> None:
-        """Save the currently edited phase."""
-        name_input = self.query_one("#phase-name", Input)
-        name = name_input.value.strip()
-
-        if not name:
-            name_input.add_class("error")
-            self._shake(name_input)
-            return
-
-        # Validate name is unique (unless editing same phase)
-        for p in self.workflow.phases:
-            if p.name == name and p != self.selected_phase:
-                name_input.add_class("error")
-                self.notify("Phase name must be unique", severity="error")
-                return
-
-        # Build updated phase
-        desc_input = self.query_one("#phase-description", Input)
-        icon_input = self.query_one("#phase-icon", Input)
-        success_select = self.query_one("#phase-on-success", Select)
-        failure_select = self.query_one("#phase-on-failure", Select)
-        timeout_input = self.query_one("#phase-timeout", Input)
-        retries_input = self.query_one("#phase-retries", Input)
-
-        # Parse timeout
-        timeout = None
-        if timeout_input.value:
-            try:
-                timeout = int(timeout_input.value)
-                if timeout <= 0:
-                    timeout = None
-            except ValueError:
-                timeout_input.add_class("error")
-                return
-
-        # Parse retries
-        max_retries = 0
-        if retries_input.value:
-            try:
-                max_retries = int(retries_input.value)
-                if max_retries < 0:
-                    max_retries = 0
-            except ValueError:
-                retries_input.add_class("error")
-                return
-
-        failure_value = failure_select.value
-        failure_target = None
-        if isinstance(failure_value, str) and failure_value:
-            failure_target = failure_value
-
-        # Build phase kwargs
-        phase_kwargs: dict[str, Any] = {
-            "name": name,
-            "description": desc_input.value.strip(),
-            "icon": icon_input.value.strip(),
-            "on_success": str(success_select.value) if success_select.value else "completed",
-            "timeout": timeout,
-            "max_retries": max_retries,
-        }
-
-        # Only add on_failure if it's set (otherwise use default)
-        if failure_target:
-            phase_kwargs["on_failure"] = failure_target
-
-        updated_phase = WorkflowPhase(**phase_kwargs)
-
-        # Replace or add phase
-        phases_list = list(self.workflow.phases)
-        if self.selected_phase in phases_list:
-            idx = phases_list.index(self.selected_phase)
-            phases_list[idx] = updated_phase
-        else:
-            phases_list.append(updated_phase)
-
-        self.workflow.phases = phases_list
-        self.selected_phase = updated_phase
-        self.unsaved_changes = True
-
-        # Hide form and refresh
-        form = self.query_one("#phase-form", Vertical)
-        form.styles.display = "none"
-        self._refresh_phase_list()
         self._refresh_transitions_tab()
 
-    def _cancel_phase_edit(self) -> None:
-        """Cancel phase editing."""
-        form = self.query_one("#phase-form", Vertical)
-        form.styles.display = "none"
-
-    def _refresh_transitions_tab(self) -> None:
-        """Refresh the transitions display."""
-        transition_text = self.query_one("#transition-list", TextArea)
-        transition_text.text = self._build_transitions_text()
-
-    def _shake(self, widget: Widget) -> None:
-        """Shake widget to indicate error."""
-        offsets = [(2, 0), (-2, 0), (1, 0), (-1, 0), None]
-        step_duration = 0.05
-
-        def _step(i: int) -> None:
-            if i >= len(offsets):
-                return
-            widget.styles.offset = offsets[i]  # type: ignore
-            self.set_timer(step_duration, lambda: _step(i + 1))
-
-        _step(0)
+    # Removed _save_current_phase, _cancel_phase_edit, _shake as they are now in PhaseEditorModal
