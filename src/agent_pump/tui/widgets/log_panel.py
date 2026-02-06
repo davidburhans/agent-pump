@@ -8,7 +8,8 @@ from typing import cast
 from rich.console import RenderableType
 from rich.panel import Panel
 from rich.text import Text
-from textual.widgets import RichLog
+from textual.widgets import OptionList
+from textual.widgets.option_list import Option
 
 
 @dataclass(slots=True)
@@ -25,7 +26,7 @@ class LogEntry:
     renderable: RenderableType
 
 
-class LogPanel(RichLog):
+class LogPanel(OptionList):
     """A scrolling log panel for displaying agent output using Rich renderables."""
 
     # Maximum number of log entries to keep in memory
@@ -39,23 +40,41 @@ class LogPanel(RichLog):
         background: $surface;
         border: solid $primary;
         padding: 0 1;
-        overflow-y: scroll;
+        /* OptionList manages overflow */
+    }
+
+    /* Disable selection highlighting to make it look like a log */
+    LogPanel > .option-list--option-highlighted,
+    LogPanel > .option--highlighted {
+        background: transparent;
+        color: $text;
+    }
+
+    LogPanel:focus > .option-list--option-highlighted,
+    LogPanel:focus > .option--highlighted {
+         background: transparent;
+         color: $text;
     }
     """
 
     def __init__(self, **kwargs):
         """Initialize the log panel."""
-        super().__init__(
-            wrap=True,
-            highlight=True,
-            markup=True,
-            **kwargs,
-        )
+        # OptionList doesn't accept wrap/highlight/markup
+        # We also need to strip them from kwargs if they were passed (unlikely for LogPanel usage)
+        kwargs.pop("wrap", None)
+        kwargs.pop("highlight", None)
+        kwargs.pop("markup", None)
+
+        super().__init__(**kwargs)
+
         self.log_entries: list[LogEntry] = []
         self.sort_order: str = "desc"  # or "asc"
         self.filter_path: Path | None = None
         self.filter_states: list[str] | None = None
         self.filter_task: str | None = None
+
+        # Disable highlighting/focus on options to mimic a log
+        self.show_vertical_scrollbar = True
 
     def write(
         self,
@@ -82,6 +101,10 @@ class LogPanel(RichLog):
             state=state,
             task=task,
         )
+
+    def clear(self) -> None:
+        """Clear the log panel."""
+        self.clear_options()
 
     def log_message(
         self,
@@ -155,31 +178,29 @@ class LogPanel(RichLog):
             self.log_entries = self.log_entries[trim_count:]
             trimmed = True
 
+        # If we trimmed, we might need a full refresh if we are displaying everything
+        # But OptionList can handle removal too, though complicated.
+        # For simplicity, if trimmed, just full refresh.
         if trimmed:
             self._refresh_display()
             return
 
         if self._should_show(entry):
-            if self.sort_order == "desc":
-                # RichLog writes to the end by default.
-                # For "desc" (newest first), we want the NEWEST item at the TOP?
-                # Actually, standard terminal logs are "asc" (newest at bottom).
-                # Previous implementation:
-                # asc -> append to end (scroll end)
-                # desc -> insert at top (0,0) (scroll home)
+            # Create option with disabled=True to discourage selection interaction if possible,
+            # but disabled options might be dimmed.
+            # We use CSS to hide selection highlight instead.
+            option = Option(entry.renderable, disabled=False)
 
-                # RichLog doesn't support "insert at top" easily without clearing.
-                # It behaves like a terminal.
-                # So if we want "newest first", we effectively have to rewrite everything
-                # or use a widget that supports reverse list.
-                # BUT, given we are refactoring, maybe we should stick to standard
-                # "asc" (newest at bottom) as default for RichLog, and only support
-                # "desc" via full refresh? Yes, "desc" will be expensive for RichLog
-                # as we have to clear and re-render reverse list.
+            if self.sort_order == "desc":
+                # Prepend for desc order
+                # OptionList doesn't support insert at index, so we must refresh.
+                # However, OptionList is virtualized, so refreshing is faster than RichLog.
                 self._refresh_display()
             else:
-                # "asc" is natural for RichLog
-                super().write(final_renderable)
+                # Append for asc order
+                self.add_option(option)
+                if self.sort_order == "asc":
+                    self.scroll_end(animate=False)
 
     def set_filter(
         self, project_path: Path | None, states: list[str] | None = None, task: str | None = None
@@ -235,23 +256,22 @@ class LogPanel(RichLog):
 
     def _refresh_display(self) -> None:
         """Refresh the log with filtered entries."""
-        self.clear()
+        self.clear_options()
 
         visible_entries = [entry for entry in self.log_entries if self._should_show(entry)]
 
         if self.sort_order == "desc":
             visible_entries.reverse()
 
-        for entry in visible_entries:
-            super().write(entry.renderable)
+        # Batch add options for performance
+        options = [Option(entry.renderable) for entry in visible_entries]
+        self.add_options(options)
 
         # Scroll to match sort order intent
-        # If desc (newest at top), scroll top
-        # If asc (newest at bottom), scroll bottom
         if self.sort_order == "desc":
-            self.scroll_home()
+            self.scroll_home(animate=False)
         else:
-            self.scroll_end()
+            self.scroll_end(animate=False)
 
     @property
     def text(self) -> str:
