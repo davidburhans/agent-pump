@@ -254,6 +254,7 @@ class TestProjectWorkflow:
         # Mock build_prompt to verify arguments
         with patch(
             "agent_pump.orchestrator.prompt_loader.PromptLoader.build_prompt",
+            new_callable=AsyncMock,
             return_value="Mocked Prompt",
         ) as mock_build:
             # Run one iteration of the loop

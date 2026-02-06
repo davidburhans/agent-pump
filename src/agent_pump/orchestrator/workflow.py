@@ -776,7 +776,7 @@ class ProjectWorkflow:
 
                         # Build prompt directly from file system
                         backend_runner = self._get_backend_for_phase(phase.name)
-                        prompt = self.prompt_loader.build_prompt(
+                        prompt = await self.prompt_loader.build_prompt(
                             state=phase.name,
                             backend=str(backend_runner.name),
                             default_prompt="",  # No fallback, requires file
