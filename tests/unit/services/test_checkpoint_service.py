@@ -212,19 +212,23 @@ class TestCheckpointServiceCreateCheckpoint:
             service = CheckpointService(event_bus, tmp_path)
             checkpoint = service.create_checkpoint(
                 phase="planning",
-                feature="Test Feature",
+                feature_name="Test Feature",
                 auto_created=True,
             )
 
             assert checkpoint.phase == "planning"
-            assert checkpoint.feature == "Test Feature"
+            assert checkpoint.feature_name == "Test Feature"
             assert checkpoint.git_commit_hash == "abc123def4567890abcdef1234567890abcdef12"
             assert checkpoint.auto_created is True
             assert "planning" in checkpoint.description.lower()
+            assert "Test Feature" in checkpoint.description
 
             # Verify git operations
             mock_instance.git.add.assert_called_once_with("-A")
             mock_instance.index.commit.assert_called_once()
+            commit_msg = mock_instance.index.commit.call_args[0][0]
+            assert "planning checkpoint" in commit_msg
+            assert "Test Feature" in commit_msg
 
     def test_create_checkpoint_clean_worktree(self, tmp_path, event_bus):
         """Test creating checkpoint when worktree is clean."""
@@ -271,17 +275,19 @@ class TestCheckpointServiceCreateCheckpoint:
             service = CheckpointService(event_bus, tmp_path)
             checkpoint = service.create_checkpoint(
                 phase="verifying",
-                feature="Manual Feature",
+                feature_name="Manual Feature",
                 description="User saved checkpoint",
                 auto_created=False,
             )
 
             assert checkpoint.auto_created is False
-            assert checkpoint.description == "User saved checkpoint"
+            assert "User saved checkpoint" in checkpoint.description
+            assert "Manual Feature" in checkpoint.description
 
-            # Check commit message contains "manual"
+            # Check commit message contains "manual" and the feature name
             call_args = mock_instance.index.commit.call_args[0][0]
             assert "manual" in call_args.lower()
+            assert "Manual Feature" in call_args
 
     def test_create_checkpoint_git_error(self, tmp_path, event_bus):
         """Test handling git errors during checkpoint creation."""

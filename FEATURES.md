@@ -1160,6 +1160,7 @@ Save and restore project states at any point in the workflow. Checkpoints provid
 
 - **Automatic Checkpoints**: Created automatically before each workflow phase (planning, implementing, verifying, brainstorming, committing)
 - **Manual Checkpoints**: Create manual save points at any time with custom descriptions
+- **Feature Name Traceability**: Automatically includes the current feature name in checkpoint commit messages (e.g., `[checkpoint][auto][planning][My Feature] description`) for improved git history searchability.
 - **Checkpoint List**: View all checkpoints with timestamps, phase information, and descriptions
 - **One-Click Rollback**: Restore project to any previous checkpoint via git reset
 - **Backup Branches**: Automatic backup branch creation before rollback for additional safety

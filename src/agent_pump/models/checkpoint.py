@@ -32,7 +32,7 @@ class Checkpoint(BaseModel):
     phase: str = Field(
         description="The workflow phase when checkpoint was created",
     )
-    feature: str | None = Field(
+    feature_name: str | None = Field(
         default=None,
         description="The current feature being worked on",
     )

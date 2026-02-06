@@ -11,21 +11,22 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Current Sprint
 
-(No active sprint items)
+### 🔴 GitHub Integration
+**Priority: Medium**
+
+Deep integration with GitHub to allow Agent Pump to:
+- Create Pull Requests once a feature is verified.
+- Link commits to specific GitHub Issues.
+- Update issue status on completion.
 
 ---
 
-## Completed Features
+### 🔴 Advanced RAG for Context Management
+**Priority: Medium**
 
-### ✅ Automated Web UI Build Command
-Integrate the React frontend build process into the Agent Pump CLI to allow for one-step installation and deployment of the web dashboard.
-(Moved to FEATURES.md)
-
-For completed features, see [FEATURES.md](FEATURES.md).
+Enhance the `ContextManager` with vector search capabilities to index the entire codebase and external documentation, providing more relevant context snippets than just full file inclusion.
 
 ---
-
-## Future Enhancements
 
 ### ⚫ Voice Control
 **Priority: Low**

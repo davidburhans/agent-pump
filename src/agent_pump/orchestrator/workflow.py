@@ -1143,7 +1143,7 @@ class ProjectWorkflow:
             try:
                 checkpoint = self.checkpoint_service.create_checkpoint(
                     phase=phase_name,
-                    feature=self.project.current_feature,
+                    feature_name=self.project.current_feature,
                     description=f"Auto-checkpoint before {phase_name} phase",
                     auto_created=True,
                 )

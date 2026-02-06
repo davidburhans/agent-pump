@@ -1,6 +1,5 @@
 """Integration test for 'ui build' CLI integration."""
 
-import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -42,11 +41,10 @@ def test_ui_build_integration(mock_subprocess_popen, mock_shutil_which, tmp_path
     ui_dir = tmp_path / "ui"
     ui_dir.mkdir()
     (ui_dir / "package.json").write_text('{"name": "ui"}', encoding="utf-8")
-    
+
     # Static output dir
     static_dir = tmp_path / "src" / "agent_pump" / "api" / "static"
     static_dir.mkdir(parents=True)
-    index_html = static_dir / "index.html"
 
     with (
         patch("pathlib.Path.cwd", return_value=tmp_path),
@@ -74,7 +72,7 @@ def test_ui_build_integration(mock_subprocess_popen, mock_shutil_which, tmp_path
         assert "Building UI assets" in result.output
         assert "Vite v5.0.0 building for production" in result.output
         assert "UI built successfully" in result.output
-    
+
     # Verify build command was called with correct CWD
     mock_subprocess_popen.assert_called()
     call_args, call_kwargs = mock_subprocess_popen.call_args
@@ -90,7 +88,7 @@ def test_ui_build_failure_integration(mock_subprocess_popen, mock_shutil_which, 
 
     # Set up mock failure
     mock_subprocess_popen.return_value.wait.return_value = 1
-    
+
     ui_dir = tmp_path / "ui"
     ui_dir.mkdir()
     (ui_dir / "package.json").write_text('{"name": "ui"}', encoding="utf-8")
@@ -100,10 +98,11 @@ def test_ui_build_failure_integration(mock_subprocess_popen, mock_shutil_which, 
         patch("pathlib.Path.exists") as mock_exists,
     ):
         def exists_side_effect(*args, **kwargs):
-            if not args: return True
+            if not args:
+                return True
             p = str(args[0]).replace("\\", "/")
             return any(x in p for x in ["/ui", "package.json", "node_modules"])
-            
+
         mock_exists.side_effect = exists_side_effect
 
         result = runner.invoke(main, ["ui", "build"])

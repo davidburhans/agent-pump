@@ -21,7 +21,7 @@ class TestCheckpoint:
         assert checkpoint.git_commit_hash == "abc123def456"
         assert checkpoint.description == "Before planning phase"
         assert checkpoint.auto_created is True
-        assert checkpoint.feature is None
+        assert checkpoint.feature_name is None
         assert len(checkpoint.id) == 8  # Short UUID
         assert isinstance(checkpoint.timestamp, datetime)
         assert checkpoint.files_modified == []
@@ -33,11 +33,11 @@ class TestCheckpoint:
             git_commit_hash="xyz789abc123",
             description="Manual save point",
             auto_created=False,
-            feature="Add login page",
+            feature_name="Add login page",
         )
 
         assert checkpoint.auto_created is False
-        assert checkpoint.feature == "Add login page"
+        assert checkpoint.feature_name == "Add login page"
         assert checkpoint.phase == "implementing"
 
     def test_with_files_modified(self):
@@ -77,7 +77,7 @@ class TestCheckpoint:
             "id": "chk67890",
             "timestamp": datetime.now(),
             "phase": "implementing",
-            "feature": "Feature X",
+            "feature_name": "Feature X",
             "git_commit_hash": "xyz789",
             "description": "From dict test",
             "files_modified": ["file1.py", "file2.py"],
@@ -88,7 +88,7 @@ class TestCheckpoint:
 
         assert checkpoint.id == "chk67890"
         assert checkpoint.phase == "implementing"
-        assert checkpoint.feature == "Feature X"
+        assert checkpoint.feature_name == "Feature X"
         assert checkpoint.git_commit_hash == "xyz789"
         assert checkpoint.auto_created is False
 
@@ -185,6 +185,7 @@ class TestCheckpointCollection:
 
         assert len(collection) == 3
         latest = collection.get_latest()
+        assert latest is not None
         assert latest.id == "chk2"
         assert latest.description == "Checkpoint 2"
 

@@ -175,7 +175,7 @@ class CheckpointModal(ModalScreen[tuple[str, str] | None]):
 ID: {cp.id}
 Time: {cp.get_formatted_time()}
 Phase: {cp.phase}
-Feature: {cp.feature or "N/A"}
+Feature: {cp.feature_name or "N/A"}
 Type: {"Auto-created" if cp.auto_created else "Manual"}
 Git Commit: {cp.git_commit_hash}
 

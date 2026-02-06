@@ -102,7 +102,7 @@ class CheckpointService(BaseService):
     def create_checkpoint(
         self,
         phase: str,
-        feature: str | None = None,
+        feature_name: str | None = None,
         description: str | None = None,
         auto_created: bool = True,
     ) -> Checkpoint:
@@ -110,7 +110,7 @@ class CheckpointService(BaseService):
 
         Args:
             phase: Current workflow phase
-            feature: Current feature name (optional)
+            feature_name: Current feature name (optional)
             description: Custom description (optional)
             auto_created: Whether this is an auto-created checkpoint
 
@@ -131,12 +131,16 @@ class CheckpointService(BaseService):
 
                 # Generate commit message
                 auto_label = "auto" if auto_created else "manual"
+
+                # Format: [checkpoint][auto/manual][phase][feature_name] description
+                commit_msg = f"{self.CHECKPOINT_PREFIX}[{auto_label}][{phase}]"
+                if feature_name:
+                    commit_msg += f"[{feature_name}]"
+
                 if description:
-                    commit_msg = f"{self.CHECKPOINT_PREFIX} {auto_label}: {description}"
+                    commit_msg += f" {description}"
                 else:
-                    commit_msg = f"{self.CHECKPOINT_PREFIX} {auto_label}: {phase} checkpoint"
-                    if feature:
-                        commit_msg += f" for {feature}"
+                    commit_msg += f" {phase} checkpoint"
 
                 # Create the checkpoint commit
                 commit = self.repo.index.commit(commit_msg)
@@ -154,12 +158,13 @@ class CheckpointService(BaseService):
             # Create checkpoint object
             if not description:
                 description = f"Checkpoint before {phase} phase"
-                if feature:
-                    description += f" for {feature}"
+
+            if feature_name and f" for {feature_name}" not in description:
+                description += f" for {feature_name}"
 
             checkpoint = Checkpoint(
                 phase=phase,
-                feature=feature,
+                feature_name=feature_name,
                 git_commit_hash=commit_hash,
                 description=description,
                 files_modified=files_modified,

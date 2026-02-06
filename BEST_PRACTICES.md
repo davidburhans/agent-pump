@@ -571,6 +571,7 @@ Before committing:
 - **Atomic Commits**: Group related changes into atomic commits that represent a single logical change or feature. This makes the history easier to follow and simplifies potential reverts or cherry-picks.
 - **Staging by Feature**: When working on multiple features simultaneously (common in agentic workflows), use `git add <file>` or `git add -p` to stage changes selectively rather than `git add .`, ensuring each commit remains focused.
 - **Squashing Checkpoints**: During the final committing phase, squash intermediate auto-checkpoints into a single, well-descriptive feature commit following conventional commit standards. This maintains a high-quality project history while allowing for safety during development.
+- **Cleanup of Temporary Artifacts**: Before final commit, ensure that session-specific files like task plans (`ENGINEERING_PLAN.md`) or temporary task markers are either removed or updated to reflect the final state, keeping the root directory clean.
 
 ### Python Syntax in Tests
 - **Multi-line Context Managers**: Use parentheses for multi-line `with` statements (Python 3.10+) instead of backslashes. It is cleaner and less prone to syntax errors during refactoring or tooling updates.
@@ -611,8 +612,12 @@ Before committing:
 
 - **Mocking shutil.which**: When mocking `shutil.which` in tests, remember that it might be called implicitly by other library functions. Ensure your mock return values align with expectations (e.g. returning a string path or None).
 
-- **Streaming Output**: For long-running CLI operations, use `subprocess.Popen` with `stdout=subprocess.PIPE` and `stderr=subprocess.STDOUT` to stream real-time progress to the user. This improves perceived performance and debuggability compared to blocking calls like `subprocess.run`.
+- **Streaming Output**: For long-running CLI operations (like `npm install` or `npm run build`), use `subprocess.Popen` with `stdout=subprocess.PIPE` and `stderr=subprocess.STDOUT` to stream real-time progress to the user. This improves perceived performance and debuggability compared to blocking calls like `subprocess.run`. Use `shutil.which` to find executables and handle missing tools gracefully.
 
 - **Atomic Refinement Commits**: When a feature is implemented in stages (e.g., core logic followed by UI refinement), use clear commit messages that distinguish between the initial implementation and subsequent refinements. Consider squashing checkpoints into a single high-quality feature commit before finalization.
 
 - **Indentation in Replacements**: Be extremely careful with indentation when using the `replace` tool on multi-line blocks, especially within `with` or `def` statements, to avoid `IndentationError`.
+
+- **Robust String Matching**: When checking for existence of a substring in a message (e.g., in `CheckpointService`), be careful with common words that might be part of other words (e.g., `"for"` in `"before"`). Use more specific patterns like `f" for {name}"` or regex boundaries (`\bfor\b`) to avoid false positives.
+
+- **Mocking Git Operations**: Mocking `Repo.index.commit` is an effective way to test commit message generation logic without requiring a real git repository or making actual commits. Use `side_effect` to capture arguments for assertion.

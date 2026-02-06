@@ -1,5 +1,6 @@
-from agent_pump.utils.ui_build import run_ui_build, UIBuildError
 import sys
+
+from agent_pump.utils.ui_build import UIBuildError, run_ui_build
 
 if __name__ == "__main__":
     try:

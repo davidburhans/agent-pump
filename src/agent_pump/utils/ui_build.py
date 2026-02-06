@@ -28,7 +28,7 @@ def _run_and_stream(args: list[str], cwd: Path, title: str) -> None:
         subprocess.CalledProcessError: If the command fails.
     """
     console.print(f"[bold blue]>>> {title}[/bold blue]")
-    
+
     process = subprocess.Popen(
         args,
         cwd=cwd,
@@ -98,7 +98,8 @@ def run_ui_build(force_install: bool = False) -> None:
     except subprocess.CalledProcessError:
         raise UIBuildError(
             "UI build failed. Check the output above for details. "
-            "Common issues: syntax errors in TypeScript/React code or missing environment variables."
+            "Common issues: syntax errors in TypeScript/React code or "
+            "missing environment variables."
         )
 
     # 5. Verify output
@@ -111,5 +112,5 @@ def run_ui_build(force_install: bool = False) -> None:
             "Check if 'ui/vite.config.ts' output path matches 'src/agent_pump/api/static'."
         )
 
-    console.print(f"\n[bold green]✓ UI built successfully![/bold green]")
+    console.print("\n[bold green]✓ UI built successfully![/bold green]")
     console.print(f"[dim]Assets written to: {output_dir}[/dim]")

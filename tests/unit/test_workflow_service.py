@@ -219,7 +219,7 @@ class TestWorkflowServiceCheckpointRollback:
         assert result == checkpoint
         mock_workflow.checkpoint_service.create_checkpoint.assert_called_once_with(
             phase="manual",
-            feature="Test Feature",
+            feature_name="Test Feature",
             description="Manual save point",
             auto_created=False,
         )
@@ -250,7 +250,7 @@ class TestWorkflowServiceCheckpointRollback:
         assert result == checkpoint
         mock_workflow.checkpoint_service.create_checkpoint.assert_called_once_with(
             phase="manual",
-            feature=None,
+            feature_name=None,
             description="Before big changes",
             auto_created=False,
         )

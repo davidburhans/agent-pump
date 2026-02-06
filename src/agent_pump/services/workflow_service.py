@@ -255,7 +255,7 @@ class WorkflowService(BaseService):
         try:
             checkpoint = workflow.checkpoint_service.create_checkpoint(
                 phase="manual",
-                feature=workflow.project.current_feature,
+                feature_name=workflow.project.current_feature,
                 description=description,
                 auto_created=False,
             )
