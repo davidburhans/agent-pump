@@ -11,12 +11,10 @@
 
 **Stop copying and pasting code. Start orchestrating intelligence.**
 
-[Introduction](#introduction) • 
+[Quick Start](#quick-start) • 
 [Features](#features) • 
-[Installation](#installation) • 
-[Usage](#usage) • 
 [How It Works](#how-it-works) • 
-[Roadmap](#roadmap)
+[Documentation](#documentation)
 
 </div>
 
@@ -24,311 +22,69 @@
 
 ## Introduction
 
-**Agent Pump** is a terminal-based orchestration platform that turns your AI coding assistants into autonomous agents. 
+**Agent Pump** is a terminal-based orchestration platform that turns your AI coding assistants into autonomous agents.
 
-Instead of treating AI as a chat bot where you copy-paste snippets back and forth, Agent Pump puts the AI in a **Workflow Loop**. You define the endpoint (the `ROADMAP.md`), and Agent Pump drives the AI through a rigorous 5-phase engineering process until the feature is built, tested, and committed.
+Instead of treating AI as a chatbot where you copy-paste snippets back and forth, Agent Pump puts the AI in a **Workflow Loop**. You define the endpoint (the `ROADMAP.md`), and Agent Pump drives the AI through a rigorous 5-phase engineering process until the feature is built, tested, and committed.
 
 It feels less like "chatting with a bot" and more like **pair programming with a senior engineer** who types really, really fast.
 
-> "Imagine a world where you write the roadmap, and the AI pumps out the code. That world is here."
+---
 
 ## Features
 
-- **🚀 Autonomous Workflow Loop**: Automatically cycles through **Plan → Implement → Verify → Brainstorm → Commit**.
-- **🖥️ Beautiful TUI Dashboard**: A rich terminal interface built with Textual to monitor multiple projects simultaneously.
-- **🌐 HTTP API & WebSocket**: Built-in web server for remote monitoring, API access, and real-time updates.
-- **🧠 Pluggable Intelligence**: Currently powered by the **Gemini CLI**, with architecture ready for Claude Code and OpenCode.
-- **✅ Automated Verification**: Runs your tests, linters, and build commands. If they fail, the agent fixes the code automatically.
-- **⚙️ Custom Verification Commands**: Configure project-specific build, lint, and test commands via `.agent-pump/config.yml` or through the TUI.
-- **📋 Copy Configuration**: Easily copy backend and prompt settings between projects or apply a configuration to your entire workspace.
-- **📝 Living Roadmap**: The agent doesn't just write code; it reads your `ROADMAP.md` to decide what to work on next.
-- **⚡ "YOLO" Mode**: Option to fully automate the process or require manual approval at key checkpoints.
-- **🛡️ Safety First**: All changes are sandboxed in git branches. The agent commits its own work with conventional commit messages.
+- 🚀 **Autonomous Workflow Loop** — Cycles through Plan → Implement → Verify → Brainstorm → Commit
+- 🖥️ **Beautiful TUI Dashboard** — Monitor multiple projects simultaneously with Textual
+- 🌐 **HTTP API & WebSocket** — Remote monitoring, API access, and real-time updates
+- 🧠 **Pluggable Backends** — Gemini, Claude Code, OpenCode, and Qwen with fallback chains
+- ✅ **Automated Verification** — Runs tests, linters, and builds; auto-fixes failures
+- 📝 **Living Roadmap** — The agent reads `ROADMAP.md` to decide what to work on next
+- 🌿 **Git Branch Strategy** — Automatic feature branches with optional auto-merge
+- 💰 **Cost Tracking** — Monitor API spending with budget limits and alerts
+- 🎭 **Dry Run Mode** — Preview changes without modifying files
+- 🔄 **Checkpoint Rollback** — Save and restore project states at any point
 
-## Installation
+See [FEATURES.md](FEATURES.md) for the complete feature list with configuration examples.
 
-Agent Pump is built with modern Python packaging tools. We recommend using `uv` for the best experience.
+---
+
+## Quick Start
 
 ```bash
-# Clone the repository
+# Clone and install
 git clone https://github.com/yourusername/agent-pump.git
 cd agent-pump
-
-# Install dependencies and sync virtual environment
 uv sync
-```
 
-Alternatively, you can use pip:
-
-```bash
-pip install -e .
-```
-
-## Usage
-
-### 1. Initialize a Project
-
-Agent Pump thrives on structure. Ensure your project has a `ROADMAP.md` file. This is the agent's "fuel". 
-
-```markdown
-# ROADMAP.md
-
-## Current Sprint
-### 🔴 Add Login Page
-Create a login page with email and password fields.
-```
-
-### 2. Launch the Pump
-
-Start the TUI dashboard:
-
-```bash
+# Launch the TUI
 uv run agent-pump
 ```
 
-### CLI Commands
+### Your First Project
 
-You can also manage projects directly from the command line:
+1. Ensure your project has a `ROADMAP.md` with a "Current Sprint" section:
+   ```markdown
+   ## Current Sprint
+   ### 🔴 Add Login Page
+   Create a login page with email and password fields.
+   ```
 
-```bash
-# Add a project
-uv run agent-pump project add ./my-project
-
-# Remove a project
-uv run agent-pump project remove ./my-project
-
-# List managed projects
-uv run agent-pump project list
-
-# Run with specific projects (launches TUI)
-uv run agent-pump ./my-project ./another-project
-
-# Chat with your codebase
-uv run agent-pump ask "How does the event bus work?" ./my-project
-```
-
-### Web Server Mode
-
-Agent Pump includes an HTTP server for remote monitoring and API access:
-
-```bash
-# Start the HTTP server (default port 8000)
-uv run agent-pump --web
-
-# Start on a custom port
-uv run agent-pump --web --web-port 8080
-```
-
-**Available Endpoints:**
-
-| Endpoint | Description |
-|----------|-------------|
-| `GET /health` | Health check with server status |
-| `WS /ws` | WebSocket for real-time updates |
-| `GET /docs` | OpenAPI documentation (debug mode) |
-
-**Example Usage:**
-
-```bash
-# Check server health
-curl http://localhost:8000/health
-```
-
-See [docs/api.md](docs/api.md) for complete API documentation.
-
-### UI Build Commands
-
-If you are developing or customizing the web dashboard, you can build the React frontend directly from the CLI:
-
-```bash
-# Build the UI assets
-uv run agent-pump ui build
-
-# Force re-installation of dependencies and build
-uv run agent-pump ui build --force
-```
-
-The build process streams output in real-time and places the compiled assets in `src/agent_pump/api/static`, where they are served by the FastAPI backend.
-
-### Verification Commands
-
-Configure custom build, lint, and test commands for your projects to ensure code quality:
-
-#### CLI Configuration
-
-```bash
-# Set build command for a project
-uv run agent-pump verification set-build ./my-project "npm run build"
-
-# Set lint command for a project
-uv run agent-pump verification set-lint ./my-project "npm run lint"
-
-# Set test command for a project
-uv run agent-pump verification set-test ./my-project "npm test"
-
-# Toggle skip verification for a project
-uv run agent-pump verification toggle-skip ./my-project --enable
-
-# Show current verification configuration
-uv run agent-pump verification show ./my-project
-
-# Detect project type and suggest appropriate commands
-uv run agent-pump verification detect ./my-project
-```
-
-#### File-Based Configuration
-
-You can also configure verification commands in your `.agent-pump/config.yml` file:
-
-```yaml
-verification:
-  build_cmd: "npm run build"
-  lint_cmd: "npm run lint"
-  test_cmd: "npm test"
-  skip_verification: false
-```
-
-#### Example Configurations
-
-**JavaScript/TypeScript Project:**
-```yaml
-verification:
-  build_cmd: "npm run build"
-  lint_cmd: "npm run lint"
-  test_cmd: "npm run test:unit"
-  skip_verification: false
-```
-
-**Python Project:**
-```yaml
-verification:
-  build_cmd: "python -m build"
-  lint_cmd: "ruff check . && mypy src/"
-  test_cmd: "pytest tests/ -v"
-  skip_verification: false
-```
-
-**Rust Project:**
-```yaml
-verification:
-  build_cmd: "cargo build"
-  lint_cmd: "cargo clippy --all-targets --all-features"
-  test_cmd: "cargo test --all-targets --all-features"
-  skip_verification: false
-```
-
-**Go Project:**
-```yaml
-verification:
-  build_cmd: "go build ./..."
-  lint_cmd: "golangci-lint run ./..."
-  test_cmd: "go test ./... -v"
-  skip_verification: false
-```
-
-**Java/Maven Project:**
-```yaml
-verification:
-  build_cmd: "mvn compile"
-  lint_cmd: "mvn checkstyle:check"
-  test_cmd: "mvn test"
-  skip_verification: false
-```
-
-**Java/Gradle Project:**
-```yaml
-verification:
-  build_cmd: "gradle build"
-  lint_cmd: "gradle check"
-  test_cmd: "gradle test"
-  skip_verification: false
-```
-
-**C++/Make Project:**
-```yaml
-verification:
-  build_cmd: "make"
-  lint_cmd: "cppcheck --enable=all src/"
-  test_cmd: "make test"
-  skip_verification: false
-```
-
-Verification commands run in sequence (build → lint → test) after the AI verification phase. If any command fails, the workflow enters an error state and the AI agent will attempt to fix the issue.
-
-The system includes security validation to prevent dangerous command patterns like `||`, `&&`, `;`, `$()`, and backticks to prevent command injection attacks.
-
-### 3. Orchestrate
-
-1.  Use the **TUI** to add your project directory.
-2.  Select the project.
-3.  Watch as Agent Pump:
-    *   Reads the `ROADMAP.md`.
-    *   **Plans** the implementation.
-    *   **Writes** the code.
-    *   **Verifies** the build.
-    *   **Commits** the changes to git.
+2. Press `a` in the TUI to add your project directory
+3. Press `s` to start the workflow
+4. Watch as Agent Pump plans, implements, verifies, and commits
 
 ### Key Bindings
 
 | Key | Action |
-| :--- | :--- |
-| `a` | **Add** a new project |
-| `delete` | **Remove** the selected project |
-| `s` | **Start** selected project |
-| `x` | **Stop** selected project |
-| `k` | **Skip** current feature (mark as failed) |
-| `?` | **Chat** with the project |
-| `escape` | **Quit** the application |
+|-----|--------|
+| `a` | Add project |
+| `s` / `x` | Start / Stop workflow |
+| `?` | Chat with project |
+| `b` | Configure backend |
+| `m` | Manage roadmap |
+| `Ctrl+P` | Command palette |
+| `Escape` | Quit |
 
-
-
-### Dynamic Workflows & Custom Prompts
-
-Agent Pump allows you to customize the agent's behavior for each project without touching the core code.
-
-#### Directory Structure
-
-When you add a project, Agent Pump creates a `.agent-pump/` directory:
-
-```text
-my-project/
-├── .agent-pump/
-│   ├── workflow.yaml       # The state machine definition
-│   └── states/             # Markdown prompt templates
-│       ├── planning.md
-│       ├── implementing.md
-│       ├── verifying.md
-│       └── ...
-```
-
-#### Customizing Prompts
-
-To change how the agent behaves in a specific phase (e.g., to make it write stricter tests), simply edit the corresponding markdown file in `.agent-pump/states/`.
-
-**Template Variables:**
-
-The prompt system uses **Jinja2** templating. You currently have access to:
-
-*   `{{ branch }}`: The current git branch name.
-
-**Reading Files:**
-You can include any file from your project using the `read_file` helper.
-Common examples:
-
-*   `{{ read_file("ROADMAP.md") }}`
-*   `{{ read_file("ENGINEERING_PLAN.md") }}`
-*   `{{ read_file("TASK_NAME") }}`
-*   `{{ read_file("docs/architecture.md") }}`
-
-**Note:** Template variables work in the main state files (e.g., `planning.md`). Calls to `pre-` and `post-` hooks (e.g., `pre-planning.md`) are currently appended raw and do **not** support variable expansion.
-
-#### Editing the Workflow
-
-You can modify `.agent-pump/workflow.json` to add new phases or change transitions.
-
-*   **Phases**: Define new steps in the `phases` list.
-*   **Implicit Linking**: If you add a phase named `"deployment"`, the system will automatically look for `.agent-pump/states/deployment.md`. No extra configuration required!
-
+---
 
 ## How It Works
 
@@ -345,75 +101,77 @@ graph LR
     F --> A
 ```
 
-1.  **PLAN**: The agent analyzes the codebase and creates an implementation plan.
-2.  **IMPLEMENT**: Code is written and scaffolding is generated.
-3.  **VERIFY**: Tests and linters are run. If there are errors, the agent loops back to *Implement* with the error logs.
-4.  **BRAINSTORM**: The agent reviews its own work and looks for improvements or follow-up tasks.
-5.  **COMMIT**: Changes are staged and committed to git with a descriptive message.
+1. **Plan** — Analyzes the codebase and creates an implementation plan
+2. **Implement** — Writes code following the plan
+3. **Verify** — Runs tests and linters; loops back on failure
+4. **Brainstorm** — Reviews work and updates the roadmap
+5. **Commit** — Stages and commits with a conventional commit message
+
+---
+
+## CLI Reference
+
+```bash
+# Project management
+uv run agent-pump project add ./my-project
+uv run agent-pump project list
+uv run agent-pump project bootstrap ./my-project
+
+# Chat with your codebase
+uv run agent-pump ask "How does the event bus work?" ./my-project
+
+# Web server mode
+uv run agent-pump --web --web-port 8080
+
+# Headless mode (CI/CD)
+uv run agent-pump ./my-project --headless --dry-run
+```
+
+---
 
 ## Development
 
 ### Prerequisites
 
--   **Python 3.12+**: This project requires Python 3.12 or newer.
--   **uv**: We use `uv` for dependency management. [Install uv](https://github.com/astral-sh/uv).
+- **Python 3.12+**
+- **uv** — [Install uv](https://github.com/astral-sh/uv)
 
-### Setup
-
-1.  Clone the repository:
-    ```bash
-    git clone https://github.com/yourusername/agent-pump.git
-    cd agent-pump
-    ```
-
-2.  Sync dependencies and create virtual environment:
-    ```bash
-    uv sync
-    ```
-
-### Static Analysis
-
-We run a strict ship. Please run these commands before submitting a PR:
-
--   **Linting (Ruff)**:
-    ```bash
-    uv run ruff check .
-    ```
-
--   **Type Checking (Pyright)**:
-    ```bash
-    uv run pyright
-    ```
-
-### Testing
-
-Run the test suite with pytest:
+### Setup & Testing
 
 ```bash
-# Run all tests
+git clone https://github.com/yourusername/agent-pump.git
+cd agent-pump
+uv sync
+
+# Run tests
 uv run pytest tests/ -v
 
-# Run unit tests only
-uv run pytest tests/unit/ -v
-
-# Run tests without desktop notifications
-AGENT_PUMP_NO_NOTIFY=1 uv run pytest tests/ -v
+# Lint & type check
+uv run ruff check .
+uv run pyright
 ```
 
-### Pre-commit Checklist
+---
 
-Before pushing your changes, ensure you pass the full verification suite:
+## Documentation
 
-1.  [ ] `uv run ruff check .` (Linting)
-2.  [ ] `uv run pyright` (Type Checking)
-3.  [ ] `uv run pytest tests/ -v` (Tests)
+| Document | Description |
+|----------|-------------|
+| [FEATURES.md](FEATURES.md) | Complete feature list with configuration examples |
+| [BEST_PRACTICES.md](BEST_PRACTICES.md) | Engineering philosophy and coding standards |
+| [ROADMAP.md](ROADMAP.md) | Active development plan |
+| [docs/api.md](docs/api.md) | HTTP API documentation |
+
+---
 
 ## Contributing
 
-We are building the future of agentic coding. Contributions are welcome!
+We're building the future of agentic coding. Contributions welcome!
 
-Please read our [BEST_PRACTICES.md](BEST_PRACTICES.md) to understand our engineering philosophy and coding standards.
+Please read [BEST_PRACTICES.md](BEST_PRACTICES.md) before submitting a PR.
 
-## Roadmap
+---
 
-See [ROADMAP.md](ROADMAP.md) for the active development plan. Yes, we use Agent Pump to build Agent Pump. 🤯
+<div align="center">
+<sub>Yes, we use Agent Pump to build Agent Pump. 🤯</sub>
+</div>

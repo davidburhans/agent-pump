@@ -47,3 +47,85 @@ class DiffService:
             return parse_git_diff(diff_output)
         except GitCommandError:
             return []
+
+    def get_available_checkpoints(self, max_count: int = 20) -> list[dict]:
+        """Get list of available checkpoints (commits) from git history.
+
+        Args:
+            max_count: Maximum number of checkpoints to return.
+
+        Returns:
+            List of checkpoint dictionaries with id, message, and date.
+        """
+        try:
+            checkpoints = []
+            for commit in self.repo.iter_commits(max_count=max_count):
+                checkpoints.append(
+                    {
+                        "id": commit.hexsha,
+                        "short_id": commit.hexsha[:7],
+                        "message": commit.message.splitlines()[0]
+                        if commit.message
+                        else "",  # First line only
+                        "date": commit.committed_datetime.strftime("%Y-%m-%d %H:%M"),
+                        "author": str(commit.author),
+                    }
+                )
+            return checkpoints
+        except GitCommandError:
+            return []
+
+    def get_diffs_by_type(self, diff_type: str, checkpoint_id: str | None = None) -> list[DiffFile]:
+        """Get diffs based on the specified type.
+
+        Args:
+            diff_type: Type of diff to get ("all", "staged", "unstaged", "checkpoint").
+            checkpoint_id: Required when diff_type is "checkpoint".
+
+        Returns:
+            List of DiffFile objects.
+        """
+        match diff_type:
+            case "staged":
+                return self.get_staged_diffs()
+            case "unstaged":
+                return self.get_unstaged_diffs()
+            case "checkpoint":
+                if checkpoint_id:
+                    return self.get_checkpoint_diffs(checkpoint_id)
+                return []
+            case _:  # "all" or any other value
+                return self.get_all_changes()
+
+    def get_diff_statistics(self) -> dict:
+        """Get statistics for current changes.
+
+        Returns:
+            Dictionary with files_changed, additions, and deletions counts.
+        """
+        try:
+            # Use git diff --stat to get statistics
+            diff_output = self.repo.git.diff("--staged", "--unified=3")
+            if not diff_output.strip():
+                diff_output = self.repo.git.diff("--unified=3")
+
+            files = parse_git_diff(diff_output)
+
+            additions = 0
+            deletions = 0
+
+            for file in files:
+                for hunk in file.hunks:
+                    for line in hunk.lines:
+                        if line.startswith("+") and not line.startswith("+++"):
+                            additions += 1
+                        elif line.startswith("-") and not line.startswith("---"):
+                            deletions += 1
+
+            return {
+                "files_changed": len(files),
+                "additions": additions,
+                "deletions": deletions,
+            }
+        except GitCommandError:
+            return {"files_changed": 0, "additions": 0, "deletions": 0}
