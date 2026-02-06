@@ -3,7 +3,7 @@ from pathlib import Path
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal, Vertical
 from textual.screen import ModalScreen
-from textual.widgets import Button, Footer, Header, Label, Select, Static
+from textual.widgets import Button, Footer, Header, Select, Static
 
 from agent_pump.services.diff_service import DiffService
 from agent_pump.tui.widgets.diff_file_list import DiffFileList
@@ -177,7 +177,11 @@ class DiffViewerScreen(ModalScreen):
             header = header_map.get(self.current_diff_type, "Changes")
 
         stats = self.diff_service.get_diff_statistics()
-        stats_text = f"Files: {len(changes)} | Additions: [green]+{stats['additions']}[/] | Deletions: [red]-{stats['deletions']}[/]"
+        stats_text = (
+            f"Files: {len(changes)} | "
+            f"Additions: [green]+{stats['additions']}[/] | "
+            f"Deletions: [red]-{stats['deletions']}[/]"
+        )
 
         stats_bar.update(f"{header} | {stats_text}")
 

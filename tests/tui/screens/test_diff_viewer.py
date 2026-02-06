@@ -1,7 +1,7 @@
 """Tests for the diff viewer screen."""
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from textual.app import App
@@ -90,7 +90,8 @@ async def test_diff_viewer_loads_changes(sample_diff_files):
 
     with patch("agent_pump.tui.screens.diff_viewer.DiffService") as mock_service:
         mock_instance = mock_service.return_value
-        mock_instance.get_all_changes.return_value = sample_diff_files
+        mock_instance.get_diffs_by_type.return_value = sample_diff_files
+        mock_instance.get_available_checkpoints.return_value = []
 
         async with app.run_test() as pilot:
             await pilot.pause()
@@ -117,7 +118,8 @@ async def test_diff_viewer_file_selection(sample_diff_files):
 
     with patch("agent_pump.tui.screens.diff_viewer.DiffService") as mock_service:
         mock_instance = mock_service.return_value
-        mock_instance.get_all_changes.return_value = sample_diff_files
+        mock_instance.get_diffs_by_type.return_value = sample_diff_files
+        mock_instance.get_available_checkpoints.return_value = []
 
         async with app.run_test() as pilot:
             await pilot.pause()
@@ -130,7 +132,9 @@ async def test_diff_viewer_file_selection(sample_diff_files):
             assert diff_view.file is None
 
             # Simulate file selection by posting message
-            file_list.post_message(file_list.FileSelected(sample_diff_files[0]))
+            from agent_pump.tui.widgets.diff_file_list import DiffFileList
+
+            file_list.post_message(DiffFileList.FileSelected(sample_diff_files[0]))
             await pilot.pause()
 
             # Check that diff view was updated
@@ -191,7 +195,8 @@ async def test_diff_viewer_staged_changes():
         mock_instance = mock_service.return_value
         mock_instance.get_staged_diffs.return_value = staged_files
         mock_instance.get_unstaged_diffs.return_value = []
-        mock_instance.get_all_changes.return_value = staged_files
+        mock_instance.get_diffs_by_type.return_value = staged_files
+        mock_instance.get_available_checkpoints.return_value = []
 
         async with app.run_test() as pilot:
             await pilot.pause()
@@ -230,7 +235,8 @@ async def test_diff_viewer_unstaged_changes():
         mock_instance = mock_service.return_value
         mock_instance.get_staged_diffs.return_value = []
         mock_instance.get_unstaged_diffs.return_value = unstaged_files
-        mock_instance.get_all_changes.return_value = unstaged_files
+        mock_instance.get_diffs_by_type.return_value = unstaged_files
+        mock_instance.get_available_checkpoints.return_value = []
 
         async with app.run_test() as pilot:
             await pilot.pause()
@@ -266,14 +272,20 @@ async def test_diff_viewer_checkpoint_selection():
     ]
 
     checkpoints = [
-        MagicMock(id="abc123", description="Test checkpoint"),
+        {
+            "id": "abc123",
+            "short_id": "abc123",
+            "message": "Test checkpoint",
+            "date": "2025-02-05 10:00",
+            "author": "Test Author",
+        }
     ]
 
     with patch("agent_pump.tui.screens.diff_viewer.DiffService") as mock_service:
         mock_instance = mock_service.return_value
         mock_instance.get_checkpoint_diffs.return_value = checkpoint_files
         mock_instance.get_available_checkpoints.return_value = checkpoints
-        mock_instance.get_all_changes.return_value = []
+        mock_instance.get_diffs_by_type.return_value = checkpoint_files
 
         async with app.run_test() as pilot:
             await pilot.pause()

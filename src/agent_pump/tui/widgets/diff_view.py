@@ -29,7 +29,11 @@ class DiffView(Static):
             content.append(f"Renamed from: {file.old_path}\n", style="italic")
 
         # Statistics
-        stats_line = f"Hunks: {stats['hunks']} | Additions: [green]+{stats['additions']}[/] | Deletions: [red]-{stats['deletions']}[/]"
+        stats_line = (
+            f"Hunks: {stats['hunks']} | "
+            f"Additions: [green]+{stats['additions']}[/] | "
+            f"Deletions: [red]-{stats['deletions']}[/]"
+        )
         content.append(stats_line + "\n")
         content.append("─" * 60 + "\n")
 
@@ -77,7 +81,7 @@ class DiffView(Static):
             Style string for the line.
         """
         if line.startswith("@@"):
-            return "cyan bold"
+            return "cyan"
         elif line.startswith("+++") or line.startswith("---"):
             return "bold"
         elif line.startswith("+"):

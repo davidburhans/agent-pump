@@ -1,7 +1,6 @@
 """Tests for the diff view widget."""
 
 import pytest
-from rich.text import Text
 from textual.app import App
 
 from agent_pump.models.diff import DiffChangeType, DiffFile, DiffHunk
