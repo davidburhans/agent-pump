@@ -2,7 +2,6 @@
 
 import pytest
 from textual.app import App
-from textual.widgets import Select
 
 from agent_pump.models.workspace import Workspace
 from agent_pump.tui.screens.workflow_editor_modal import WorkflowEditorModal
@@ -31,10 +30,6 @@ class TestWorkflowEditorModal:
         async with app.run_test():
             modal = app.modal
             # If we reach here, it didn't crash during compose
-            assert modal.query_one("#phase-on-success", Select)
-            assert modal.query_one("#phase-on-failure", Select)
-
-            # Verify options are empty initially (as they are populated later or
-            # allowed to be blank)
-            success_select = modal.query_one("#phase-on-success", Select)
-            assert success_select._allow_blank is True
+            # Check for widgets that exist in the new layout
+            assert modal.query_one("#workflow-name")
+            assert modal.query_one("#btn-add-phase")

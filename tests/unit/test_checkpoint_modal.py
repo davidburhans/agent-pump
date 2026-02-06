@@ -83,7 +83,7 @@ class TestCheckpointModalDataHandling:
             Checkpoint(
                 id="full1",
                 phase="verifying",
-                feature="Add login page",
+                feature_name="Add login page",
                 git_commit_hash="abcdef1234567890abcdef1234567890abcdef12",
                 description="Verification checkpoint",
                 auto_created=False,
@@ -96,7 +96,7 @@ class TestCheckpointModalDataHandling:
         cp = modal.checkpoints[0]
         assert cp.id == "full1"
         assert cp.phase == "verifying"
-        assert cp.feature == "Add login page"
+        assert cp.feature_name == "Add login page"
         assert len(cp.files_modified) == 3
 
     def test_multiple_checkpoints(self):

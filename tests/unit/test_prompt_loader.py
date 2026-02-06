@@ -34,7 +34,8 @@ class TestPromptLoader:
         empty_loader = PromptLoader(empty_path)
         assert not empty_loader.has_directory_structure()
 
-    def test_load_state_prompt(self, loader, project_path):
+    @pytest.mark.asyncio
+    async def test_load_state_prompt(self, loader, project_path):
         """Test loading state prompts."""
         # Create a test prompt file
         (project_path / ".agent-pump" / "states" / "planning.md").write_text(
@@ -44,29 +45,32 @@ class TestPromptLoader:
             "Pre Planning", encoding="utf-8"
         )
 
-        assert loader.load_state_prompt("planning", "base") == "Custom Planning Prompt"
-        assert loader.load_state_prompt("planning", "pre") == "Pre Planning"
-        assert loader.load_state_prompt("planning", "post") is None
+        assert await loader.load_state_prompt("planning", "base") == "Custom Planning Prompt"
+        assert await loader.load_state_prompt("planning", "pre") == "Pre Planning"
+        assert await loader.load_state_prompt("planning", "post") is None
 
-    def test_load_backend_prompt(self, loader, project_path):
+    @pytest.mark.asyncio
+    async def test_load_backend_prompt(self, loader, project_path):
         """Test loading backend prompts."""
         (project_path / ".agent-pump" / "backends" / "pre-gemini.md").write_text(
             "Pre Gemini", encoding="utf-8"
         )
 
-        assert loader.load_backend_prompt("gemini", "pre") == "Pre Gemini"
-        assert loader.load_backend_prompt("gemini", "post") is None
+        assert await loader.load_backend_prompt("gemini", "pre") == "Pre Gemini"
+        assert await loader.load_backend_prompt("gemini", "post") is None
 
-    def test_build_prompt_defaults(self, loader):
+    @pytest.mark.asyncio
+    async def test_build_prompt_defaults(self, loader):
         """Test building prompt with defaults (no files)."""
-        prompt = loader.build_prompt(
+        prompt = await loader.build_prompt(
             state="planning",
             backend="gemini",
             default_prompt="Default Prompt",
         )
         assert prompt == "Default Prompt"
 
-    def test_build_prompt_full_customization(self, loader, project_path):
+    @pytest.mark.asyncio
+    async def test_build_prompt_full_customization(self, loader, project_path):
         """Test building prompt with all customizations."""
         states_dir = project_path / ".agent-pump" / "states"
         backends_dir = project_path / ".agent-pump" / "backends"
@@ -78,7 +82,7 @@ class TestPromptLoader:
         # Ensure base overrides default
         (states_dir / "planning.md").write_text("Custom Base {{ var }}", encoding="utf-8")
 
-        prompt = loader.build_prompt(
+        prompt = await loader.build_prompt(
             state="planning",
             backend="gemini",
             default_prompt="Default",
