@@ -3,6 +3,8 @@
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from agent_pump.models.workspace import (
     BackendFallback,
     BackendInstance,
@@ -311,3 +313,26 @@ class TestWorkspace:
         ):
             result = Workspace.delete("nonexistent")
             assert result is False
+
+    def test_load_corrupted_workspace(self, tmp_path):
+        """Test loading a corrupted workspace backs up and raises."""
+        # Create a corrupted workspace file
+        workspace_file = tmp_path / "corrupted.json"
+        workspace_file.write_text("{invalid json")
+
+        def mock_get_workspace_path(name):
+            return tmp_path / f"{name}.json"
+
+        with (
+            patch.object(Workspace, "get_workspaces_dir", return_value=tmp_path),
+            patch.object(Workspace, "get_workspace_path", side_effect=mock_get_workspace_path),
+        ):
+            # Should raise Exception
+            with pytest.raises(Exception):
+                Workspace.load("corrupted")
+
+            # Check for backup file
+            backups = list(tmp_path.glob("corrupted.json.bak.*"))
+            assert len(backups) == 1
+            # Check original file still exists (shutil.copy2 copies, doesn't move)
+            assert workspace_file.exists()

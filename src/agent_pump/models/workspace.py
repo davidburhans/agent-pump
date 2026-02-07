@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import shutil
 from datetime import datetime
 from pathlib import Path
 
@@ -309,15 +310,31 @@ class Workspace(BaseModel):
 
     @classmethod
     def load(cls, name: str = "default") -> "Workspace":
-        """Load a workspace from disk, or return a new empty workspace."""
+        """
+        Load a workspace from disk.
+
+        If the file exists but is corrupted:
+        1. It is backed up to .bak.<timestamp>
+        2. An exception is raised (to prevent overwriting with a new empty workspace)
+
+        If the file does not exist, a new empty workspace is returned.
+        """
         workspace_path = cls.get_workspace_path(name)
         if workspace_path.exists():
             try:
                 content = workspace_path.read_text(encoding="utf-8")
                 return cls.model_validate_json(content)
             except Exception as e:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                backup_path = workspace_path.with_suffix(f".json.bak.{timestamp}")
+                try:
+                    shutil.copy2(workspace_path, backup_path)
+                    logger.error(f"Corrupted workspace file backed up to: {backup_path}")
+                except Exception as backup_error:
+                    logger.error(f"Failed to backup corrupted workspace: {backup_error}")
+
                 logger.error(f"Failed to load workspace '{name}' from {workspace_path}: {e}")
-                return cls(name=name)
+                raise  # Re-raise to prevent data loss via overwrite
         return cls(name=name)
 
     @classmethod

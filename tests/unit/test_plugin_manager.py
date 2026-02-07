@@ -22,7 +22,7 @@ from agent_pump.services.plugin_manager import PluginManager
 
 
 # Example plugin classes for testing
-class TestPlugin(Plugin):
+class MockPlugin(Plugin):
     """Simple test plugin."""
 
     @property
@@ -48,7 +48,7 @@ class TestPlugin(Plugin):
         context.data["exited"] = True
 
 
-class AsyncTestPlugin(Plugin):
+class AsyncMockPlugin(Plugin):
     """Test plugin with async hooks."""
 
     @property
@@ -220,7 +220,7 @@ class TestPluginLoading:
 from agent_pump.plugins.base import Plugin
 from agent_pump.models.plugin import PluginInfo
 
-class TestPlugin(Plugin):
+class MockPlugin(Plugin):
     @property
     def info(self):
         return PluginInfo(name="loaded-plugin", version="1.0.0")
@@ -362,7 +362,7 @@ class TestPluginHooks:
     @pytest.mark.asyncio
     async def test_execute_phase_hooks_enter(self, plugin_manager, temp_project):
         """Test executing enter hooks."""
-        plugin = TestPlugin()
+        plugin = MockPlugin()
         state = PluginState(
             info=plugin.info,
             instance=plugin,
@@ -387,7 +387,7 @@ class TestPluginHooks:
     @pytest.mark.asyncio
     async def test_execute_phase_hooks_exit(self, plugin_manager, temp_project):
         """Test executing exit hooks."""
-        plugin = TestPlugin()
+        plugin = MockPlugin()
         state = PluginState(
             info=plugin.info,
             instance=plugin,
@@ -412,7 +412,7 @@ class TestPluginHooks:
     @pytest.mark.asyncio
     async def test_execute_async_hooks(self, plugin_manager, temp_project):
         """Test executing async hooks."""
-        plugin = AsyncTestPlugin()
+        plugin = AsyncMockPlugin()
         state = PluginState(
             info=plugin.info,
             instance=plugin,
@@ -438,7 +438,7 @@ class TestPluginHooks:
     @pytest.mark.asyncio
     async def test_disabled_plugin_not_executed(self, plugin_manager, temp_project):
         """Test that disabled plugins don't run hooks."""
-        plugin = TestPlugin()
+        plugin = MockPlugin()
         plugin_manager._plugins["disabled-plugin"] = MagicMock(
             info=plugin.info,
             instance=plugin,
@@ -551,7 +551,7 @@ class TestCustomVerification:
 
     def test_plugin_without_verification_steps(self, plugin_manager):
         """Test plugin that doesn't provide verification steps."""
-        plugin = TestPlugin()
+        plugin = MockPlugin()
         plugin_manager._plugins["no-verifier"] = MagicMock(
             info=plugin.info,
             instance=plugin,
