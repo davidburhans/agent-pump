@@ -6,6 +6,10 @@ import pytest
 
 from agent_pump.models.branch_state import BranchState
 from agent_pump.models.branch_strategy import BranchStrategyConfig
+from agent_pump.models.github_integration import (
+    GitHubIntegrationConfig,
+    PRReviewConfig,
+)
 from agent_pump.models.project import Project, ProjectStatus
 from agent_pump.models.workspace import ProjectConfig
 from agent_pump.orchestrator.workflow import ProjectWorkflow
@@ -30,17 +34,23 @@ class TestAutoMergeWorkflow:
             auto_merge=True,
             delete_on_merge=True,
             allow_fast_forward=True,
-            base_branch="main"
+            base_branch="main",
         )
 
-        project_config = ProjectConfig(path=project_path, branch_strategy=branch_config)
+        review_config = PRReviewConfig(enabled=False)
+        github_config = GitHubIntegrationConfig(pr_review_config=review_config)
+
+        project_config = ProjectConfig(
+            path=project_path,
+            branch_strategy=branch_config,
+            github_integration=github_config,
+        )
 
         workflow = ProjectWorkflow(project=project, project_config=project_config)
 
         # Simulate that we are on a feature branch
         workflow.branch_state = BranchState(
-            feature_branch="feature/test-feature",
-            base_branch="main"
+            feature_branch="feature/test-feature", base_branch="main"
         )
 
         # Mock BranchManager inside workflow module
@@ -76,12 +86,16 @@ class TestAutoMergeWorkflow:
         project = Project.from_path(project_path)
         project.current_feature = "Test Feature"
 
-        branch_config = BranchStrategyConfig(
-            enabled=True,
-            auto_merge=True,
-            delete_on_merge=True
+        branch_config = BranchStrategyConfig(enabled=True, auto_merge=True, delete_on_merge=True)
+        
+        review_config = PRReviewConfig(enabled=False)
+        github_config = GitHubIntegrationConfig(pr_review_config=review_config)
+
+        project_config = ProjectConfig(
+            path=project_path, 
+            branch_strategy=branch_config,
+            github_integration=github_config
         )
-        project_config = ProjectConfig(path=project_path, branch_strategy=branch_config)
 
         workflow = ProjectWorkflow(project=project, project_config=project_config)
 
@@ -90,22 +104,19 @@ class TestAutoMergeWorkflow:
         workflow._running = True
 
         workflow.branch_state = BranchState(
-            feature_branch="feature/test-feature",
-            base_branch="main"
+            feature_branch="feature/test-feature", base_branch="main"
         )
 
         with (
             patch("agent_pump.orchestrator.workflow.BranchManager") as mock_branch_manager_cls,
-            patch("agent_pump.orchestrator.workflow.Notifier") as mock_notifier
+            patch("agent_pump.orchestrator.workflow.Notifier") as mock_notifier,
         ):
             mock_manager = MagicMock()
             mock_branch_manager_cls.return_value = mock_manager
 
             # Setup conflict result
             mock_manager.merge_to_base.return_value = MergeResult(
-                success=False,
-                has_conflicts=True,
-                error="CONFLICT"
+                success=False, has_conflicts=True, error="CONFLICT"
             )
 
             # Run post-phase
@@ -144,15 +155,22 @@ class TestAutoMergeWorkflow:
         branch_config = BranchStrategyConfig(
             enabled=True,
             auto_merge=True,
-            delete_on_merge=False  # Disabled deletion
+            delete_on_merge=False,  # Disabled deletion
         )
-        project_config = ProjectConfig(path=project_path, branch_strategy=branch_config)
+        
+        review_config = PRReviewConfig(enabled=False)
+        github_config = GitHubIntegrationConfig(pr_review_config=review_config)
+
+        project_config = ProjectConfig(
+            path=project_path, 
+            branch_strategy=branch_config,
+            github_integration=github_config
+        )
 
         workflow = ProjectWorkflow(project=project, project_config=project_config)
 
         workflow.branch_state = BranchState(
-            feature_branch="feature/test-feature",
-            base_branch="main"
+            feature_branch="feature/test-feature", base_branch="main"
         )
 
         with patch("agent_pump.orchestrator.workflow.BranchManager") as mock_branch_manager_cls:

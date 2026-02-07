@@ -192,6 +192,12 @@ KEYBINDINGS: list[Keybinding] = [
         scope="project",
     ),
     Keybinding(
+        key="v",
+        action="select_workflow",
+        description="Workflow",
+        scope="project",
+    ),
+    Keybinding(
         key="e",
         action="edit_workflow",
         description="Editor",

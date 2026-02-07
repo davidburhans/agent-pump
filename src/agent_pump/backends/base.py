@@ -148,6 +148,32 @@ Ensure you are on this branch before making any changes.
         """
         return self.context_window_size
 
+    def supports_model_selection(self) -> bool:
+        """
+        Check if this backend supports listing available models.
+
+        Returns:
+            True if the backend can list available models via list_models(),
+            False otherwise.
+        """
+        return False
+
+    async def list_models(self) -> list[str]:
+        """
+        List available models for this backend.
+
+        This method should only be called if supports_model_selection() returns True.
+        Backends that don't support model listing should return an empty list
+        or raise NotImplementedError.
+
+        Returns:
+            List of model identifiers that can be used with the --model flag.
+
+        Raises:
+            NotImplementedError: If the backend doesn't support model listing.
+        """
+        raise NotImplementedError(f"Backend {self.name} does not support model listing")
+
     async def log_command(
         self,
         project_path: Path,

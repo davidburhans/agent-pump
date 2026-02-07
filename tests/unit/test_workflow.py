@@ -70,7 +70,40 @@ class TestProjectWorkflow:
         workflow.verifying_complete()
         workflow.brainstorming_complete()
         workflow.committing_complete()
+        workflow.reviewing_complete()
         assert workflow.state == "planning"
+
+    def test_committing_to_reviewing(self, workflow):
+        """Test transitioning from committing to reviewing."""
+        workflow.start()
+        workflow.planning_complete()
+        workflow.implementing_complete()
+        workflow.verifying_complete()
+        workflow.brainstorming_complete()
+        workflow.committing_complete()
+        assert workflow.state == "reviewing"
+
+    def test_reviewing_to_planning(self, workflow):
+        """Test transitioning from reviewing to planning."""
+        workflow.start()
+        workflow.planning_complete()
+        workflow.implementing_complete()
+        workflow.verifying_complete()
+        workflow.brainstorming_complete()
+        workflow.committing_complete()
+        workflow.reviewing_complete()
+        assert workflow.state == "planning"
+
+    def test_reviewing_failure(self, workflow):
+        """Test reviewing failure transitions to error."""
+        workflow.start()
+        workflow.planning_complete()
+        workflow.implementing_complete()
+        workflow.verifying_complete()
+        workflow.brainstorming_complete()
+        workflow.committing_complete()
+        workflow.reviewing_failed()
+        assert workflow.state == "error"
 
     def test_error_recovery(self, workflow):
         """Test error state and recovery."""

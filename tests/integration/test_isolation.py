@@ -1,4 +1,5 @@
 """Integration test to verify global test isolation."""
+
 from agent_pump.models.app_state import AppState
 from agent_pump.models.workspace import Workspace
 

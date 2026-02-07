@@ -1,6 +1,5 @@
 """Tests for token counter utility."""
 
-
 from agent_pump.utils.token_counter import TokenCounter
 
 

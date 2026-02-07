@@ -1,7 +1,5 @@
 """Tests for context configuration models."""
 
-
-
 from agent_pump.models.context_config import ContextConfig, ContextFile, FileInclusionRule
 
 

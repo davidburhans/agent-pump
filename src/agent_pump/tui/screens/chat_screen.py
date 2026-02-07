@@ -84,8 +84,8 @@ class ChatScreen(ModalScreen):
         event_bus = getattr(app, "event_bus", None)
 
         if not event_bus:
-             log.write("[red]Error: Event bus not available[/red]")
-             return
+            log.write("[red]Error: Event bus not available[/red]")
+            return
 
         service = ChatService(event_bus)
 
@@ -96,9 +96,7 @@ class ChatScreen(ModalScreen):
             # RichLog.write appends.
             # So we will write chunks. It might look a bit fragmented if chunks are small,
             # but RichLog handles it okay usually.
-            async for chunk in service.chat_stream(
-                query, self.project_path, history=self.history
-            ):
+            async for chunk in service.chat_stream(query, self.project_path, history=self.history):
                 # log.write(chunk) - RichLog writes new lines for each write,
                 # so we accumulate and write once
                 response_content += chunk

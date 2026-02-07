@@ -1,4 +1,3 @@
-
 import pytest
 
 from agent_pump.models.workflow_snapshot import NodeSnapshot
@@ -37,6 +36,7 @@ async def test_add_project_modal_tab_order():
         # Tab -> Wrap back to Path Input (or whatever is first focusable)
         await pilot.press("tab")
         assert modal.query_one("#path-input").has_focus
+
 
 def test_workflow_node_focusable():
     """Test that WorkflowNode is configured to receive focus."""

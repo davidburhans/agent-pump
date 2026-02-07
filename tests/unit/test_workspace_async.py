@@ -1,4 +1,3 @@
-
 import asyncio
 from unittest.mock import MagicMock, patch
 
@@ -71,6 +70,7 @@ class TestWorkspaceAsync:
 
         # Setup event listener
         events = []
+
         async def listener():
             async for event in event_bus.subscribe(WorkspaceSwitchedEvent):
                 events.append(event)

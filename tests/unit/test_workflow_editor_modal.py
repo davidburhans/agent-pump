@@ -9,6 +9,7 @@ from agent_pump.tui.screens.workflow_editor_modal import WorkflowEditorModal
 
 class WorkflowEditorTestApp(App):
     """Test app for WorkflowEditorModal."""
+
     def __init__(self, workspace=None, workflow=None):
         super().__init__()
         self.modal = WorkflowEditorModal(workspace=workspace, workflow=workflow)
@@ -30,6 +31,7 @@ class TestWorkflowEditorModal:
         async with app.run_test():
             modal = app.modal
             # If we reach here, it didn't crash during compose
-            # Check for widgets that exist in the new layout
+            # Verify workflow editor widgets exist
             assert modal.query_one("#workflow-name")
+            assert modal.query_one("#phase-list")
             assert modal.query_one("#btn-add-phase")

@@ -10,7 +10,7 @@ This service handles:
 import logging
 from pathlib import Path
 
-from git import GitCommandError, Repo
+from git import GitCommandError, InvalidGitRepositoryError, Repo
 
 from agent_pump.events.bus import EventBus
 from agent_pump.models.checkpoint import Checkpoint
@@ -58,7 +58,14 @@ class CheckpointService(BaseService):
     def repo(self) -> Repo:
         """Lazy loading of git repository."""
         if self._repo is None:
-            self._repo = Repo(self.repo_path)
+            try:
+                self._repo = Repo(self.repo_path)
+            except InvalidGitRepositoryError as e:
+                logger.error(f"Path {self.repo_path} is not a valid git repository: {e}")
+                raise RollbackError(f"Path {self.repo_path} is not a valid git repository") from e
+            except GitCommandError as e:
+                logger.error(f"Git command failed while accessing repository: {e}")
+                raise RollbackError("Git command failed while accessing repository") from e
         return self._repo
 
     def is_worktree_clean(self) -> bool:
@@ -239,19 +246,15 @@ class CheckpointService(BaseService):
             raise RollbackError(error_msg) from e
 
     def get_current_commit_hash(self) -> str:
-        """Get the current HEAD commit hash.
-
-        Returns:
-            The hex SHA of the current commit
-        """
-        return self.repo.head.commit.hexsha
+        """Get the current HEAD commit hash."""
+        try:
+            return self.repo.head.commit.hexsha
+        except Exception as e:
+            logger.error(f"Failed to get current commit hash: {e}")
+            raise RollbackError("Failed to get current commit hash") from e
 
     def list_checkpoint_commits(self) -> list[dict]:
-        """List all checkpoint commits in the repository.
-
-        Returns:
-            List of checkpoint commit metadata
-        """
+        """List all checkpoint commits in the repository."""
         checkpoints = []
 
         try:
@@ -290,4 +293,3 @@ class CheckpointService(BaseService):
         except GitCommandError as e:
             logger.error(f"Failed to get checkpoint diffs: {e}")
             return []
-

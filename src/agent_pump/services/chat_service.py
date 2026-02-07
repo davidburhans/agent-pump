@@ -39,7 +39,8 @@ class ChatService(BaseService):
             Chunks of the response text.
         """
         # 1. Resolve Backend
-        # TODO: Get default backend from project config if available
+        # Current behavior: Falls back to 'gemini' if backend_name is None
+        # Future: Read default backend from project config if available
         backend_name = backend_name or "gemini"
         try:
             backend = get_backend(backend_name)
@@ -58,10 +59,7 @@ class ChatService(BaseService):
         # For now, just use what context manager gives us.
         context_files = context_manager.get_context_files()
 
-        context_str = "\\n".join(
-            f"File: {f.path}\\n```\\n{f.content}\\n```"
-            for f in context_files
-        )
+        context_str = "\\n".join(f"File: {f.path}\\n```\\n{f.content}\\n```" for f in context_files)
 
         # 3. Construct Prompt
         # We can eventually move this to a template file

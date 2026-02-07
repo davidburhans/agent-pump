@@ -29,6 +29,7 @@ except ImportError:
     class AssistantMessage:  # type: ignore
         pass
 
+
 from agent_pump.backends.base import AgentBackend
 
 logger = logging.getLogger(__name__)
@@ -75,7 +76,7 @@ class OpenCodeAPIBackend(AgentBackend):
             # Using client.get("/") might be generic enough if it exposes health
             # But the SDK is typed.
             # Let's try listing sessions.
-            if hasattr(client.session, 'list'):
+            if hasattr(client.session, "list"):
                 await client.session.list()  # type: ignore
 
             return True
@@ -118,8 +119,8 @@ class OpenCodeAPIBackend(AgentBackend):
         base_url = os.environ.get("OPENCODE_BASE_URL", "http://localhost:54321")
 
         # Parse extra_args for model/provider
-        model_id = "gpt-4o" # Default or fallback?
-        provider_id = "openai" # Default?
+        model_id = "gpt-4o"  # Default or fallback?
+        provider_id = "openai"  # Default?
 
         # Simple arg parsing
         if extra_args:
@@ -141,8 +142,8 @@ class OpenCodeAPIBackend(AgentBackend):
         # but OpenCodeBackend (CLI) did merge them.
         # We should probably respect self._extra_args if they exist.
         if self._extra_args:
-             args_iter = iter(self._extra_args)
-             for arg in args_iter:
+            args_iter = iter(self._extra_args)
+            for arg in args_iter:
                 if arg == "--model":
                     try:
                         model_id = next(args_iter)
@@ -193,21 +194,21 @@ class OpenCodeAPIBackend(AgentBackend):
                 id=session_id,
                 model_id=model_id,
                 provider_id=provider_id,
-                parts=parts, # type: ignore
+                parts=parts,  # type: ignore
             ) as stream:
-                 async for chunk in stream: # type: ignore
-                     # Chunk type? likely bytes or text or an object with delta?
-                     # Inspecting stream behavior is hard without docs.
-                     # Typically stream yields chunks of data.
-                     # If it yields bytes/text directly:
-                     if isinstance(chunk, str):
-                         yield chunk
-                     elif isinstance(chunk, bytes):
-                         yield chunk.decode("utf-8", errors="replace")
-                     else:
-                         # If it's an object, try to stringify or access content
-                         # Assuming it might be an event object
-                         yield str(chunk)
+                async for chunk in stream:  # type: ignore
+                    # Chunk type? likely bytes or text or an object with delta?
+                    # Inspecting stream behavior is hard without docs.
+                    # Typically stream yields chunks of data.
+                    # If it yields bytes/text directly:
+                    if isinstance(chunk, str):
+                        yield chunk
+                    elif isinstance(chunk, bytes):
+                        yield chunk.decode("utf-8", errors="replace")
+                    else:
+                        # If it's an object, try to stringify or access content
+                        # Assuming it might be an event object
+                        yield str(chunk)
 
         except APITimeoutError:
             yield f"\\n[TIMEOUT] Request timed out after {timeout}s\\n"

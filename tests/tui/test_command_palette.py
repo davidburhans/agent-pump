@@ -58,6 +58,7 @@ async def test_command_palette_discovery():
 
         # In a real TUI test we might need to inspect the children of the screen
         from textual.widgets import OptionList
+
         option_list = palette.query_one(OptionList)
 
         # Inspect the content of option list
@@ -119,7 +120,6 @@ async def test_command_palette_discovery():
             found = any(command_name in res for res in results)
             assert not found, f"Command '{command_name}' SHOULD NOT be in results: {results}"
 
-
         # Check "Toggle Dark Mode"
         await assert_command_present("Toggle Dark Mode")
         # Verify fuzzy search
@@ -143,6 +143,7 @@ async def test_command_palette_discovery():
 
         # Now simulate selecting a project
         from pathlib import Path
+
         app.selected_project = Path("/tmp/dummy-project")
 
         # Check "Remove Project" - Force update by clearing input first

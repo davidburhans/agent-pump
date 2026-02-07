@@ -13,6 +13,7 @@ from agent_pump.tui.screens.add_project_modal import AddProjectModal
 
 class MockPumpApp(AgentPumpApp):
     """Test app wrapper."""
+
     CSS_PATH = None
 
     async def on_mount(self) -> None:
@@ -20,6 +21,7 @@ class MockPumpApp(AgentPumpApp):
 
     async def _handle_events(self) -> None:
         pass
+
 
 @pytest.mark.asyncio
 async def test_add_project_modal_validation_ui(tmp_path):

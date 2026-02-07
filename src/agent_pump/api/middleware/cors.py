@@ -26,8 +26,6 @@ def create_cors_middleware(
     Returns:
         Configured CORSMiddleware class.
     """
-    # Return the middleware class with configuration
-    # Note: This is used with app.add_middleware() in server.py
     return CORSMiddleware
 
 
@@ -50,3 +48,36 @@ def get_cors_config(origins: list[str] | None = None) -> dict:
         "expose_headers": ["X-Request-ID"],
         "max_age": 600,  # 10 minutes
     }
+
+
+def get_cors_config_secure(api_key: str | None = None, origins: list[str] | None = None) -> dict:
+    """Get CORS middleware configuration dictionary for production with security.
+
+    Args:
+        api_key: API key for authentication. If provided, adds stricter security.
+        origins: List of allowed origins. If None, uses default local development origins.
+
+    Returns:
+        Dictionary with CORS middleware kwargs for production.
+    """
+    allowed_origins = origins or DEFAULT_ORIGINS
+
+    config = {
+        "allow_origins": allowed_origins,
+        "allow_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization", "X-API-Key"],
+        "allow_credentials": True,
+        "expose_headers": ["X-Request-ID"],
+        "max_age": 600,  # 10 minutes
+    }
+
+    # If API key is configured, add stricter security
+    if api_key:
+        config["allow_origins"] = allowed_origins[:1]  # Only allow localhost for production
+        config["allow_methods"] = ["GET", "POST", "OPTIONS"]  # Limit methods
+        config["allow_headers"] = [
+            "Content-Type",
+            "Authorization",
+        ]  # Remove X-API-Key from allowed headers
+
+    return config

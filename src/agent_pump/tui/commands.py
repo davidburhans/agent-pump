@@ -56,45 +56,51 @@ class AgentPumpCommandProvider(Provider):
                 (
                     "Toggle Project State",
                     "action_toggle_project_state",
-                    "Start/Stop the selected project",
+                    "Start/Stop selected project",
                 ),
                 (
                     "Manage Roadmap",
                     "action_manage_roadmap",
-                    "View and manage the project roadmap",
+                    "View and manage project roadmap",
                 ),
                 (
                     "Configure Backends",
                     "action_config_backends",
-                    "Configure AI backends for the project",
+                    "Configure AI backends for project",
                 ),
                 (
                     "Configure Prompts",
                     "action_config_prompts",
-                    "Customize prompts for the project",
+                    "Customize prompts for project",
                 ),
                 (
                     "Update Configuration",
                     "action_update_config",
                     "Reload configuration from disk",
                 ),
-                ("Remove Project", "action_remove_project", "Remove the selected project"),
-                ("Start Selected", "action_start_selected", "Start the selected project"),
-                ("Stop Selected", "action_stop_selected", "Stop the selected project"),
+                ("Remove Project", "action_remove_project", "Remove selected project"),
+                ("Start Selected", "action_start_selected", "Start selected project"),
+                ("Stop Selected", "action_stop_selected", "Stop selected project"),
                 (
                     "Skip Feature",
                     "action_skip_feature",
-                    "Skip the current feature (mark as failed)",
+                    "Skip current feature (mark as failed)",
                 ),
                 (
                     "Configure Project",
                     "action_config_project",
                     "Configure selected project settings",
                 ),
+                ("Reset Project", "action_reset_project", "Reset project workflow state"),
                 (
-                    "Reset Project",
-                    "action_reset_project",
-                    "Reset workflow state for selected project",
+                    "Select Workflow",
+                    "action_select_workflow",
+                    "Select a different workflow for the selected project",
+                ),
+                (
+                    "Edit Workflow",
+                    "action_edit_workflow",
+                    "Edit workflow definition for the selected project",
                 ),
             ]
 

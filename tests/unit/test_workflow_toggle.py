@@ -10,13 +10,14 @@ async def test_w_key_toggles_workflow_panel_globally():
     """Test that pressing 'w' (lowercase) toggles the workflow panel globally."""
 
     # We need to mock the services initialized in __init__
-    with patch('agent_pump.tui.app.AppState'), \
-         patch('agent_pump.tui.app.EventBus'), \
-         patch('agent_pump.tui.app.WorkspaceService'), \
-         patch('agent_pump.tui.app.ProjectService'), \
-         patch('agent_pump.tui.app.WorkflowService'), \
-         patch('agent_pump.tui.app.IdeaService'):
-
+    with (
+        patch("agent_pump.tui.app.AppState"),
+        patch("agent_pump.tui.app.EventBus"),
+        patch("agent_pump.tui.app.WorkspaceService"),
+        patch("agent_pump.tui.app.ProjectService"),
+        patch("agent_pump.tui.app.WorkflowService"),
+        patch("agent_pump.tui.app.IdeaService"),
+    ):
         app = AgentPumpApp()
 
         async with app.run_test() as pilot:

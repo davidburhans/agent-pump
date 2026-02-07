@@ -229,6 +229,7 @@ class TestCostCLICommands:
                     assert "Cost Breakdown by Backend" in result.output
                     assert "gemini" in result.output
 
+
 class TestBudgetCLICommands:
     """Tests for budget-related CLI commands."""
 

@@ -12,6 +12,7 @@ console = Console()
 
 class UIBuildError(Exception):
     """Exception raised for UI build errors."""
+
     pass
 
 

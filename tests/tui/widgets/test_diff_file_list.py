@@ -122,7 +122,7 @@ async def test_diff_file_list_selection(sample_diff_files):
 
         # Simulate clicking on the first item by triggering the selection event
         # The selection is handled by on_list_view_selected which uses list_view.index
-        file_list.on_list_view_selected(ListView.Selected(list_view, list_view.children[0], 0))
+        file_list.on_list_view_selected(ListView.Selected(list_view, list_view.children[0], 0))  # pyright: ignore
         await pilot.pause()
 
         assert selected_file is not None

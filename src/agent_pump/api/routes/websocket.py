@@ -121,7 +121,10 @@ class ConnectionManager:
             user_id = self.user_sessions[session_id]
             from uuid import UUID
 
-            asyncio.create_task(self.collaboration_service.leave_session(UUID(user_id)))
+            try:
+                asyncio.create_task(self.collaboration_service.leave_session(UUID(user_id)))
+            except Exception as e:
+                logger.warning(f"Failed to unregister collaboration session for {user_id}: {e}")
             del self.user_sessions[session_id]
 
         logger.info(
@@ -167,7 +170,8 @@ class ConnectionManager:
             try:
                 if websocket.client_state == WebSocketState.CONNECTED:
                     await websocket.send_json(message)
-            except Exception:
+            except Exception as e:
+                logger.debug(f"Failed to send broadcast to {session_id}: {e}")
                 disconnected.append(session_id)
 
         # Clean up disconnected clients

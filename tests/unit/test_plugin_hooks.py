@@ -84,9 +84,11 @@ class TestPlugin(Plugin):
         # Mock the run methods to avoid full execution
         with patch.object(workflow, "_prepare_phase", new_callable=AsyncMock):
             with patch.object(workflow, "run_phase", new_callable=AsyncMock) as mock_run:
+
                 async def side_effect(*args, **kwargs):
                     workflow.cancel()
                     return False
+
                 mock_run.side_effect = side_effect
 
                 try:
@@ -116,9 +118,11 @@ class TestPlugin(Plugin):
         with patch.object(workflow, "_prepare_phase", new_callable=AsyncMock):
             with patch.object(workflow, "run_phase", new_callable=AsyncMock) as mock_run:
                 with patch.object(workflow, "_post_phase", new_callable=AsyncMock):
+
                     async def side_effect(*args, **kwargs):
                         workflow.cancel()
                         return False
+
                     mock_run.side_effect = side_effect
 
                     try:
@@ -149,9 +153,11 @@ class TestPlugin(Plugin):
             with patch.object(workflow, "run_phase", new_callable=AsyncMock) as mock_run:
                 with patch.object(workflow, "_post_phase", new_callable=AsyncMock) as mock_post:
                     mock_run.return_value = True
+
                     async def post_side_effect(*args, **kwargs):
                         workflow.cancel()
                         return True
+
                     mock_post.side_effect = post_side_effect
 
                     # Set up workflow state to be in a phase
@@ -192,9 +198,11 @@ class TestPlugin(Plugin):
 
         with patch.object(workflow, "_prepare_phase", new_callable=AsyncMock):
             with patch.object(workflow, "run_phase", new_callable=AsyncMock) as mock_run:
+
                 async def side_effect(*args, **kwargs):
                     workflow.cancel()
                     return False
+
                 mock_run.side_effect = side_effect
 
                 try:
@@ -407,9 +415,11 @@ class TestWorkflowWithoutPlugins:
         # Mock to control execution
         with patch.object(workflow, "_prepare_phase", new_callable=AsyncMock):
             with patch.object(workflow, "run_phase", new_callable=AsyncMock) as mock_run:
+
                 async def side_effect(*args, **kwargs):
                     workflow.cancel()
                     return False
+
                 mock_run.side_effect = side_effect
 
                 try:

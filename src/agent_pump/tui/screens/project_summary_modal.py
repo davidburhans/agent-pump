@@ -60,10 +60,7 @@ class ProjectSummaryModal(ModalScreen[None]):
 
         with Vertical(id="summary-container"):
             yield Static(table)
-            yield Vertical(
-                Button("Close", id="btn-close", variant="primary"),
-                classes="button-row"
-            )
+            yield Vertical(Button("Close", id="btn-close", variant="primary"), classes="button-row")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         self.dismiss(None)

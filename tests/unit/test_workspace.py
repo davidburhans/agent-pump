@@ -252,8 +252,10 @@ class TestWorkspace:
         def mock_get_workspace_path(name):
             return tmp_path / f"{name}.json"
 
-        with patch.object(Workspace, "get_workspaces_dir", return_value=tmp_path), \
-             patch.object(Workspace, "get_workspace_path", side_effect=mock_get_workspace_path):
+        with (
+            patch.object(Workspace, "get_workspaces_dir", return_value=tmp_path),
+            patch.object(Workspace, "get_workspace_path", side_effect=mock_get_workspace_path),
+        ):
             workspace.save()
 
             # Load and verify
@@ -284,8 +286,10 @@ class TestWorkspace:
         def mock_get_workspace_path(name):
             return tmp_path / f"{name}.json"
 
-        with patch.object(Workspace, "get_workspaces_dir", return_value=tmp_path), \
-             patch.object(Workspace, "get_workspace_path", side_effect=mock_get_workspace_path):
+        with (
+            patch.object(Workspace, "get_workspaces_dir", return_value=tmp_path),
+            patch.object(Workspace, "get_workspace_path", side_effect=mock_get_workspace_path),
+        ):
             # Delete should succeed
             result = Workspace.delete("test-workspace")
             assert result is True
@@ -297,10 +301,13 @@ class TestWorkspace:
 
     def test_delete_nonexistent_workspace(self, tmp_path):
         """Test deleting a workspace that doesn't exist."""
+
         def mock_get_workspace_path(name):
             return tmp_path / f"{name}.json"
 
-        with patch.object(Workspace, "get_workspaces_dir", return_value=tmp_path), \
-             patch.object(Workspace, "get_workspace_path", side_effect=mock_get_workspace_path):
+        with (
+            patch.object(Workspace, "get_workspaces_dir", return_value=tmp_path),
+            patch.object(Workspace, "get_workspace_path", side_effect=mock_get_workspace_path),
+        ):
             result = Workspace.delete("nonexistent")
             assert result is False

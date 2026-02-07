@@ -144,14 +144,15 @@ class WorkflowDefinition(BaseModel):
 
         # Completion transition from last phase (if looping)
         if self.phases and self.phases[-1].on_success == self.phases[0].name:
-            # Loop workflow - add no_more_features to break the loop
-            transitions.append(
-                {
-                    "trigger": "no_more_features",
-                    "source": self.phases[-1].name,
-                    "dest": "completed",
-                }
-            )
+            # Loop workflow - add no_more_features to any phase to allow breaking the loop
+            for phase in self.phases:
+                transitions.append(
+                    {
+                        "trigger": "no_more_features",
+                        "source": phase.name,
+                        "dest": "completed",
+                    }
+                )
 
         return transitions
 
@@ -182,10 +183,10 @@ class WorkflowDefinition(BaseModel):
         return phase.icon if phase else ""
 
 
-# Default 5-phase workflow
+# Default 6-phase workflow
 DEFAULT_WORKFLOW = WorkflowDefinition(
     name="default",
-    description="Standard 5-phase development workflow: Plan → Implement → Verify → Brainstorm → Commit",  # noqa: E501
+    description="Standard 6-phase development workflow: Plan → Implement → Verify → Brainstorm → Commit → Review",  # noqa: E501
     initial_state="idle",
     terminal_states=["completed", "error"],
     phases=[
@@ -221,8 +222,20 @@ DEFAULT_WORKFLOW = WorkflowDefinition(
             name="committing",
             description="Commits changes to git",
             icon="📝",
+            on_success="reviewing",
+            on_failure="error",
+        ),
+        WorkflowPhase(
+            name="reviewing",
+            description=(
+                "Automated PR review with code quality checks and BEST_PRACTICES verification"
+            ),
+            icon="🔍",
             on_success="planning",  # Loop back for next feature
             on_failure="error",
+            timeout=900,  # 15 minutes max for review
+            max_retries=2,
+            retry_delay=30.0,
         ),
     ],
 )

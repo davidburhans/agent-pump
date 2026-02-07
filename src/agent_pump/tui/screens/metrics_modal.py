@@ -170,7 +170,6 @@ class MetricsModal(ModalScreen[None]):
         if self.metrics_service is None:
             # Try to get from app state
             try:
-
                 app = self.app
                 self.metrics_service = getattr(app, "metrics_service", None)
             except Exception:

@@ -1,6 +1,6 @@
 [project]
 name = "agent-pump"
-version = "0.1.0"
+version = "1.0.0"
 description = "Automated AI coding agent orchestrator - runs gemini-cli in a loop to implement features from ROADMAP.md"
 readme = "README.md"
 authors = [
@@ -22,6 +22,7 @@ dependencies = [
     "python-jose[cryptography]>=3.3.0",
     "gitpython>=3.1.40",
     "opencode-ai>=0.1.0a36",
+    "pygithub>=2.8.1",
 ]
 
 [project.optional-dependencies]

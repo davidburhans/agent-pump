@@ -20,4 +20,5 @@ from .template_apply_modal import TemplateApplyModal as TemplateApplyModal
 from .template_list_modal import TemplateListModal as TemplateListModal
 from .verification_config_modal import VerificationConfigModal as VerificationConfigModal
 from .workflow_editor_modal import WorkflowEditorModal as WorkflowEditorModal
+from .workflow_select_modal import WorkflowSelectModal as WorkflowSelectModal
 from .workspace_switcher_modal import WorkspaceSwitcherModal as WorkspaceSwitcherModal

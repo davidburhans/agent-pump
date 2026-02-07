@@ -83,9 +83,7 @@ Completed description
         assert features[0].priority == "High", f"Expected High, got {features[0].priority}"
         criteria = features[0].acceptance_criteria
         assert criteria is not None
-        assert len(criteria) == 2, (
-            f"Expected 2 criteria, got {len(criteria)}"
-        )
+        assert len(criteria) == 2, f"Expected 2 criteria, got {len(criteria)}"
 
         assert features[1].title == "Task 2", f"Expected Task 2, got {features[1].title}"
         assert features[1].status == "🔴", f"Expected 🔴, got {features[1].status}"

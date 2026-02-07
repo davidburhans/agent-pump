@@ -106,11 +106,7 @@ class FallbackBackendRunner:
                 args_key = str(instance.args) if instance.args else "default"
                 key = f"{instance.name}::{args_key}"
 
-                backend = LockingBackendWrapper(
-                    backend,
-                    key=key,
-                    limit=instance.concurrency_limit
-                )
+                backend = LockingBackendWrapper(backend, key=key, limit=instance.concurrency_limit)
 
             backends.append(backend)
             backend_args.append(instance.args)

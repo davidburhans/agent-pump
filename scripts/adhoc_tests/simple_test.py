@@ -11,21 +11,25 @@ def test_imports():
     """Test that core modules can be imported."""
     try:
         from agent_pump.utils.roadmap import RoadmapParser
+
         _ = RoadmapParser
 
         print("✓ RoadmapParser imported successfully")
 
         from agent_pump.tui.screens.roadmap_modal import RoadmapModal
+
         _ = RoadmapModal
 
         print("✓ RoadmapModal imported successfully")
 
         from agent_pump.models.project import Project
+
         _ = Project
 
         print("✓ Project imported successfully")
 
         from agent_pump.config import Config
+
         _ = Config
 
         print("✓ Config imported successfully")

@@ -1,6 +1,5 @@
 """Tests for roadmap UI components."""
 
-
 import pytest
 from textual.app import App
 
@@ -19,6 +18,7 @@ def sample_roadmap(tmp_path):
 """
     roadmap_path.write_text(content, encoding="utf-8")
     return roadmap_path
+
 
 @pytest.mark.asyncio
 async def test_roadmap_modal_bindings(sample_roadmap):
@@ -46,13 +46,12 @@ async def test_roadmap_modal_bindings(sample_roadmap):
         # This ensures it captures the key even if Input doesn't
         bindings = []
         for b in app.screen.BINDINGS:
-             if isinstance(b, tuple):
-                 bindings.append(b[0])
-             else:
-                 bindings.append(b.key)
+            if isinstance(b, tuple):
+                bindings.append(b[0])
+            else:
+                bindings.append(b.key)
         assert "a" in bindings
 
         # Ensure AddProjectModal is NOT in the screen stack
         assert not any(isinstance(s, AddProjectModal) for s in app._screen_stack)
         assert not isinstance(app.screen, AddProjectModal)
-

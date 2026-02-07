@@ -9,15 +9,19 @@ class DiffChangeType(str, Enum):
     DELETED = "DELETED"
     RENAMED = "RENAMED"
 
+
 class DiffHunk(BaseModel):
     """A contiguous block of changes in a diff."""
+
     model_config = ConfigDict(strict=True, frozen=True)
 
     header: str = Field(description="Hunk header (e.g., @@ -1,3 +1,4 @@)")
     lines: list[str] = Field(description="Lines in the hunk with +/- prefixes")
 
+
 class DiffFile(BaseModel):
     """Represents a file with changes."""
+
     model_config = ConfigDict(strict=True, frozen=True)
 
     path: str = Field(description="File path relative to project root")

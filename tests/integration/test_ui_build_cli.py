@@ -53,7 +53,7 @@ def test_ui_build_integration(mock_subprocess_popen, mock_shutil_which, tmp_path
         # We need mock_exists to return True for UI dir and package.json
         def exists_side_effect(*args, **kwargs):
             if not args:
-                return True # Fallback
+                return True  # Fallback
             path_str = str(args[0]).replace("\\", "/")
             if "/ui" in path_str or "package.json" in path_str:
                 return True
@@ -97,6 +97,7 @@ def test_ui_build_failure_integration(mock_subprocess_popen, mock_shutil_which, 
         patch("pathlib.Path.cwd", return_value=tmp_path),
         patch("pathlib.Path.exists") as mock_exists,
     ):
+
         def exists_side_effect(*args, **kwargs):
             if not args:
                 return True

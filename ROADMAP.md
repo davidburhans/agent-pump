@@ -11,45 +11,106 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Current Sprint
 
-### 🔴 GitHub Integration
-**Priority: Medium**
+### 🔴 Branch Protection Rules Sync
+**Priority: High**
 
-Deep integration with GitHub to allow Agent Pump to:
-- Create Pull Requests once a feature is verified.
-- Link commits to specific GitHub Issues.
-- Update issue status on completion.
-
----
-
-### 🔴 Advanced RAG for Context Management
-**Priority: Medium**
-
-Enhance the `ContextManager` with vector search capabilities to index the entire codebase and external documentation, providing more relevant context snippets than just full file inclusion.
+Ensure GitHub integration respects branch protection rules:
+- Read repository branch protection configuration
+- Respect required reviewers, status checks, and merge requirements
+- Wait for all required checks to pass before attempting merge
+- Display missing requirements in workflow status
 
 ---
 
-### 🔴 Multiple Workflow Support
+## Future Sprints
+
+### 🔴 Interactive Review Dashboard
 **Priority: Medium**
 
-Allow defining multiple different workflows simultaneously. Users should be able to select which workflow to use on a project. A project should be able to swap between any number of workflows with no loss of functionality.
+Allow users to interactively review and resolve issues found during the automated review phase:
+- Display review findings (issues, suggestions) in a TUI modal.
+- Allow marking issues as "Fixed" or "Ignored" (with comment).
+- Provide "Auto-fix" button for issues where the AI can propose a fix.
+- Approve/Reject the review manually if needed.
 
 ---
 
-### ⚫ Voice Control
+### 🔴 Smart Feature Prioritization
+**Priority: Medium**
+
+Enhance roadmap management with intelligent prioritization:
+- Analyze dependency relationships between features
+- Suggest optimal execution order based on project structure
+- Auto-reorder roadmap items to minimize rework
+- Visualize feature dependencies in workflow editor
+
+---
+
+### 🔴 Multi-Project Orchestration
+**Priority: Medium**
+
+Coordinate work across multiple projects simultaneously:
+- Execute workflows for multiple projects in parallel
+- Share context between related projects (e.g., shared libraries)
+- Priority-based scheduling for project execution queues
+- Cross-project dependency tracking
+
+---
+
+### 🔴 PR Status Monitoring & Updates
+**Priority: Medium**
+
+Monitor and update PR status throughout development:
+- Watch PR status changes (approved, changes requested, failed checks)
+- Auto-resolve merge conflicts when possible
+- Update PR description with implementation progress
+- Notify on critical PR events
+
+---
+
+## Deferred Features
+
+### ⚫ Template Library Marketplace
 **Priority: Low**
 
-Voice commands for hands-free operation.
-
-**Rationale for Deferral:** Requires significant additional dependencies and platform-specific audio handling. Consider after core features stabilize.
+Shared template repository for community templates:
+- Download/install templates from remote sources
+- Template ratings and reviews
+- Category-based template browsing
+- Automatic updates for installed templates
 
 ---
 
-### ⚫ IDE Extensions
+### ⚫ AI Code Review Integration
 **Priority: Low**
 
-VS Code and JetBrains extensions for in-editor integration.
+Advanced automated code review capabilities:
+- Automated review suggestions after implementation
+- Security vulnerability detection patterns
+- Performance optimization hints
+- Language-specific best practice enforcement
 
-**Rationale for Deferral:** Large scope requiring maintenance of multiple extension codebases. Consider after web dashboard is stable.
+---
+
+### ⚫ Git History Analysis
+**Priority: Low**
+
+Learn from project history to improve workflows:
+- Analyze commit patterns for workflow improvement
+- Suggest optimal branch strategies based on history
+- Identify potential merge conflicts early
+- Predict feature completion time based on past velocity
+
+---
+
+### ⚫ Collaborative Mode
+**Priority: Low**
+
+Team collaboration features:
+- Share workspace with team members
+- Real-time collaboration on features
+- Conflict resolution for simultaneous edits
+- Team-wide metrics and analytics
 
 ---
 

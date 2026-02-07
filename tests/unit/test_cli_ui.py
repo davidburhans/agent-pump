@@ -18,17 +18,20 @@ def mock_subprocess_popen():
         mock.return_value = process_mock
         yield mock
 
+
 @pytest.fixture
 def mock_shutil_which():
     with patch("shutil.which") as mock:
         mock.return_value = "/usr/bin/npm"
         yield mock
 
+
 @pytest.fixture
 def mock_path_exists():
     with patch("pathlib.Path.exists") as mock:
         mock.return_value = True
         yield mock
+
 
 def test_ui_build_command_success(mock_subprocess_popen, mock_shutil_which):
     """Test that 'ui build' calls the correct subprocess commands."""
@@ -95,15 +98,16 @@ def test_ui_build_missing_ui_directory(mock_subprocess_popen, mock_shutil_which)
     assert result.exit_code == 1
     assert "UI directory not found" in result.output
 
+
 def test_run_ui_build_function():
     """Direct test of the utility function."""
     with (
         patch("shutil.which") as mock_which,
         patch("subprocess.Popen") as mock_popen,
-        patch("pathlib.Path.exists") as mock_exists
+        patch("pathlib.Path.exists") as mock_exists,
     ):
         mock_which.return_value = "npm"
-        mock_exists.return_value = True # Everything exists
+        mock_exists.return_value = True  # Everything exists
 
         process_mock = MagicMock()
         process_mock.stdout = ["line1"]
@@ -114,4 +118,3 @@ def test_run_ui_build_function():
 
         # Check calls
         assert mock_popen.call_count >= 1
-

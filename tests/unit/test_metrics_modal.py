@@ -9,6 +9,7 @@ from agent_pump.tui.screens.metrics_modal import MetricsModal
 
 class MetricsTestApp(App):
     """Test app for MetricsModal."""
+
     def __init__(self):
         super().__init__()
         self.modal = MetricsModal()

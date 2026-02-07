@@ -85,6 +85,7 @@ class LogService(BaseService):
         # Note: We don't construct the Rich renderable here, as that is TUI-specific.
         # The TUI will inflate it from the message if needed, or we keep it None.
         from datetime import datetime
+
         timestamp = datetime.now().strftime("%H:%M:%S")
 
         entry = LogEntry(
@@ -93,7 +94,7 @@ class LogService(BaseService):
             project_path=event.project_path,
             state=event.state,
             task=event.task,
-            renderable=None
+            renderable=None,
         )
 
         # Add to project buffer
@@ -133,7 +134,7 @@ class LogService(BaseService):
 
         # Add history first
         if project_path:
-            history = self._get_buffer(project_path).get_recent(1000) # Max limit?
+            history = self._get_buffer(project_path).get_recent(1000)  # Max limit?
             for entry in history:
                 queue.put_nowait(entry)
 

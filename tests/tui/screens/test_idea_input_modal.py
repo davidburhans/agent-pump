@@ -28,6 +28,7 @@ async def test_idea_input_modal_submit_valid():
         # (though checking dismissal is hard in isolation).
         # In a real app flow, the callback would be called.
 
+
 @pytest.mark.asyncio
 async def test_idea_input_modal_validation_error():
     """Test validation error with shake animation."""
@@ -60,6 +61,7 @@ async def test_idea_input_modal_validation_error():
         # Actually _step(0) is called immediately.
         # offset is a style property.
         assert input_widget.styles.offset is not None
+
 
 @pytest.mark.asyncio
 async def test_idea_input_modal_cancel():

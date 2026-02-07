@@ -24,12 +24,13 @@ index 1234567..890abcd 100644
     hunk = file.hunks[0]
     assert hunk.header == "@@ -1,3 +1,4 @@"
     assert len(hunk.lines) == 4
-    assert hunk.lines[0] == ' import os'
+    assert hunk.lines[0] == " import os"
     assert hunk.lines[1] == '-print("Hello")'
     assert hunk.lines[2] == '+print("Hello World")'
     assert hunk.lines[3] == '+print("New line")'
     # Note: The parser implementation accumulates lines.
     # Let's check the lines more carefully based on the implementation logic.
+
 
 def test_parse_new_file():
     diff_output = """diff --git a/new_file.py b/new_file.py
@@ -45,6 +46,7 @@ index 0000000..1234567
     assert len(files) == 1
     assert files[0].path == "new_file.py"
     assert files[0].status == DiffChangeType.ADDED
+
 
 def test_parse_deleted_file():
     diff_output = """diff --git a/old_file.py b/old_file.py
@@ -63,6 +65,7 @@ index 1234567..0000000
     # The header line is "diff --git a/old_file.py b/old_file.py"
     # So path_b is "old_file.py".
     assert files[0].status == DiffChangeType.DELETED
+
 
 def test_parse_multiple_files():
     diff_output = """diff --git a/file1.py b/file1.py

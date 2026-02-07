@@ -86,6 +86,48 @@ class OpenCodeBackend(AgentBackend):
         logger.debug(f"OpenCode availability check: {available}")
         return available
 
+    def supports_model_selection(self) -> bool:
+        """OpenCode supports listing models via 'opencode models' command."""
+        return True
+
+    async def list_models(self) -> list[str]:
+        """List available models from OpenCode CLI.
+
+        Returns:
+            List of model identifiers in format "provider/model".
+        """
+        executable = cached_which(self.command)
+        if not executable:
+            logger.warning("OpenCode CLI not found, cannot list models")
+            return []
+
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                executable,
+                "models",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await proc.communicate()
+
+            if proc.returncode != 0:
+                logger.warning(f"Failed to list OpenCode models: {stderr.decode()}")
+                return []
+
+            # Parse model list - each line contains "provider/model"
+            models = []
+            for line in stdout.decode().strip().split("\n"):
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    models.append(line)
+
+            logger.debug(f"Found {len(models)} OpenCode models")
+            return models
+
+        except Exception as e:
+            logger.warning(f"Error listing OpenCode models: {e}")
+            return []
+
     def get_setup_instructions(self) -> str:
         """Return setup instructions for installing OpenCode CLI."""
         return """
@@ -159,34 +201,23 @@ class OpenCodeBackend(AgentBackend):
 
         from agent_pump.utils.subprocess_manager import SubprocessInfo, subprocess_manager
 
-        if sys.platform == "win32":
-            # CREATE_NO_WINDOW prevents console popups and ensures output goes through pipes
-            logger.debug(f"Windows shell command: {cmd_str}")
-            process = await asyncio.create_subprocess_shell(
-                cmd_str,
-                cwd=str(project_path),
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.STDOUT,
-                env=env,
-                creationflags=subprocess.CREATE_NO_WINDOW,
-            )
-        else:
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                cwd=str(project_path),
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.STDOUT,
-                env=env,
-            )
+        # Use create_subprocess_exec to avoid shell command injection
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            cwd=str(project_path),
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            env=env,
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+        )
 
         # Track process for lifecycle management
         await subprocess_manager.track_process(
             process.pid,
             SubprocessInfo(
                 pid=process.pid,
-                command=cmd_str,
+                command=" ".join(cmd),
                 project_path=project_path,
                 start_time=start_time,
                 timeout=timeout,
@@ -201,8 +232,9 @@ class OpenCodeBackend(AgentBackend):
             try:
                 logger.debug("Writing prompt to stdin...")
                 process.stdin.write(prompt.encode("utf-8"))
-                await process.stdin.drain()
+                await asyncio.wait_for(process.stdin.drain(), timeout=30.0)
                 process.stdin.close()
+                await process.stdin.wait_closed()
                 logger.debug("Prompt written and stdin closed")
             except Exception as e:
                 logger.error(f"Failed to write to stdin: {e}")

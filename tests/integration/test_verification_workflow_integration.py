@@ -36,9 +36,11 @@ class TestVerificationWorkflowIntegration:
 
             # Mock the backend run method to avoid real AI calls
             mock_backend_run = MagicMock()
+
             async def mock_run_gen(*args, **kwargs):
                 yield "Mock backend output"
                 yield "[SUCCESS] Logic looks good"
+
             mock_backend_run.side_effect = mock_run_gen
             workflow.backend.run = mock_backend_run
 

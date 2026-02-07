@@ -20,11 +20,11 @@ BASE_PROMPTS = {
         template="""Create a detailed engineering plan to implement the requested feature.
 
 Context:
-- Current ROADMAP.md: {roadmap_content}
-- Current ENGINEERING_PLAN.md: {engineering_plan_content}
+- Current ROADMAP.md: {{ read_file("ROADMAP.md") }}
+- Current ENGINEERING_PLAN.md: {{ read_file("ENGINEERING_PLAN.md") }}
 
 Feature Request:
-{feature_request}
+{{ read_file("TASK_NAME") }}
 
 Requirements:
 1. Format as ENGINEERING_PLAN.md with:
@@ -36,7 +36,7 @@ Requirements:
       "Reflect on the work done and update BEST_PRACTICES.md with any "
       "lessons learned, and check if README.md needs updates as a result"
    )
-6. Create a TASK_NAME file containing ONLY the exact title of the feature you are working on.
+2. Create a TASK_NAME file containing ONLY the exact title of the feature you are working on.
 
 
 Be thorough but concise. The task list will guide the implementation phase.""",
@@ -48,9 +48,9 @@ Be thorough but concise. The task list will guide the implementation phase.""",
         template="""Implement the tasks in ENGINEERING_PLAN.md.
 
 Context:
-- Current ROADMAP.md: {roadmap_content}
-- Current ENGINEERING_PLAN.md: {engineering_plan_content}
-- Current TASK_NAME: {task_name_content}
+- Current ROADMAP.md: {{ read_file("ROADMAP.md") }}
+- Current ENGINEERING_PLAN.md: {{ read_file("ENGINEERING_PLAN.md") }}
+- Current TASK_NAME: {{ read_file("TASK_NAME") }}
 
 Requirements:
 1. Follow the task list exactly
@@ -68,9 +68,9 @@ Requirements:
 fixing any issues.
 
 Context:
-- Current ROADMAP.md: {roadmap_content}
-- Current ENGINEERING_PLAN.md: {engineering_plan_content}
-- Current TASK_NAME: {task_name_content}
+- Current ROADMAP.md: {{ read_file("ROADMAP.md") }}
+- Current ENGINEERING_PLAN.md: {{ read_file("ENGINEERING_PLAN.md") }}
+- Current TASK_NAME: {{ read_file("TASK_NAME") }}
 
 Requirements:
 1. Run build, lint, and test commands as configured for this project
@@ -86,9 +86,9 @@ Requirements:
         template="""Brainstorm the next feature to work on based on current state.
 
 Context:
-- Current ROADMAP.md: {roadmap_content}
-- Current ENGINEERING_PLAN.md: {engineering_plan_content}
-- Current TASK_NAME: {task_name_content}
+- Current ROADMAP.md: {{ read_file("ROADMAP.md") }}
+- Current ENGINEERING_PLAN.md: {{ read_file("ENGINEERING_PLAN.md") }}
+- Current TASK_NAME: {{ read_file("TASK_NAME") }}
 
 Requirements:
 1. Review what was just implemented
@@ -105,15 +105,36 @@ Requirements:
         template="""Commit the changes with appropriate git commit messages.
 
 Context:
-- Current ROADMAP.md: {roadmap_content}
-- Current ENGINEERING_PLAN.md: {engineering_plan_content}
-- Current TASK_NAME: {task_name_content}
+- Current ROADMAP.md: {{ read_file("ROADMAP.md") }}
+- Current ENGINEERING_PLAN.md: {{ read_file("ENGINEERING_PLAN.md") }}
+- Current TASK_NAME: {{ read_file("TASK_NAME") }}
 
 Requirements:
 1. Create a meaningful commit message based on the changes
 2. Include reference to the feature being implemented
 3. Follow conventional commit format
 4. Update BEST_PRACTICES.md with any lessons learned during committing
+""",
+    ),
+    "reviewing": BasePromptTemplate(
+        name="reviewing",
+        description="Auto-reviews code and suggests improvements",
+        icon="🔍",
+        template="""Review the current implementation and suggest improvements.
+
+Context:
+- Current ROADMAP.md: {{ read_file("ROADMAP.md") }}
+- Current ENGINEERING_PLAN.md: {{ read_file("ENGINEERING_PLAN.md") }}
+- Current TASK_NAME: {{ read_file("TASK_NAME") }}
+
+Requirements:
+1. Review the changes made for the current task
+2. Analyze code quality, potential bugs, and edge cases
+3. Suggest refactoring opportunities if applicable
+4. Verify alignment with BEST_PRACTICES.md
+5. Output your findings as a summary. The automated PR reviewer will run additional checks.
+
+NOTE: This phase is for AI analysis. Automated linting and testing will run separately.
 """,
     ),
 }

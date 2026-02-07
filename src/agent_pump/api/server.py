@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 
 from agent_pump import __version__
 from agent_pump.api.middleware.auth import AuthMiddleware
-from agent_pump.api.middleware.cors import get_cors_config
+from agent_pump.api.middleware.cors import get_cors_config, get_cors_config_secure
 from agent_pump.api.routes.health import router as health_router
 from agent_pump.api.routes.metrics import router as metrics_router
 from agent_pump.api.routes.projects import router as projects_router
@@ -110,7 +110,12 @@ def create_server(
     app.state.autoload_projects = autoload_projects
 
     # Add CORS middleware
-    cors_config = get_cors_config(origins=cors_origins)
+    if api_key:
+        logger.info("Authentication middleware enabled - using secure CORS")
+        cors_config = get_cors_config_secure(api_key=api_key, origins=cors_origins)
+    else:
+        logger.info("Authentication middleware disabled - using default CORS")
+        cors_config = get_cors_config(origins=cors_origins)
     app.add_middleware(CORSMiddleware, **cors_config)
 
     # Add authentication middleware if API key is configured

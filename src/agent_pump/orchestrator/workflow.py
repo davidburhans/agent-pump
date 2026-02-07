@@ -768,50 +768,58 @@ class ProjectWorkflow:
                         context = await self._get_context_content()
 
                         # Phase-specific preparation
-                        await self._prepare_phase(phase.name, context)
+                        should_run_agent = await self._prepare_phase(phase.name, context)
 
-                        # Phase-specific context updates
-                        if phase.name == "brainstorming" and self.idea_queue:
-                            context["queued_ideas"] = self.idea_queue
-
-                        # Build prompt directly from file system
-                        backend_runner = self._get_backend_for_phase(phase.name)
-                        prompt = await self.prompt_loader.build_prompt(
-                            state=phase.name,
-                            backend=str(backend_runner.name),
-                            default_prompt="",  # No fallback, requires file
-                            context=context,
-                        )
-
-                        if not prompt.strip():
-                            msg = (
-                                f"\n[ERROR] No prompt found for state '{phase.name}'. "
-                                f"Please create .agent-pump/states/{phase.name}.md\n"
-                            )
-                            self._emit_output(msg)
-                            success = False
+                        if not should_run_agent:
+                            # Skip agent run but treat as success to transition to next phase
+                            success = True
                         else:
-                            # Execute pre-phase hooks
-                            if self.plugin_manager:
-                                hook_context = HookContext(
-                                    project=self.project,
-                                    phase=phase.name,
-                                    feature=self.project.current_feature,
-                                    event_bus=self.event_bus,
-                                    data={"prompt_length": len(prompt)},
-                                )
-                                await self.plugin_manager.execute_phase_hooks(
-                                    phase.name, hook_context, "enter"
-                                )
+                            # Phase-specific context updates
+                            if phase.name == "brainstorming" and self.idea_queue:
+                                context["queued_ideas"] = self.idea_queue
 
-                            # Run Agent Phase
-                            success = await self.run_phase(prompt, phase.name)
+                            # Build prompt directly from file system
+                            backend_runner = self._get_backend_for_phase(phase.name)
+                            
+                            from agent_pump.orchestrator.base_prompts import get_base_prompt_manager
+                            default_prompt = get_base_prompt_manager().get_default(phase.name)
+
+                            prompt = await self.prompt_loader.build_prompt(
+                                state=phase.name,
+                                backend=str(backend_runner.name),
+                                default_prompt=default_prompt,  # Use built-in defaults as fallback
+                                context=context,
+                            )
+
+                            if not prompt.strip():
+                                msg = (
+                                    f"\n[ERROR] No prompt found for state '{phase.name}'. "
+                                    f"Please create .agent-pump/states/{phase.name}.md\n"
+                                )
+                                self._emit_output(msg)
+                                success = False
+                            else:
+                                # Execute pre-phase hooks
+                                if self.plugin_manager:
+                                    hook_context = HookContext(
+                                        project=self.project,
+                                        phase=phase.name,
+                                        feature=self.project.current_feature,
+                                        event_bus=self.event_bus,
+                                        data={"prompt_length": len(prompt)},
+                                    )
+                                    await self.plugin_manager.execute_phase_hooks(
+                                        phase.name, hook_context, "enter"
+                                    )
+
+                                # Run Agent Phase
+                                success = await self.run_phase(prompt, phase.name)
 
                         if self._cancelled:
                             break
 
                         # Post-phase hook (Verification, side effects)
-                        if success:
+                        if should_run_agent and success:
                             success = await self._post_phase(phase.name, success)
 
                         # Execute post-phase hooks
@@ -1166,6 +1174,19 @@ class ProjectWorkflow:
         if phase_name == "planning":
             await self._prepare_planning_phase(context)
 
+        if phase_name == "reviewing":
+            return await self._prepare_reviewing_phase(context)
+
+        return True
+
+    def _is_review_enabled(self) -> bool:
+        """Check if PR review is enabled for this project."""
+        if self.project_config and self.project_config.github_integration:
+            review_config = self.project_config.github_integration.pr_review_config
+            if review_config and not review_config.enabled:
+                return False
+        return True
+
     async def _post_phase(self, phase_name: str, ai_success: bool) -> bool:
         """Run logic after a phase finishes. Returns final success status."""
         if not ai_success:
@@ -1205,21 +1226,38 @@ class ProjectWorkflow:
 
             # Branch Strategy: Auto-merge if enabled
             if self.branch_config.enabled and self.branch_config.auto_merge:
+                if self._is_review_enabled():
+                    self._emit_output("\n[INFO] Auto-merge deferred to Reviewing phase.\n")
+                else:
+                    merge_result = await self._attempt_merge()
+                    if not merge_result.success:
+                        if merge_result.has_conflicts:
+                            # Pause workflow for manual conflict resolution
+                            self._emit_output(
+                                "\n[WORKFLOW PAUSED] Merge conflicts detected. "
+                                "Please resolve manually and resume.\n"
+                            )
+                            self.pause_workflow()
+                            return False
+                        # Other merge error - log but don't fail
+                        self._emit_output(f"\n[WARNING] Auto-merge failed: {merge_result.error}\n")
+
+        if phase_name == "reviewing":
+            success = await self._handle_reviewing_phase()
+            if success and self.branch_config.enabled and self.branch_config.auto_merge:
                 merge_result = await self._attempt_merge()
                 if not merge_result.success:
                     if merge_result.has_conflicts:
-                        # Pause workflow for manual conflict resolution
                         self._emit_output(
                             "\n[WORKFLOW PAUSED] Merge conflicts detected. "
                             "Please resolve manually and resume.\n"
                         )
                         self.pause_workflow()
                         return False
-                    # Other merge error - log but don't fail
                     self._emit_output(f"\n[WARNING] Auto-merge failed: {merge_result.error}\n")
+            return success
 
         return True
-
     async def _prepare_planning_phase(self, context: dict[str, Any]) -> None:
         """Logic to pick next task from roadmap if not set."""
         # Read TASK_NAME directly
@@ -1317,6 +1355,103 @@ class ProjectWorkflow:
         except Exception as e:
             logger.warning(f"Failed to create feature branch: {e}")
             self._emit_output(f"\n[WARNING] Failed to create feature branch: {e}\n")
+
+    async def _prepare_reviewing_phase(self, context: dict[str, Any]) -> bool:
+        """Prepare for the PR review phase.
+
+        Args:
+            context: The prompt context
+
+        Returns:
+            bool: True if review should proceed, False to skip
+        """
+        if not self._is_review_enabled():
+            self._emit_output("\n[INFO] PR review is disabled. Skipping reviewing phase.\n")
+            return False
+
+        if self.branch_state and self.branch_state.feature_branch:
+            self._emit_output(f"[REVIEWING] Checking branch: {self.branch_state.feature_branch}\n")
+
+        self._emit_output("\n[REVIEWING] Starting automated PR review...\n")
+        return True
+
+    async def _handle_reviewing_phase(self) -> bool:
+        """Execute automated PR review logic.
+
+        Returns:
+            bool: True if review passed (or minor issues), False if blocked by critical issues
+        """
+        try:
+            self._emit_output("\n[REVIEWING] Fetching PR changes...\n")
+
+            # Initialize PR review service
+            from agent_pump.services.pr_review_service import PRReviewService
+
+            github_config = (
+                self.project_config.github_integration if self.project_config else None
+            )
+            review_service = PRReviewService(
+                project_path=self.project.path,
+                github_config=github_config,
+            )
+
+            # 1. Fetch changes
+            # For local review, we compare feature branch to base branch
+            base_branch = (
+                self.branch_state.base_branch if self.branch_state else "main"
+            )
+            feature_branch = (
+                self.branch_state.feature_branch if self.branch_state else None
+            )
+
+            changes = await review_service.fetch_pr_changes(
+                base_branch=base_branch,
+                head_branch=feature_branch,
+            )
+
+            if not changes:
+                self._emit_output("[REVIEWING] No changes found to review.\n")
+                return True
+
+            # 2. Run code quality analysis
+            self._emit_output(f"[REVIEWING] Analyzing {len(changes)} files...\n")
+            issues = await review_service.analyze_code_quality(changes)
+
+            # 3. Check best practices
+            best_practice_violations = await review_service.check_best_practices(changes)
+
+            # 4. Generate report
+            report = await review_service.generate_review_report(
+                files=changes,
+                code_quality_issues=issues,
+                best_practice_violations=best_practice_violations,
+            )
+
+            # Output results
+            if not report.issues_found and not report.suggestions:
+                self._emit_output("[REVIEWING] ✓ Review complete: No issues found\n")
+            else:
+                for issue in report.issues_found:
+                    self._emit_output(f"[REVIEWING] ! {issue}\n")
+                for suggestion in report.suggestions:
+                    self._emit_output(f"[REVIEWING] i {suggestion}\n")
+
+                if report.blocked:
+                    self._emit_output(
+                        "\n[REVIEWING] ✗ Review blocked due to critical issues.\n"
+                        "[REVIEWING] Please fix the issues above or disable fail_on_critical_issues.\n"
+                    )
+                    return False
+                else:
+                    self._emit_output("[REVIEWING] ✓ Review passed (with non-critical issues)\n")
+
+            return True
+
+        except Exception as e:
+            logger.exception("PR review failed")
+            self._emit_output(f"\n[ERROR] PR review failed: {e}\n")
+            # Don't block workflow on internal review errors
+            return True
 
     async def _attempt_merge(self) -> MergeResult:
         """Attempt to merge the feature branch into the base branch.

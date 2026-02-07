@@ -159,8 +159,12 @@ uv run pyright
 |----------|-------------|
 | [FEATURES.md](FEATURES.md) | Complete feature list with configuration examples |
 | [BEST_PRACTICES.md](BEST_PRACTICES.md) | Engineering philosophy and coding standards |
+| [BACKEND_SETUP.md](BACKEND_SETUP.md) | Backend configuration and setup guide |
+| [CONFIG.md](CONFIG.md) | Complete configuration reference |
 | [ROADMAP.md](ROADMAP.md) | Active development plan |
 | [docs/api.md](docs/api.md) | HTTP API documentation |
+| [CHANGELOG.md](CHANGELOG.md) | Version history and release notes |
+| [SECURITY.md](SECURITY.md) | Security policy and reporting |
 
 ---
 

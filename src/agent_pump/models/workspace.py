@@ -11,6 +11,7 @@ from .approval_gate_config import ApprovalGateConfig
 from .branch_strategy import BranchStrategyConfig
 from .cost_tracking import BudgetConfig
 from .execution_queue import ExecutionQueueConfig, ExecutionQueueItem, QueuePriority, QueueStatus
+from .github_integration import GitHubIntegrationConfig
 from .verification_config import VerificationConfig
 
 logger = logging.getLogger(__name__)
@@ -230,6 +231,12 @@ class ProjectConfig(BaseModel):
     approval_gate: ApprovalGateConfig = Field(
         default_factory=ApprovalGateConfig,
         description="Approval gate configuration for this project",
+    )
+    github_integration: GitHubIntegrationConfig = Field(
+        default_factory=GitHubIntegrationConfig,
+        description=(
+            "GitHub integration settings for PR creation, issue linking, and status updates"
+        ),
     )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

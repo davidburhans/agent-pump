@@ -1,6 +1,5 @@
 """Tests for workspace switcher modal."""
 
-
 import pytest
 
 from agent_pump.tui.screens.workspace_switcher_modal import WorkspaceSwitcherModal

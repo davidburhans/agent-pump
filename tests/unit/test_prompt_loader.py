@@ -1,6 +1,5 @@
 """Tests for PromptLoader."""
 
-
 import pytest
 
 from agent_pump.orchestrator.prompt_loader import PromptLoader

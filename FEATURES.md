@@ -1805,3 +1805,199 @@ class PluginConfig(BaseModel):
 ---
 
 *Last Audited: 2026-02-02*
+
+## 🔗 GitHub Integration
+
+Deep integration with GitHub to allow Agent Pump to automate Pull Request creation and issue management.
+
+### Features
+
+- **Automatic PR Creation**: Creates a Pull Request from the feature branch to the base branch once verification passes
+- **Issue Linking**: Automatically links commits to specific GitHub Issues referenced in feature titles (e.g., `#42 Add login page`)
+- **Issue Status Updates**: Closes the associated issue when the PR is merged or workflow completes
+- **Pull Request Title/Body Generation**: Extracts issue details to create descriptive PR titles and bodies
+- **Dry-Run Support**: Simulates GitHub operations without making actual API calls
+
+### Configuration
+
+Configure GitHub integration in your workspace settings:
+
+```yaml
+github_integration:
+  token: "${GITHUB_TOKEN}"        # GitHub personal access token (use environment variable)
+  owner: "yourusername"          # GitHub repository owner
+  repo: "your-repo"              # Repository name
+  base_branch: "main"            # Base branch for PRs (default: main)
+  create_pr_on_complete: true    # Create PR after feature is verified (default: true)
+  link_commits_to_issues: true   # Link commits to GitHub issues (default: true)
+```
+
+### Usage
+
+**1. Set up your token:**
+
+```bash
+export GITHUB_TOKEN=your-personal-access-token
+```
+
+**2. Configure in workspace settings:**
+- Press `W` in TUI to open workspace switcher
+- Select your workspace and configure GitHub integration
+- Or edit `.agent-pump/config.yml` directly
+
+**3. Reference issues in roadmap items:**
+
+```markdown
+## Current Sprint
+
+### 🔴 #42 Add Login Page
+Create a login page with email and password fields.
+```
+
+**4. Start the workflow:**
+- Press `s` or use `uv run agent-pump ./my-project`
+- When the commit phase completes, Agent Pump will:
+  - Extract issue number (`#42`)
+  - Create a PR from your feature branch to main
+  - Close issue #42 with status "completed"
+
+### GitHub Operations Flow
+
+```
+1. Commit Phase → GitHub Integration
+   ↓
+2. Extract issue number from feature title (e.g., "#42 Add login page")
+   ↓
+3. If link_commits_to_issues is true:
+   - Get current commit SHA
+   - Log commit-to-issue linkage
+   ↓
+4. If create_pr_on_complete is true:
+   - Find the GitHub issue by keyword
+   - Use issue title for PR title ("Fix: Issue Title")
+   - Set PR body with "Closes #XXX"
+   - Create PR from feature branch to base branch
+   ↓
+5. Close the associated issue (reason: "completed")
+```
+
+### API Service
+
+**Service Location**: `src/agent_pump/services/github_service.py`
+
+```python
+class GitHubService:
+    """Service for interacting with GitHub API."""
+    
+    def create_pull_request(
+        self,
+        title: str,
+        body: str,
+        head_branch: str,
+        base_branch: str = "main",
+    ) -> PRInfo: ...
+    
+    def find_issue_by_keyword(self, keyword: str) -> IssueInfo | None: ...
+    
+    def close_issue(self, issue_number: int, reason: str = "completed") -> bool: ...
+```
+
+**Factory Pattern**: `src/agent_pump/services/github_service_factory.py`
+- Lazy instantiation (only creates client when needed)
+- Dry-run mode support
+- Proper error handling
+
+### Models
+
+**GitHubIntegrationConfig** (`src/agent_pump/models/github_integration.py`):
+- `token`: GitHub personal access token (environment variable recommended)
+- `owner`: Repository owner
+- `repo`: Repository name
+- `base_branch`: Base branch for PRs (default: "main")
+- `create_pr_on_complete`: Auto-create PR after verification
+- `link_commits_to_issues`: Link commits to issues
+
+**IssueInfo**: Issue details DTO with number, URL, title, state
+**PRInfo**: PR details DTO with number, URL, branch name
+
+### Test Coverage
+
+- **Unit Tests**: 15 tests for GitHubService
+  - Initialization and client management
+  - Repository operations
+  - Pull request creation
+  - Issue searching (case-insensitive keyword matching)
+  - Commit-to-issue linking
+  - Issue closing with reason parameter
+  
+- **Integration Tests**: Workflow-level GitHub operations tested
+- **Mock Support**: Factory pattern enables easy mocking for tests
+
+### Audit Status: ✅ Fully implemented and tested
+
+**Implementation**:
+- Service Layer: `src/agent_pump/services/github_service.py`, `github_service_factory.py`
+- Models: `src/agent_pump/models/github_integration.py`
+- Workflow Integration: `src/agent_pump/orchestrator/workflow.py` (_handle_github_post_commit)
+- Factory Pattern: Lazy loading, dry-run mode support
+
+**Tests**:
+- `tests/unit/test_github_service.py` (15 tests)
+- `tests/unit/test_github_models.py` (8 tests)
+- Workflow integration tested via test_workflow.py
+
+**TUI**: Configurable via workspace settings modal
+**CLI**: Automatic when workflow completes with GitHub config present
+**Documentation**: Complete with configuration examples and usage guide
+
+---
+
+## 🔍 Code Quality & Automated Reviews
+
+Automate code reviews and ensure quality standards before merging changes.
+
+### Pull Request Review Automation
+- **Description**: Automatically reviews code changes for quality issues, best practice violations, and potential bugs before merging.
+- **Features**:
+    - **Code Quality Analysis**: Runs configured linters (ruff, flake8, mypy) to detect issues.
+    - **Best Practices Check**: Verifies changes against requirements in `BEST_PRACTICES.md`.
+    - **AI Assistance**: Uses AI to analyze code logic and suggest refactoring or improvements.
+    - **Workflow Integration**: Runs automatically in the **Reviewing** phase.
+    - **Merge Blocking**: Defer auto-merge until review passes (if enabled).
+- **Configuration**:
+    - Enable/Disable in `config.yml`.
+    - Custom prompts in `.agent-pump/states/reviewing.md`.
+
+### Audit Status: ✅ Fully implemented
+- **Implementation**: `src/agent_pump/services/pr_review_service.py`, `src/agent_pump/orchestrator/workflow.py`
+- **Tests**: `tests/unit/services/test_pr_review_service.py`, `tests/integration/test_pr_review_flow.py`
+- **Documentation**: Complete
+
+---
+
+## Audit Summary
+
+### Overall Status: ✅ **Well-implemented and Documented**
+
+**Total Features Audited**: 40+
+**Fully Implemented (✅)**: 40
+**Partially Implemented (🟡)**: 1
+**Not Implemented (🔴)**: 0
+
+### Minor Issues Found
+
+1. **Bootstrap TUI Integration**: Project bootstrap is CLI-only. TUI integration would be a nice enhancement but is not critical.
+
+### Test Coverage Summary
+
+- **Total Tests**: 1385+ tests
+- **GitHub Integration Tests**: 23 tests (15 service + 8 models)
+- **Unit Tests**: Comprehensive coverage of all major components
+- **Integration Tests**: Workflow, server, and queue integration tested
+
+### Recommendations
+
+1. All critical features are fully implemented and tested
+2. Documentation is comprehensive and accurate
+3. The one partially implemented feature (TUI integrations for templates/bootstrap) is documented as CLI-only and doesn't impact core functionality
+4. GitHub Integration is production-ready with full test coverage

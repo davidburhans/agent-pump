@@ -86,9 +86,7 @@ def test_no_autoload_flag(mock_workspace_cls, mock_app_state_cls, mock_app_cls, 
 @pytest.mark.skip(
     reason="CLI structure prevents positional arguments in invoke_without_command group"
 )
-def test_autoload_merges_cli_args(
-    mock_workspace_cls, mock_app_state_cls, mock_app_cls, tmp_path
-):
+def test_autoload_merges_cli_args(mock_workspace_cls, mock_app_state_cls, mock_app_cls, tmp_path):
     """Test that autoloaded projects are merged with CLI args."""
     runner = CliRunner()
 

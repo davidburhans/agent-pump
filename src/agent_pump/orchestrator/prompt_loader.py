@@ -97,30 +97,30 @@ class PromptLoader:
 
         custom_base = await self.load_state_prompt(state, "base")
 
-        base = default_prompt
-        if custom_base:
-            if HAS_JINJA and context:
+        # Decide which template to use
+        template_str = custom_base if custom_base else default_prompt
+        base = template_str
+
+        # Render the selected template
+        if template_str and context:
+            if HAS_JINJA:
                 try:
-                    template = self.env.from_string(custom_base)
+                    template = self.env.from_string(template_str)
                     # Use render_async for non-blocking I/O
                     base = await template.render_async(**context)
                 except Exception as e:
                     logger.error(f"Jinja rendering failed for {state}: {e}")
-                    # Fallback to raw or simple format if possible
-                    # But since we switched to {{ }}, .format() won't work on new templates.
-                    # We might want to try .format() as a fallback for legacy templates?
+                    # Fallback to .format() for legacy compatibility or raw
                     try:
-                        base = custom_base.format(**context)
+                        base = template_str.format(**context)
                     except (KeyError, ValueError):
-                        base = custom_base
-            elif context:
-                # Fallback implementation if Jinja missing (legacy)
-                try:
-                    base = custom_base.format(**context)
-                except (KeyError, ValueError):
-                    base = custom_base
+                        base = template_str
             else:
-                base = custom_base
+                # Fallback if Jinja missing
+                try:
+                    base = template_str.format(**context)
+                except (KeyError, ValueError):
+                    base = template_str
 
         parts.append(base)
 

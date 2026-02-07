@@ -14,6 +14,7 @@ def test_ask_command_help():
     assert result.exit_code == 0
     assert "Ask a question" in result.output
 
+
 def test_ask_command_execution():
     """Test executing the ask command."""
     runner = CliRunner()
@@ -30,10 +31,10 @@ def test_ask_command_execution():
         # We need to make sure we don't actually try to init EventBus if it does complex stuff
         with patch("agent_pump.events.bus.EventBus"):
             with patch("agent_pump.cli.Console.print"):
-                 # Note: we can't easily capture output if we mock console.print
-                 # but CliRunner captures stdout/stderr.
-                 # The command uses global `console`.
-                 pass
+                # Note: we can't easily capture output if we mock console.print
+                # but CliRunner captures stdout/stderr.
+                # The command uses global `console`.
+                pass
 
             # Run command
             result = runner.invoke(main, ["ask", "My Query", "."])

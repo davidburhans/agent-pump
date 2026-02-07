@@ -14,11 +14,7 @@ class TestLogBuffer:
         buffer = LogBuffer(max_size=5)
         for i in range(10):
             entry = LogEntry(
-                timestamp="12:00",
-                message=f"msg {i}",
-                project_path=None,
-                state="idle",
-                task=None
+                timestamp="12:00", message=f"msg {i}", project_path=None, state="idle", task=None
             )
             buffer.add(entry)
 
@@ -42,6 +38,7 @@ class TestLogBuffer:
         assert recent[0].message == "A"
         assert recent[1].message == "C"
 
+
 class TestLogService:
     @pytest.mark.asyncio
     async def test_log_service_integration(self):
@@ -56,10 +53,7 @@ class TestLogService:
 
         # Publish event
         event = LogEntryEvent(
-            message="Test Message",
-            project_path=project_path,
-            state="running",
-            task="testing"
+            message="Test Message", project_path=project_path, state="running", task="testing"
         )
         await event_bus.publish(event)
 

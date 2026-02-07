@@ -245,10 +245,10 @@ class WorkflowPanel(Middle):
         # passed workflow. For now, if active, pulse.
         # Maybe check if state is "paused" or "error"?
         if self.snapshot.current_state in ["paused", "error", "completed", "idle"]:
-             # Don't pulse
-             if active_node_id and active_node_id in self.nodes:
-                 self.nodes[active_node_id].remove_class("pulse")
-             return
+            # Don't pulse
+            if active_node_id and active_node_id in self.nodes:
+                self.nodes[active_node_id].remove_class("pulse")
+            return
 
         if active_node_id and active_node_id in self.nodes:
             self.nodes[active_node_id].toggle_class("pulse")

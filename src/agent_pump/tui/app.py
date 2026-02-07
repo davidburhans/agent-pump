@@ -58,6 +58,7 @@ from agent_pump.tui.screens import (
     TemplateApplyModal,
     TemplateListModal,
     WorkflowEditorModal,
+    WorkflowSelectModal,
     WorkspaceSwitcherModal,
 )
 from agent_pump.tui.screens.confirm_modal import ConfirmModal
@@ -607,6 +608,41 @@ class AgentPumpApp(App):
 
         self.push_screen(
             WorkflowEditorModal(self.workspace, current_workflow),
+            handle_result,
+        )
+
+    def action_select_workflow(self) -> None:
+        """Open the workflow selector for the selected project."""
+        if not self.selected_project:
+            self._log("No project selected. Select a project first with click/arrow keys.")
+            return
+
+        project_config = self.workspace.get_project_config(self.selected_project)
+        if not project_config:
+            self._log("Project not found in workspace config.")
+            return
+
+        # Get the current workflow name for this project
+        current_workflow_name = getattr(project_config, "workflow_name", "default")
+
+        def handle_result(selected_workflow_name: str | None) -> None:
+            if selected_workflow_name is not None:
+                # Update project to use the selected workflow
+                old_name = project_config.workflow_name
+                project_config.workflow_name = selected_workflow_name
+                self.workspace.save()
+                self._log(
+                    f"Workflow changed for '{project_config.name}': "
+                    f"'{old_name}' → '{selected_workflow_name}'"
+                )
+            else:
+                self._log("Workflow selection cancelled")
+
+        self.push_screen(
+            WorkflowSelectModal(
+                self.workspace,
+                current_workflow_name=current_workflow_name,
+            ),
             handle_result,
         )
 

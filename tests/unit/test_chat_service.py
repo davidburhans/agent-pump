@@ -14,9 +14,11 @@ from agent_pump.services.chat_service import ChatService
 def event_bus():
     return EventBus()
 
+
 @pytest.fixture
 def chat_service(event_bus):
     return ChatService(event_bus)
+
 
 @pytest.mark.asyncio
 async def test_chat_stream_success(chat_service):
@@ -53,11 +55,12 @@ async def test_chat_stream_success(chat_service):
             # Verify backend was called with prompt containing context
             call_args = mock_backend.run.call_args
             assert call_args
-            prompt = call_args[0][1] # 2nd arg is prompt
+            prompt = call_args[0][1]  # 2nd arg is prompt
             assert "CONTEXT:" in prompt
             assert "main.py" in prompt
             assert "print('hello')" in prompt
             assert "USER: Explain this code" in prompt
+
 
 @pytest.mark.asyncio
 async def test_chat_stream_backend_not_available(chat_service):
@@ -75,6 +78,7 @@ async def test_chat_stream_backend_not_available(chat_service):
 
         assert "not available" in "".join(chunks)
 
+
 @pytest.mark.asyncio
 async def test_chat_stream_history(chat_service):
     """Test chat stream with history."""
@@ -86,6 +90,7 @@ async def test_chat_stream_history(chat_service):
 
     async def mock_run_gen(*args, **kwargs):
         yield ""
+
     mock_backend.run = MagicMock(side_effect=mock_run_gen)
 
     with patch("agent_pump.services.chat_service.get_backend", return_value=mock_backend):

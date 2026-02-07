@@ -8,7 +8,7 @@ from textual.containers import Container, Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import Button, Checkbox, Input, Label, Select, Static, TabbedContent, TabPane
 
-from agent_pump.backends import BACKEND_REGISTRY
+from agent_pump.backends import BACKEND_REGISTRY, get_backend
 from agent_pump.models.workspace import (
     BackendFallback,
     BackendInstance,
@@ -28,6 +28,8 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
     BINDINGS = [
         Binding("escape", "cancel", "Cancel"),
         Binding("ctrl+s", "save", "Save", priority=True),
+        Binding("ctrl+up", "move_backend_up", "Move Up", show=False),
+        Binding("ctrl+down", "move_backend_down", "Move Down", show=False),
     ]
 
     DEFAULT_CSS = """
@@ -93,28 +95,6 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
         margin-bottom: 1;
     }
 
-    .backend-row {
-        height: 3;
-        margin-bottom: 1;
-    }
-
-    .backend-row Label {
-        width: 3;
-    }
-
-    .backend-row Select {
-        width: 20;
-    }
-
-    .backend-row Input {
-        width: 1fr;
-    }
-
-    .backend-row Button {
-        width: 4;
-        margin-left: 1;
-    }
-
     .add-row {
         height: 3;
         margin-top: 1;
@@ -142,7 +122,63 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
     .inherit-checkbox {
         margin-bottom: 1;
     }
+
+    .backend-row {
+        layout: horizontal;
+        height: auto;
+        padding: 0 1;
+        align-vertical: middle;
+    }
+
+    .backend-row.selected {
+        background: $primary-darken-2;
+    }
+
+    .backend-row:focus {
+        background: $primary-darken-2;
+    }
+
+    .backend-row Label {
+        width: 3;
+        content-align: center middle;
+    }
+
+    .backend-row Select {
+        width: 18;
+    }
+
+    .backend-row Select#*-model-* {
+        width: 30;
+    }
+
+    .backend-row Input {
+        width: 1fr;
+    }
+
+    .backend-row Button {
+        width: 4;
+        margin-left: 1;
+    }
+
+    .backend-row Button.move-btn {
+        width: 3;
+        min-width: 3;
+        padding: 0;
+        margin: 0;
+        border: none;
+        background: transparent;
+        color: $text;
+        content-align: center middle;
+    }
+
+    .backend-row Button.move-btn:hover {
+        background: $boost;
+        color: $accent;
+    }
     """
+
+    # Cache for model lists per backend
+    _backend_models: dict[str, list[str]] = {}
 
     def __init__(
         self,
@@ -161,6 +197,8 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
         self._phase_backends_lists: dict[str, list[BackendInstance]] = {}
         # Counter to ensure unique IDs across rebuilds
         self._rebuild_counter = 0
+        # Track which backends support model selection
+        self._backend_supports_models: dict[str, bool] = {}
 
         # Load standard phases
         for phase in PHASES:
@@ -174,6 +212,14 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
             # Default to Gemini if not set
             self._phase_backends_lists["default"] = [BackendInstance()]
 
+        # Check which backends support model selection
+        for backend_name in BACKEND_REGISTRY.keys():
+            backend = get_backend(backend_name)
+            self._backend_supports_models[backend_name] = backend.supports_model_selection()
+
+        # Track selected backend row for reordering
+        self._selected_row: dict[str, int] = {}  # phase -> selected index
+
     def compose(self) -> ComposeResult:
         """Compose the modal's widgets."""
         available_backends = list(BACKEND_REGISTRY.keys())
@@ -182,7 +228,7 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
         with Container(id="modal-container"):
             yield Static(f"⚙️ Backend Configuration: {self.project_config.name}", id="modal-title")
             yield Label(
-                "Configure backend fallback chains. Backends tried in order. Ctrl+S to save, Esc to cancel.",  # noqa: E501
+                "Configure backend fallback chains. Backends tried in order. Click a row to select, ↑↓ buttons or Ctrl+↑↓ to reorder. Ctrl+S to save, Esc to cancel.",  # noqa: E501
                 classes="help-text",
             )
 
@@ -304,33 +350,215 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
                 allow_blank=False,
             )
         )
+
+        # Check if this backend supports model selection
+        supports_models = self._backend_supports_models.get(backend.name, False)
+
+        if supports_models:
+            # Parse current model from args
+            current_model = ""
+            extra_args = []
+            args_iter = iter(backend.args)
+            for arg in args_iter:
+                if arg == "--model":
+                    try:
+                        current_model = next(args_iter)
+                    except StopIteration:
+                        pass
+                else:
+                    extra_args.append(arg)
+
+            # Add model dropdown
+            models = self._backend_models.get(backend.name, [])
+            model_options = [("(select model)", "")] + [(m, m) for m in models]
+            row.compose_add_child(
+                Select(
+                    model_options,
+                    value=current_model if current_model else "",
+                    id=f"{phase}-model-{rc}-{idx}",
+                    allow_blank=False,
+                )
+            )
+            # Add extra args input (for additional args beyond --model)
+            row.compose_add_child(
+                Input(
+                    value=" ".join(extra_args),
+                    placeholder="extra args",
+                    id=f"{phase}-args-{rc}-{idx}",
+                )
+            )
+        else:
+            # No model support - show args input as before
+            row.compose_add_child(
+                Input(
+                    value=" ".join(backend.args),
+                    placeholder="args (e.g., --model gemini-2.5-flash)",
+                    id=f"{phase}-args-{rc}-{idx}",
+                )
+            )
+
+        # Add move up/down buttons
+        is_first = idx == 0
+        is_last = idx >= len(self._phase_backends_lists.get(phase, [])) - 1
+
         row.compose_add_child(
-            Input(
-                value=" ".join(backend.args),
-                placeholder="args (e.g., --model gemini-2.5-flash)",
-                id=f"{phase}-args-{rc}-{idx}",
+            Button(
+                "↑",
+                id=f"{phase}-move-up-{rc}-{idx}",
+                variant="default",
+                classes="move-btn",
+                tooltip="Move Up (Ctrl+Up)",
+                disabled=is_first,
             )
         )
         row.compose_add_child(
             Button(
-                "✕",
-                id=f"{phase}-remove-{rc}-{idx}",
-                variant="error",
-                tooltip="Remove backend"
+                "↓",
+                id=f"{phase}-move-down-{rc}-{idx}",
+                variant="default",
+                classes="move-btn",
+                tooltip="Move Down (Ctrl+Down)",
+                disabled=is_last,
             )
+        )
+        row.compose_add_child(
+            Button("✕", id=f"{phase}-remove-{rc}-{idx}", variant="error", tooltip="Remove backend")
         )
         return row
 
+    def _get_current_phase(self) -> str | None:
+        """Get the currently active tab's phase."""
+        try:
+            tabbed_content = self.query_one(TabbedContent)
+            active_tab_id = str(tabbed_content.active)
+            return active_tab_id.replace("tab-", "")
+        except Exception:
+            return None
+
+    def _select_backend_row(self, phase: str, idx: int) -> None:
+        """Select a backend row for reordering."""
+        # Deselect previous row in this phase
+        prev_idx = self._selected_row.get(phase)
+        if prev_idx is not None and prev_idx != idx:
+            try:
+                rc = self._rebuild_counter
+                prev_row = self.query_one(f"#{phase}-row-{rc}-{prev_idx}", Horizontal)
+                prev_row.remove_class("selected")
+            except Exception:
+                pass
+
+        # Select new row
+        self._selected_row[phase] = idx
+        try:
+            rc = self._rebuild_counter
+            row = self.query_one(f"#{phase}-row-{rc}-{idx}", Horizontal)
+            row.add_class("selected")
+        except Exception:
+            pass
+
+    def action_move_backend_up(self) -> None:
+        """Move the selected backend up in the chain."""
+        phase = self._get_current_phase()
+        if not phase:
+            return
+
+        idx = self._selected_row.get(phase)
+        if idx is None or idx <= 0:
+            self.notify("Select a backend first (click on it)", severity="warning")
+            return
+
+        self._move_backend(phase, idx, idx - 1)
+
+    def action_move_backend_down(self) -> None:
+        """Move the selected backend down in the chain."""
+        phase = self._get_current_phase()
+        if not phase:
+            return
+
+        backends = self._phase_backends_lists.get(phase, [])
+        idx = self._selected_row.get(phase)
+        if idx is None or idx >= len(backends) - 1:
+            self.notify("Select a backend first (click on it)", severity="warning")
+            return
+
+        self._move_backend(phase, idx, idx + 1)
+
+    def _move_backend(self, phase: str, from_idx: int, to_idx: int) -> None:
+        """Move a backend from one position to another."""
+        # Sync current UI state before moving
+        self._sync_phase_from_ui(phase)
+
+        # Perform the move
+        backends = self._phase_backends_lists[phase]
+        if 0 <= from_idx < len(backends) and 0 <= to_idx < len(backends):
+            backend = backends.pop(from_idx)
+            backends.insert(to_idx, backend)
+
+            # Update selection
+            self._selected_row[phase] = to_idx
+
+            # Rebuild the UI
+            self.call_later(self._rebuild_backend_list, phase)
+
+            direction = "up" if to_idx < from_idx else "down"
+            self.notify(f"Moved backend {direction}", severity="information")
+
     def on_select_changed(self, event: Select.Changed) -> None:
-        """Handle copy-from selection."""
+        """Handle select changes - both copy-from and backend selection."""
         if not event.select.id:
             return
         select_id = str(event.select.id)
+
+        # Handle copy-from selection
         if "-copy-from" in select_id and event.value:
             phase = select_id.replace("-copy-from", "")
             self.call_later(self._apply_copy, phase, str(event.value))
             # Reset the select to placeholder
             cast(Any, event.select).value = ""
+            return
+
+        # Handle backend selection change
+        if "-backend-" in select_id and event.value:
+            # Extract phase and idx from ID: {phase}-backend-{rc}-{idx}
+            parts = select_id.split("-")
+            if len(parts) >= 4:
+                phase = parts[0]
+                idx = int(parts[-1])
+                backend_name = str(event.value)
+
+                # Check if this backend supports model selection
+                if self._backend_supports_models.get(backend_name, False):
+                    # Load models asynchronously
+                    self.call_later(self._load_backend_models, backend_name, phase, idx)
+            return
+
+    async def _load_backend_models(self, backend_name: str, phase: str, idx: int) -> None:
+        """Load available models for a backend and update the UI."""
+        # Check if we already have models cached
+        if backend_name in self._backend_models:
+            await self._update_model_dropdown(phase, idx, backend_name)
+            return
+
+        try:
+            backend = get_backend(backend_name)
+            if backend.supports_model_selection():
+                models = await backend.list_models()
+                self._backend_models[backend_name] = models
+                await self._update_model_dropdown(phase, idx, backend_name)
+        except Exception as e:
+            self.notify(f"Could not load models for {backend_name}: {e}", severity="warning")
+
+    async def _update_model_dropdown(self, phase: str, idx: int, backend_name: str) -> None:
+        """Update the model dropdown with loaded models."""
+        rc = self._rebuild_counter
+        try:
+            model_select = self.query_one(f"#{phase}-model-{rc}-{idx}", Select)
+            models = self._backend_models.get(backend_name, [])
+            model_options = [("(select model)", "")] + [(m, m) for m in models]
+            model_select.set_options(model_options)
+        except Exception:
+            # Dropdown might not exist yet
+            pass
 
     def on_checkbox_changed(self, event: Checkbox.Changed) -> None:
         """Handle inherit checkbox toggle."""
@@ -500,6 +728,20 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
             idx = int(parts[-1])
             phase = parts[0]
             self.call_later(self._remove_backend, phase, idx)
+        elif "-move-up-" in button_id:
+            # ID format: {phase}-move-up-{counter}-{idx}
+            parts = button_id.split("-")
+            idx = int(parts[-1])
+            phase = parts[0]
+            self._selected_row[phase] = idx
+            self.action_move_backend_up()
+        elif "-move-down-" in button_id:
+            # ID format: {phase}-move-down-{counter}-{idx}
+            parts = button_id.split("-")
+            idx = int(parts[-1])
+            phase = parts[0]
+            self._selected_row[phase] = idx
+            self.action_move_backend_down()
         elif "-save-preset" in button_id:
             phase = button_id.replace("-save-preset", "")
             self._save_as_preset(phase)
@@ -651,9 +893,37 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
         for idx in range(len(backends)):
             try:
                 backend_select = self.query_one(f"#{phase}-backend-{rc}-{idx}", Select)
-                args_input = self.query_one(f"#{phase}-args-{rc}-{idx}", Input)
-                backends[idx].name = str(backend_select.value)
-                backends[idx].args = args_input.value.split() if args_input.value.strip() else []
+                backend_name = str(backend_select.value)
+                backends[idx].name = backend_name
+
+                # Check if this backend supports model selection
+                supports_models = self._backend_supports_models.get(backend_name, False)
+
+                if supports_models:
+                    # Combine model from dropdown with extra args
+                    args = []
+                    try:
+                        model_select = self.query_one(f"#{phase}-model-{rc}-{idx}", Select)
+                        selected_model = str(model_select.value)
+                        if selected_model:
+                            args.extend(["--model", selected_model])
+                    except Exception:
+                        pass  # Model dropdown might not exist
+
+                    try:
+                        args_input = self.query_one(f"#{phase}-args-{rc}-{idx}", Input)
+                        extra_args = args_input.value.split() if args_input.value.strip() else []
+                        args.extend(extra_args)
+                    except Exception:
+                        pass  # Args input might not exist
+
+                    backends[idx].args = args
+                else:
+                    # No model support - just get args from input
+                    args_input = self.query_one(f"#{phase}-args-{rc}-{idx}", Input)
+                    backends[idx].args = (
+                        args_input.value.split() if args_input.value.strip() else []
+                    )
             except Exception:
                 pass  # Row may have been removed or UI mismatch
 

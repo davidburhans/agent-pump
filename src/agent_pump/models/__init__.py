@@ -27,6 +27,13 @@ from agent_pump.models.cost_tracking import (
     CostSummary,
     PeriodCosts,
 )
+from agent_pump.models.github_integration import (
+    GitHubIntegrationConfig,
+    IssueInfo,
+    PRInfo,
+    PRReviewConfig,
+    PRReviewResult,
+)
 from agent_pump.models.plugin import (
     HookContext,
     PluginConfig,
@@ -67,6 +74,11 @@ __all__ = [
     "BackendPreset",
     "BranchState",
     "BranchStrategyConfig",
+    "GitHubIntegrationConfig",
+    "IssueInfo",
+    "PRInfo",
+    "PRReviewResult",
+    "PRReviewConfig",
     "BudgetAction",
     "BudgetConfig",
     "BudgetPeriod",

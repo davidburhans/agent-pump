@@ -14,6 +14,7 @@ async def test_chat_screen_flow():
 
     class TestApp(App):
         event_bus: MagicMock | None = None
+
         def on_mount(self):
             self.push_screen(ChatScreen(project_path))
 
@@ -39,6 +40,7 @@ async def test_chat_screen_flow():
 
             async def mock_stream(*args, **kwargs):
                 yield "AI Response"
+
             mock_instance.chat_stream = mock_stream
 
             # Focus input
