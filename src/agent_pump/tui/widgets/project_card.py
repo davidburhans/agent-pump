@@ -282,6 +282,12 @@ class ProjectCard(Static):
         if self.project.config.test_cmd:
             verification_parts.append(f"test: {self.project.config.test_cmd}")
 
+        if self.project.config.coverage_cmd:
+            cov_str = f"coverage: {self.project.config.coverage_cmd}"
+            if self.project.coverage is not None:
+                cov_str += f" ({self.project.coverage:.1f}%)"
+            verification_parts.append(cov_str)
+
         verification_info = (
             ", ".join(verification_parts) if verification_parts else "verification: none"
         )

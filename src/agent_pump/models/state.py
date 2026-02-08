@@ -36,6 +36,9 @@ class WorkflowState(BaseModel):
     checkpoints: CheckpointCollection = Field(default_factory=CheckpointCollection)
     last_updated: datetime = Field(default_factory=datetime.now)
     iteration_count: int = Field(default=0)
+    last_coverage: float | None = Field(
+        default=None, description="Last recorded code coverage percentage"
+    )
 
     model_config = {"arbitrary_types_allowed": True}
 

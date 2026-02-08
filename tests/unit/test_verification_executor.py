@@ -175,6 +175,18 @@ class TestVerificationExecutor:
         assert "testing" in result.stdout
 
     @pytest.mark.asyncio
+    async def test_run_coverage_method(self, tmp_path):
+        """Test the run_coverage method."""
+        config = VerificationConfig(coverage_cmd=echo_cmd("coverage"))
+        executor = VerificationExecutor(tmp_path, config)
+
+        result = await executor.run_coverage(timeout=10)
+
+        assert result.success is True
+        assert result.command == echo_cmd("coverage")
+        assert "coverage" in result.stdout
+
+    @pytest.mark.asyncio
     async def test_run_all_methods_skip_verification(self, tmp_path):
         """Test the run_all method when skip_verification is True."""
         config = VerificationConfig(skip_verification=True)
@@ -194,17 +206,19 @@ class TestVerificationExecutor:
             build_cmd=echo_cmd("build_success"),
             lint_cmd=echo_cmd("lint_success"),
             test_cmd=echo_cmd("test_success"),
+            coverage_cmd=echo_cmd("coverage_success"),
         )
         executor = VerificationExecutor(tmp_path, config)
 
         results = await executor.run_all(timeout_per_command=10)
 
         # All results should succeed
-        assert len(results) == 3
+        assert len(results) == 4
         assert all(result.success for result in results.values())
         assert "build_success" in results["build"].stdout
         assert "lint_success" in results["lint"].stdout
         assert "test_success" in results["test"].stdout
+        assert "coverage_success" in results["coverage"].stdout
 
     @pytest.mark.asyncio
     async def test_run_all_methods_build_failure(self, tmp_path):
@@ -213,14 +227,17 @@ class TestVerificationExecutor:
             build_cmd=fail_cmd(),  # This will fail
             lint_cmd=echo_cmd("lint_should_not_run"),
             test_cmd=echo_cmd("test_should_not_run"),
+            coverage_cmd=echo_cmd("coverage_should_not_run"),
         )
         executor = VerificationExecutor(tmp_path, config)
 
         results = await executor.run_all(timeout_per_command=10)
 
-        # Build should fail, lint and test should be skipped
+        # Build should fail, others should be skipped
         assert results["build"].success is False
         assert results["lint"].success is False
         assert results["test"].success is False
+        assert results["coverage"].success is False
         assert "Build failed, skipping lint" in results["lint"].stdout
         assert "Build failed, skipping test" in results["test"].stdout
+        assert "Build failed, skipping coverage" in results["coverage"].stdout

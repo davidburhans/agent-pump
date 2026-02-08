@@ -21,11 +21,19 @@ class VerificationConfig(BaseModel):
         default=None,
         description="Command to run for testing the project (e.g., 'npm test', 'pytest')",
     )
+    coverage_cmd: str | None = Field(
+        default=None,
+        description="Command to run for measuring code coverage (e.g., 'pytest --cov')",
+    )
+    coverage_threshold: float = Field(
+        default=0.0,
+        description="Minimum coverage percentage required to pass verification",
+    )
     skip_verification: bool = Field(
         default=False, description="Whether to skip the verification phase entirely"
     )
 
-    @field_validator("build_cmd", "lint_cmd", "test_cmd")
+    @field_validator("build_cmd", "lint_cmd", "test_cmd", "coverage_cmd")
     @classmethod
     def validate_command_format(cls, v: str | None) -> str | None:
         """Validate command format to prevent dangerous patterns."""
@@ -63,6 +71,9 @@ class ProjectDetectionResult(BaseModel):
     test_cmd: str | None = Field(
         default=None, description="Suggested test command based on project type"
     )
+    coverage_cmd: str | None = Field(
+        default=None, description="Suggested coverage command based on project type"
+    )
 
 
 def detect_project_type(project_path: Path) -> ProjectDetectionResult:
@@ -86,6 +97,7 @@ def detect_project_type(project_path: Path) -> ProjectDetectionResult:
             build_cmd="cargo build",
             lint_cmd="cargo clippy",
             test_cmd="cargo test",
+            coverage_cmd="cargo tarpaulin",
         )
     elif "go.mod" in files:
         return ProjectDetectionResult(
@@ -93,13 +105,17 @@ def detect_project_type(project_path: Path) -> ProjectDetectionResult:
             build_cmd="go build ./...",
             lint_cmd="golangci-lint run",
             test_cmd="go test ./...",
+            coverage_cmd="go test -cover ./...",
         )
     elif "package.json" in files:
+        # NPM coverage command detection is tricky, usually 'npm run coverage' or 'npm test -- --coverage'
+        # We'll suggest 'npm run coverage' assuming user might have it, or 'npm test -- --coverage' for jest/vitest defaults
         return ProjectDetectionResult(
             project_type="npm",
             build_cmd="npm run build",
             lint_cmd="npm run lint",
             test_cmd="npm test",
+            coverage_cmd="npm run coverage",
         )
     elif "pyproject.toml" in files:
         # Check for specific Python tools in pyproject.toml
@@ -114,6 +130,7 @@ def detect_project_type(project_path: Path) -> ProjectDetectionResult:
                     build_cmd="uv build",
                     lint_cmd="uv run ruff check .",
                     test_cmd="uv run pytest",
+                    coverage_cmd="uv run pytest --cov",
                 )
             # Check for poetry project
             elif "[tool.poetry]" in content:
@@ -122,6 +139,7 @@ def detect_project_type(project_path: Path) -> ProjectDetectionResult:
                     build_cmd="poetry build",
                     lint_cmd="poetry run ruff check .",
                     test_cmd="poetry run pytest",
+                    coverage_cmd="poetry run pytest --cov",
                 )
             # Default to pip/standard Python project
             else:
@@ -130,6 +148,7 @@ def detect_project_type(project_path: Path) -> ProjectDetectionResult:
                     build_cmd="python -m build",
                     lint_cmd="ruff check .",
                     test_cmd="pytest",
+                    coverage_cmd="pytest --cov",
                 )
         except Exception:
             # If we can't read pyproject.toml, assume standard Python
@@ -138,10 +157,15 @@ def detect_project_type(project_path: Path) -> ProjectDetectionResult:
                 build_cmd="python -m build",
                 lint_cmd="ruff check .",
                 test_cmd="pytest",
+                coverage_cmd="pytest --cov",
             )
     elif "Makefile" in files or "makefile" in files:
         return ProjectDetectionResult(
-            project_type="make", build_cmd="make", lint_cmd=None, test_cmd="make test"
+            project_type="make",
+            build_cmd="make",
+            lint_cmd=None,
+            test_cmd="make test",
+            coverage_cmd="make coverage",
         )
     elif "pom.xml" in files:
         return ProjectDetectionResult(
@@ -149,6 +173,7 @@ def detect_project_type(project_path: Path) -> ProjectDetectionResult:
             build_cmd="mvn compile",
             lint_cmd="mvn checkstyle:check",
             test_cmd="mvn test",
+            coverage_cmd="mvn jacoco:report",
         )
     elif "build.gradle" in files or "build.gradle.kts" in files:
         return ProjectDetectionResult(
@@ -156,9 +181,14 @@ def detect_project_type(project_path: Path) -> ProjectDetectionResult:
             build_cmd="gradle build",
             lint_cmd="gradle check",
             test_cmd="gradle test",
+            coverage_cmd="gradle jacocoTestReport",
         )
     else:
         # No specific project type detected, return empty suggestions
         return ProjectDetectionResult(
-            project_type=None, build_cmd=None, lint_cmd=None, test_cmd=None
+            project_type=None,
+            build_cmd=None,
+            lint_cmd=None,
+            test_cmd=None,
+            coverage_cmd=None,
         )

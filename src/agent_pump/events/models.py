@@ -5,6 +5,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from agent_pump.models.coverage import CoverageReportModel
 from agent_pump.models.review import ReviewReportModel
 
 
@@ -130,6 +131,15 @@ class ReviewRequestedEvent(Event):
 
     project_path: Path
     report: ReviewReportModel
+
+
+class CoverageResultEvent(Event):
+    """Emitted when code coverage is calculated."""
+
+    project_path: Path
+    report: CoverageReportModel
+    success: bool
+    threshold: float
 
 
 class InputRequestedEvent(Event):

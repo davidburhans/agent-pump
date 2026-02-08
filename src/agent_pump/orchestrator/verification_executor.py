@@ -238,6 +238,21 @@ class VerificationExecutor:
 
         return await self.run_command(self.config.test_cmd, timeout)
 
+    async def run_coverage(self, timeout: int = 300) -> VerificationResult:
+        """Run the coverage command."""
+        if not self.config.coverage_cmd:
+            logger.debug("No coverage command configured, skipping")
+            return VerificationResult(
+                success=True,
+                command="",
+                stdout="No coverage command configured",
+                stderr="",
+                exit_code=0,
+                duration=0.0,
+            )
+
+        return await self.run_command(self.config.coverage_cmd, timeout)
+
     async def run_all(self, timeout_per_command: int = 120) -> dict[str, VerificationResult]:
         """
         Run all verification commands sequentially.
@@ -262,6 +277,7 @@ class VerificationExecutor:
             )
             results["lint"] = results["build"]
             results["test"] = results["build"]
+            results["coverage"] = results["build"]
             return results
 
         # Run build, lint, and test in sequence
@@ -284,9 +300,20 @@ class VerificationExecutor:
                 exit_code=0,
                 duration=0.0,
             )
+            results["coverage"] = VerificationResult(
+                success=False,
+                command="",
+                stdout="Build failed, skipping coverage",
+                stderr="",
+                exit_code=0,
+                duration=0.0,
+            )
             return results
 
         results["lint"] = await self.run_lint(timeout_per_command)
         results["test"] = await self.run_test(timeout_per_command * 2)  # Tests might take longer
+        results["coverage"] = await self.run_coverage(
+            timeout_per_command * 2
+        )  # Coverage might take longer
 
         return results

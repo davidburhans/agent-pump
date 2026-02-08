@@ -1,5 +1,6 @@
 from agent_pump.integrations.failure_parser import FailureParser
 
+
 def test_parse_python_error():
     logs = """
     some log content

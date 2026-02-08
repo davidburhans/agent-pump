@@ -17,6 +17,7 @@ from agent_pump.backends.base import AgentBackend
 from agent_pump.backends.gemini import GeminiBackend
 from agent_pump.events.bus import EventBus
 from agent_pump.events.models import (
+    CoverageResultEvent,
     InputRequestedEvent,
     LogEntryEvent,
     ReviewRequestedEvent,
@@ -49,6 +50,7 @@ from agent_pump.services.cost_tracking_service import CostTrackingService
 from agent_pump.services.github_service import GitHubService
 from agent_pump.services.plugin_manager import PluginManager
 from agent_pump.services.pr_creator_service import PRCreatorService
+from agent_pump.utils.coverage_parser import CoverageParser
 from agent_pump.utils.notifier import Notifier
 from agent_pump.utils.token_counter import DefaultTokenCounterService
 
@@ -1886,6 +1888,45 @@ Please analyze the file and apply a fix.
 
         # Check if all verification commands passed
         all_passed = all(result.success for result in verification_results.values())
+
+        # Process coverage results
+        if "coverage" in verification_results:
+            cov_result = verification_results["coverage"]
+            if cov_result.command and cov_result.success:
+                report = CoverageParser.parse_text(cov_result.stdout)
+                if report:
+                    self.workflow_state.last_coverage = report.total_coverage
+                    self.project.coverage = report.total_coverage
+
+                    threshold = self.project.config.coverage_threshold
+                    if threshold > 0:
+                        if report.total_coverage < threshold:
+                            self._emit_output(
+                                f"\n[ERROR] Coverage ({report.total_coverage:.1f}%) is below threshold ({threshold:.1f}%)\n"  # noqa: E501
+                            )
+                            all_passed = False
+                        else:
+                            self._emit_output(
+                                f"\n[INFO] Coverage: {report.total_coverage:.1f}% (Threshold: {threshold:.1f}%)\n"
+                            )
+                    else:
+                        self._emit_output(
+                            f"\n[INFO] Coverage: {report.total_coverage:.1f}% (No threshold set)\n"
+                        )
+
+                    if self.event_bus:
+                        event = CoverageResultEvent(
+                            project_path=self.project.path,
+                            report=report,
+                            success=(report.total_coverage >= threshold),
+                            threshold=threshold,
+                        )
+                        try:
+                            asyncio.create_task(self.event_bus.publish(event))
+                        except RuntimeError:
+                            pass
+                else:
+                    self._emit_output("\n[WARNING] Could not parse coverage output\n")
 
         # Log verification results
         for cmd_type, result in verification_results.items():

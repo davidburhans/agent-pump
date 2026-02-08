@@ -10,9 +10,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from agent_pump.api.server import app
-from agent_pump.models.project import Project, ProjectStatus
+from agent_pump.models.project import ProjectStatus
 from agent_pump.models.webhook_config import WebhookConfig
-from agent_pump.models.workspace import Workspace, ProjectConfig, GitHubIntegrationConfig
+from agent_pump.models.workspace import ProjectConfig, Workspace
 
 client = TestClient(app)
 

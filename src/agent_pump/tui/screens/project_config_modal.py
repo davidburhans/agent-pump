@@ -180,6 +180,27 @@ class ProjectConfigModal(ModalScreen[None]):
                         classes="input-row",
                     )
 
+                    yield Horizontal(
+                        Label("Coverage Command:"),
+                        Input(
+                            self.config.verification.coverage_cmd or "",
+                            placeholder="e.g., pytest --cov",
+                            id="input-coverage-cmd",
+                        ),
+                        classes="input-row",
+                    )
+
+                    yield Horizontal(
+                        Label("Min Coverage (%):"),
+                        Input(
+                            str(self.config.verification.coverage_threshold),
+                            placeholder="0.0",
+                            id="input-coverage-threshold",
+                            type="number",
+                        ),
+                        classes="input-row",
+                    )
+
             # Button row (outside tabs)
             yield Horizontal(
                 Button("Cancel (Esc)", variant="error", id="btn-cancel"),
@@ -266,6 +287,28 @@ class ProjectConfigModal(ModalScreen[None]):
 
             test_cmd = self.query_one("#input-test-cmd", Input).value
             self.config.verification.test_cmd = str(test_cmd) if test_cmd.strip() else None
+
+            coverage_cmd = self.query_one("#input-coverage-cmd", Input).value
+            self.config.verification.coverage_cmd = (
+                str(coverage_cmd) if coverage_cmd.strip() else None
+            )
+
+            coverage_threshold_input = self.query_one("#input-coverage-threshold", Input)
+            if coverage_threshold_input.value:
+                try:
+                    val = float(coverage_threshold_input.value)
+                    if not (0 <= val <= 100):
+                        raise ValueError("Must be between 0 and 100")
+                    self.config.verification.coverage_threshold = val
+                except ValueError:
+                    self.notify("Coverage threshold must be between 0 and 100", severity="error")
+                    self.query_one(TabbedContent).active = "tab-verification"
+                    coverage_threshold_input.focus()
+                    coverage_threshold_input.add_class("error")
+                    self._shake(coverage_threshold_input)
+                    return
+            else:
+                self.config.verification.coverage_threshold = 0.0
 
             # Save to file
             self.config.save(self.config_path)

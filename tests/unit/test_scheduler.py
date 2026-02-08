@@ -1,10 +1,9 @@
 import json
-from datetime import time, timezone
+from datetime import UTC, time
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from apscheduler import AsyncScheduler
 
 from agent_pump.models.schedule import Schedule, ScheduleType
 from agent_pump.scheduling.scheduler import WorkflowScheduler
@@ -197,7 +196,7 @@ async def test_run_workflow_working_hours(scheduler):
 
     # Case 1: Weekend (Saturday)
     # 2023-10-21 is Saturday
-    dt_weekend = datetime(2023, 10, 21, 10, 0, tzinfo=timezone.utc)
+    dt_weekend = datetime(2023, 10, 21, 10, 0, tzinfo=UTC)
 
     with patch("agent_pump.scheduling.scheduler.datetime") as mock_dt:
         mock_dt.now.return_value = dt_weekend
@@ -209,7 +208,7 @@ async def test_run_workflow_working_hours(scheduler):
 
     # Case 2: Weekday but early (Monday 8 AM)
     # 2023-10-23 is Monday
-    dt_early = datetime(2023, 10, 23, 8, 0, tzinfo=timezone.utc)
+    dt_early = datetime(2023, 10, 23, 8, 0, tzinfo=UTC)
 
     with patch("agent_pump.scheduling.scheduler.datetime") as mock_dt:
         mock_dt.now.return_value = dt_early
@@ -217,7 +216,7 @@ async def test_run_workflow_working_hours(scheduler):
         mock_workflow.start.assert_not_called()
 
     # Case 3: Weekday working hours (Monday 10 AM)
-    dt_working = datetime(2023, 10, 23, 10, 0, tzinfo=timezone.utc)
+    dt_working = datetime(2023, 10, 23, 10, 0, tzinfo=UTC)
 
     with patch("agent_pump.scheduling.scheduler.datetime") as mock_dt:
         mock_dt.now.return_value = dt_working

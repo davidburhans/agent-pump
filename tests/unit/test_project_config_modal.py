@@ -144,6 +144,8 @@ def mock_config():
     config.verification.build_cmd = None
     config.verification.lint_cmd = None
     config.verification.test_cmd = None
+    config.verification.coverage_cmd = None
+    config.verification.coverage_threshold = 0.0
     config.backend = "gemini"
     return config
 
@@ -209,3 +211,80 @@ async def test_validation_shake(tmp_path, mock_config):
             # Verify config updated
             assert mock_config.workflow.max_iterations == 10
             assert mock_config.workflow.timeout == 100
+
+
+@pytest.mark.asyncio
+async def test_coverage_fields_interaction(tmp_path, mock_config):
+    """Test interaction with coverage fields in ProjectConfigModal."""
+    path = tmp_path / "test_project"
+    (path / ".agent-pump").mkdir(parents=True, exist_ok=True)
+    (path / ".agent-pump" / "config.yml").touch()
+
+    # We also need to mock Config.save to avoid MagicMock error if not mocked in fixture
+    # The fixture returns a MagicMock, so .save is already a MagicMock.
+
+    with patch("agent_pump.config.Config.load", return_value=mock_config):
+        app = MockPumpApp()
+        async with app.run_test() as pilot:
+            modal = ProjectConfigModal(path)
+            await app.push_screen(modal)
+
+            # Find inputs
+            cov_cmd_input = modal.query_one("#input-coverage-cmd", Input)
+            cov_threshold_input = modal.query_one("#input-coverage-threshold", Input)
+
+            # Set values
+            cov_cmd_input.value = "pytest --cov"
+            cov_threshold_input.value = "85.5"
+
+            # Save
+            await pilot.press("ctrl+s")
+            await pilot.pause()
+
+            # Verify config updated
+            assert mock_config.verification.coverage_cmd == "pytest --cov"
+            assert mock_config.verification.coverage_threshold == 85.5
+            mock_config.save.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_coverage_threshold_validation(tmp_path, mock_config):
+    """Test validation of coverage threshold."""
+    path = tmp_path / "test_project"
+    (path / ".agent-pump").mkdir(parents=True, exist_ok=True)
+    (path / ".agent-pump" / "config.yml").touch()
+
+    with patch("agent_pump.config.Config.load", return_value=mock_config):
+        app = MockPumpApp()
+        async with app.run_test() as pilot:
+            modal = ProjectConfigModal(path)
+            await app.push_screen(modal)
+
+            cov_threshold_input = modal.query_one("#input-coverage-threshold", Input)
+
+            # Invalid value (negative)
+            cov_threshold_input.value = "-10"
+            mock_config.save.reset_mock()
+            await pilot.press("ctrl+s")
+            await pilot.pause()
+
+            # Should stay on modal (not dismissed) and NOT save
+            assert app.screen is modal
+            mock_config.save.assert_not_called()
+
+            # Invalid value (> 100)
+            cov_threshold_input.value = "110"
+            await pilot.press("ctrl+s")
+            await pilot.pause()
+
+            assert app.screen is modal
+            mock_config.save.assert_not_called()
+
+            # Valid value
+            cov_threshold_input.value = "100"
+            await pilot.press("ctrl+s")
+            await pilot.pause()
+
+            # Should be dismissed
+            assert app.screen is not modal
+            assert mock_config.verification.coverage_threshold == 100.0

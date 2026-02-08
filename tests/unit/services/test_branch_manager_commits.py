@@ -1,6 +1,9 @@
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
+
 from agent_pump.services.branch_manager import BranchManager
+
 
 @pytest.fixture
 def mock_repo():

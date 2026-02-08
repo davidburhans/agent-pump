@@ -1,6 +1,6 @@
 """GitHub Issue synchronization service."""
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from github import Github
 from github.Issue import Issue

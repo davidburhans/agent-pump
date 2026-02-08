@@ -11,26 +11,6 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Current Sprint
 
-### 🔴 Code Coverage Integration
-**Priority: Medium**
-
-Visualize code coverage directly in the TUI and use it as a verification gate.
-
-#### Implementation Overview
-
-- **Coverage Collection**: Run tests with coverage (e.g. `pytest --cov`, `cargo tarpaulin`).
-- **Parsing**: Parse standard coverage formats (Cobertura XML, LCOV, JSON).
-- **TUI Visualization**:
-    - Project-wide coverage percentage in dashboard.
-    - File-level coverage in diff viewer or file browser.
-    - Heatmap visualization for specific files.
-- **Verification Gate**: Fail verification if coverage drops below threshold.
-- **Agent Context**: Feed coverage gaps to the agent to suggest missing tests.
-
----
-
-## Future Sprints
-
 ### 🔴 Enhanced Tool Security
 **Priority: Medium**
 
@@ -43,6 +23,18 @@ Add security controls for custom tools execution.
 - **Sandboxing**: Optional execution in isolated environments (e.g. Docker).
 
 ---
+
+## Future Sprints
+
+### 🔴 Context Awareness Improvements
+**Priority: Medium**
+
+Improve the context provided to agents by intelligently selecting relevant files.
+
+#### Implementation Overview
+- **Embeddings**: Use embeddings to find relevant code snippets.
+- **Tree-sitter**: Parse code to understand structure and dependencies.
+- **Dynamic Context**: Inject only relevant parts of large files.
 
 ### 🔴 Remote MCP Server Support
 **Priority: Low**
