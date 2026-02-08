@@ -248,3 +248,11 @@ class TokenCounter:
             return f"{count / 1000:.1f}K"
         else:
             return f"{count / 1_000_000:.1f}M"
+
+
+class DefaultTokenCounterService:
+    """Default implementation of TokenCounterService using the static TokenCounter."""
+
+    def count_tokens(self, text: str, backend: str, model: str | None = None) -> int:
+        """Count tokens for the given text."""
+        return TokenCounter.count_tokens(text, backend, model)

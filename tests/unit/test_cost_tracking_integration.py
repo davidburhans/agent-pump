@@ -71,6 +71,7 @@ class MockBackend(AgentBackend):
         timeout: int = 600,
         verbose: bool = False,
         extra_args: list[str] | None = None,
+        auto_approve: bool = False,
     ) -> AsyncGenerator[str, None]:
         yield "Test output line 1"
         yield "Test output line 2"

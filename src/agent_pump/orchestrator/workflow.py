@@ -33,13 +33,19 @@ from agent_pump.models.workflow_snapshot import (
     WorkflowSnapshot,
 )
 from agent_pump.models.workspace import PhaseBackends, ProjectConfig, PromptCustomization
+from agent_pump.orchestrator.interfaces import (
+    CheckpointManager,
+    PromptLoaderService,
+    TokenCountingService,
+    VerificationRunner,
+)
 from agent_pump.orchestrator.verification_executor import VerificationExecutor
 from agent_pump.services.branch_manager import BranchManager, MergeResult
 from agent_pump.services.checkpoint_service import CheckpointService
 from agent_pump.services.cost_tracking_service import CostTrackingService
 from agent_pump.services.plugin_manager import PluginManager
 from agent_pump.utils.notifier import Notifier
-from agent_pump.utils.token_counter import TokenCounter
+from agent_pump.utils.token_counter import DefaultTokenCounterService, TokenCounter
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +111,11 @@ class ProjectWorkflow:
         on_ideas_processed: Callable[[Path], None] | None = None,
         dry_run: bool = False,
         plugin_manager: PluginManager | None = None,
+        # Injected dependencies
+        prompt_loader: PromptLoaderService | None = None,
+        verification_executor: VerificationRunner | None = None,
+        checkpoint_service: CheckpointManager | None = None,
+        token_counter_service: TokenCountingService | None = None,
     ):
         """
         Initialize the workflow for a project.
@@ -124,6 +135,10 @@ class ProjectWorkflow:
             on_ideas_processed: Callback when ideas have been processed
             dry_run: Whether to run in dry-run mode (preview only, no changes)
             plugin_manager: Optional plugin manager for running plugin hooks
+            prompt_loader: Optional injected PromptLoader service
+            verification_executor: Optional injected VerificationExecutor service
+            checkpoint_service: Optional injected CheckpointService
+            token_counter_service: Optional injected TokenCounterService
         """
         from agent_pump.orchestrator.workflow_definition import DEFAULT_WORKFLOW
 
@@ -141,9 +156,15 @@ class ProjectWorkflow:
         self.workflow_def = workflow_def or DEFAULT_WORKFLOW
 
         # Initialize PromptLoader
-        from agent_pump.orchestrator.prompt_loader import PromptLoader
+        if prompt_loader:
+            self.prompt_loader = prompt_loader
+        else:
+            from agent_pump.orchestrator.prompt_loader import PromptLoader
 
-        self.prompt_loader = PromptLoader(project.path)
+            self.prompt_loader = PromptLoader(project.path)
+
+        # Initialize TokenCounterService
+        self.token_counter_service = token_counter_service or DefaultTokenCounterService()
 
         self.idea_queue = idea_queue or []
         self.on_output = on_output
@@ -154,9 +175,12 @@ class ProjectWorkflow:
         self._pending_publish_tasks: list[asyncio.Task] = []
 
         # Initialize verification executor with project's verification config
-        self.verification_executor = VerificationExecutor(
-            project_path=project.path, config=project.config
-        )
+        if verification_executor:
+            self.verification_executor = verification_executor
+        else:
+            self.verification_executor = VerificationExecutor(
+                project_path=project.path, config=project.config
+            )
 
         # Load or create workflow state
         self.workflow_state = WorkflowState.load(project.path) or WorkflowState(
@@ -216,10 +240,13 @@ class ProjectWorkflow:
         self.branch_state: BranchState | None = None
 
         # Initialize checkpoint service for auto-checkpoints and rollback
-        self.checkpoint_service = CheckpointService(
-            event_bus=event_bus or EventBus(),
-            repo_path=project.path,
-        )
+        if checkpoint_service:
+            self.checkpoint_service = checkpoint_service
+        else:
+            self.checkpoint_service = CheckpointService(
+                event_bus=event_bus or EventBus(),
+                repo_path=project.path,
+            )
 
         # Initialize plugin manager (can be None if plugins not enabled)
         self.plugin_manager = plugin_manager
@@ -571,7 +598,9 @@ class ProjectWorkflow:
                     timeout = step_timeout
 
         # Count input tokens for cost tracking
-        input_tokens = TokenCounter.count_tokens(prompt, backend.name, metrics_model_name)
+        input_tokens = self.token_counter_service.count_tokens(
+            prompt, backend.name, metrics_model_name
+        )
 
         # Determine safety setting
         auto_approve = False
@@ -662,7 +691,9 @@ class ProjectWorkflow:
         # Record costs for this phase
         if self.cost_tracking_service:
             output_text = "".join(output_lines)
-            output_tokens = TokenCounter.count_tokens(output_text, backend.name, metrics_model_name)
+            output_tokens = self.token_counter_service.count_tokens(
+                output_text, backend.name, metrics_model_name
+            )
             self.cost_tracking_service.record_invocation(
                 project_path=self.project.path,
                 phase=phase_name,
