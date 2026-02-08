@@ -494,3 +494,31 @@ class GitHubService:
 
         except (GithubException, RateLimitExceededException):
             return None
+
+    def get_check_run_logs(self, check_run_id: int) -> str:
+        """Get logs for a specific check run.
+
+        Args:
+            check_run_id: The ID of the check run.
+
+        Returns:
+            The logs content as a string, or empty string if not found/unavailable.
+        """
+        try:
+            repo = self.get_repo()
+            check_run = repo.get_check_run(check_run_id)
+
+            # 1. Try output.text/summary if provided directly in the check run
+            logs = []
+            if check_run.output:
+                if check_run.output.title:
+                    logs.append(f"Title: {check_run.output.title}")
+                if check_run.output.summary:
+                    logs.append(f"Summary: {check_run.output.summary}")
+                if check_run.output.text:
+                    logs.append(f"Details: {check_run.output.text}")
+
+            return "\n\n".join(logs)
+
+        except (GithubException, RateLimitExceededException):
+            return ""
