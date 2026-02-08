@@ -11,16 +11,6 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Current Sprint
 
-### 🔴 Knowledge Base Integration
-**Priority: Low**
-
-Allow agents to index and search project documentation and external resources.
-
-#### Implementation Overview
-- **Indexer**: Index markdown files in `docs/` or wiki.
-- **Retrieval**: RAG (Retrieval-Augmented Generation) for planning phase.
-- **Context**: Inject relevant docs into context.
-
 ### 🔴 Slack Notifications
 **Priority: Low**
 
@@ -119,6 +109,18 @@ VS Code extension to interface with Agent Pump.
 - Status bar integration
 - Command palette commands
 - Inline chat
+
+---
+
+### 🔴 Workflow Analytics Dashboard
+**Priority: Low**
+
+Visualize workflow performance metrics and costs over time.
+
+#### Implementation Overview
+- **Data Collection**: Aggregate metrics from `CostTrackingService` and `WorkflowState`.
+- **TUI Dashboard**: Add a new screen in TUI to show graphs (using textual-plotext or similar).
+- **Metrics**: Success rate, average phase duration, token usage, cost per feature.
 
 ---
 

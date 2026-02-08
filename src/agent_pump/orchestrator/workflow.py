@@ -259,7 +259,7 @@ class ProjectWorkflow:
             )
 
         # Initialize context service
-        self.context_service = ContextService(project.path)
+        self.context_service = ContextService(project.path, config=project_config)
 
         # Initialize plugin manager (can be None if plugins not enabled)
         self.plugin_manager = plugin_manager
