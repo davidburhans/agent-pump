@@ -4,6 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from agent_pump.models.tool_config import ToolArgument, ToolConfig
+from agent_pump.models.tool_security import ToolSecurityConfig
 
 
 def test_tool_argument_validation():
@@ -73,3 +74,29 @@ def test_get_command_args_dict():
     # Extra args ignored (current implementation)
     cmd = config.get_command_args({"env": "prod", "extra": "foo"})
     assert cmd == ["./script.sh", "--env", "prod"]
+
+
+def test_tool_argument_validation_regex():
+    """Test that validation_regex is correctly stored."""
+    arg = ToolArgument(name="test", validation_regex=r"^[a-z]+$")
+    assert arg.validation_regex == r"^[a-z]+$"
+
+
+def test_tool_config_sandbox():
+    """Test that sandbox field is correctly stored."""
+    config = ToolConfig(
+        name="test",
+        description="test",
+        command="echo",
+        sandbox=True
+    )
+    assert config.sandbox is True
+
+
+def test_tool_security_config_defaults():
+    """Test ToolSecurityConfig defaults."""
+    config = ToolSecurityConfig()
+    assert config.enabled is True
+    assert "python" in config.allowed_interpreters
+    assert "**" in config.allowed_path_patterns
+    assert config.allow_network_access is True

@@ -1,6 +1,10 @@
 import asyncio
+import fnmatch
 import json
 import logging
+import os
+import re
+import shutil
 import sys
 from typing import Any
 
@@ -58,6 +62,7 @@ class AgentPumpMCPServer:
             return []
 
         workflow = project_service.workflows[project_path]
+        tool_security = workflow.project_config.tool_security if workflow.project_config else None
 
         # 1. Tools from config.yml
         tools: list[ToolConfig] = []
@@ -76,21 +81,40 @@ class AgentPumpMCPServer:
 
                     # Determine interpreter and command
                     command = None
+                    interpreter = None
                     if item.suffix == ".py":
                         command = f"{sys.executable} .agent-pump/tools/{item.name}"
+                        interpreter = "python"
                     elif item.suffix in (".sh", ".bash"):
                         # Try to use bash if available, otherwise assume direct execution (linux)
                         command = f"bash .agent-pump/tools/{item.name}"
+                        interpreter = "bash" if item.suffix == ".bash" else "sh"
                     elif item.suffix == ".js":
                         command = f"node .agent-pump/tools/{item.name}"
+                        interpreter = "node"
                     elif item.suffix == ".ts":
                         command = f"ts-node .agent-pump/tools/{item.name}"
+                        interpreter = "node"  # Treat ts-node as node family
                     elif item.suffix in (".bat", ".cmd", ".ps1"):
                         # Windows scripts
                         if item.suffix == ".ps1":
                             command = f"powershell -File .agent-pump/tools/{item.name}"
+                            interpreter = "powershell"
                         else:
                             command = f".agent-pump/tools/{item.name}"
+                            interpreter = "cmd"
+
+                    # Check allowed interpreters
+                    if (
+                        tool_security
+                        and tool_security.enabled
+                        and interpreter
+                        and interpreter not in tool_security.allowed_interpreters
+                    ):
+                        logger.warning(
+                            f"Skipping tool {item.name}: Interpreter '{interpreter}' not allowed."
+                        )
+                        continue
 
                     if command:
                         tools.append(
@@ -103,11 +127,76 @@ class AgentPumpMCPServer:
                         )
         return tools
 
+    def _validate_argument(
+        self, value: str, arg_def: Any, tool_security: Any, project_path: Any
+    ) -> tuple[bool, str]:
+        """Validate a tool argument against configuration."""
+
+        # 1. Regex Validation
+        if arg_def.validation_regex:
+            if not re.match(arg_def.validation_regex, value):
+                return (
+                    False,
+                    f"Argument '{arg_def.name}' failed regex validation: {value} (Pattern: {arg_def.validation_regex})",
+                )
+
+        # 2. Path Validation
+        if arg_def.type == "path" and tool_security and tool_security.enabled:
+            try:
+                # 1. Resolve Path
+                resolved_path = (project_path / value).resolve()
+
+                # 2. Check if within project root (canonicalization)
+                # We normalize paths to strings for comparison
+                # Using commonpath to ensure it's a subpath
+                if os.path.commonpath([resolved_path, project_path]) != str(project_path):
+                    return False, f"Path traversal attempt detected: {value}"
+
+                # 3. Check allowed patterns
+                rel_path = resolved_path.relative_to(project_path)
+                # use forward slashes for fnmatch
+                rel_path_str = str(rel_path).replace("\\", "/")
+
+                matched = any(
+                    fnmatch.fnmatch(rel_path_str, pattern)
+                    for pattern in tool_security.allowed_path_patterns
+                )
+                if not matched:
+                    return (
+                        False,
+                        f"Argument '{arg_def.name}' path not allowed: {value}. Allowed patterns: {tool_security.allowed_path_patterns}",
+                    )
+            except Exception as e:
+                logger.warning(f"Error validating path argument: {e}")
+                return False, f"Error validating path: {e}"
+
+        return True, ""
+
     async def _execute_tool(
         self, tool_config: ToolConfig, args: list[str], project_path: Any
     ) -> str:
         """Execute a tool."""
-        import os
+
+        # Get security config
+        project_service = self.project_service
+        workflow = project_service.workflows[project_path] if project_service else None
+        tool_security = workflow.project_config.tool_security if workflow and workflow.project_config else None
+
+        # Validate arguments
+        if tool_security and tool_security.enabled:
+            # Ensure argument count does not exceed definition
+            if len(args) > len(tool_config.args):
+                return f"Security Error: Too many arguments. Expected max {len(tool_config.args)}, got {len(args)}."
+
+            # Map input args list to named args for validation
+            for i, arg_val in enumerate(args):
+                if i < len(tool_config.args):
+                    arg_def = tool_config.args[i]
+                    is_valid, error_msg = self._validate_argument(
+                        arg_val, arg_def, tool_security, project_path
+                    )
+                    if not is_valid:
+                        return f"Security Error: {error_msg}"
 
         command_args = tool_config.get_command_args(args)
 
@@ -120,18 +209,94 @@ class AgentPumpMCPServer:
         full_env = os.environ.copy()
         full_env.update(env)
 
-        cmd_str = " ".join(command_args)
-        logger.info(f"Executing tool {tool_config.name}: {cmd_str} in {cwd}")
+        # Sandbox Check
+        if tool_config.sandbox:
+            # Check for docker
+            docker_cmd = shutil.which("docker")
+            if not docker_cmd:
+                return "Error: Tool requires sandbox but docker is not available."
 
+            # Determine image
+            image = tool_config.sandbox_image
+            if not image:
+                cmd_lower = tool_config.command.lower()
+                if "python" in cmd_lower or cmd_lower.endswith(".py"):
+                    image = "python:3.11-slim"
+                elif "node" in cmd_lower or cmd_lower.endswith(".js") or cmd_lower.endswith(".ts"):
+                    image = "node:18-slim"
+                elif "bash" in cmd_lower or "sh " in cmd_lower or cmd_lower.endswith(".sh"):
+                    image = "debian:stable-slim"
+                elif "powershell" in cmd_lower or cmd_lower.endswith(".ps1"):
+                    image = "mcr.microsoft.com/powershell"
+                else:
+                    image = "python:3.11-slim"  # Default fallback
+
+            # Construct docker command
+            # We mount project_path to /app
+            docker_args = [
+                "docker",
+                "run",
+                "--rm",
+                "-v",
+                f"{project_path}:/app",
+                "-w",
+                f"/app/{tool_config.working_dir}" if tool_config.working_dir else "/app",
+            ]
+
+            if tool_security and not tool_security.allow_network_access:
+                docker_args.append("--network=none")
+
+            # Pass environment variables defined in tool config
+            for k, v in tool_config.env.items():
+                docker_args.extend(["-e", f"{k}={v}"])
+
+            docker_args.append(image)
+
+            # Adjust command to run inside container
+            # Replace host python with container python if applicable
+            final_cmd_parts = []
+            for part in command_args:
+                if part == sys.executable:
+                    final_cmd_parts.append("python")
+                else:
+                    # If arg is a path relative to project, it should be fine.
+                    # If arg is an absolute path on host, it will break.
+                    # We assume relative paths for now.
+                    final_cmd_parts.append(part)
+
+            docker_args.extend(final_cmd_parts)
+
+            cmd_str = " ".join(docker_args)
+            logger.info(f"Executing sandboxed tool {tool_config.name}: {cmd_str}")
+
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    *docker_args,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    # No cwd/env needed as docker handles it
+                )
+            except Exception as e:
+                return f"Error executing sandboxed tool: {e}"
+
+        else:
+            # Standard Execution
+            cmd_str = " ".join(command_args)
+            logger.info(f"Executing tool {tool_config.name}: {cmd_str} in {cwd}")
+
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    *command_args,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=cwd,
+                    env=full_env,
+                )
+            except Exception as e:
+                return f"Error executing tool: {e}"
+
+        # Handle Output (Shared)
         try:
-            process = await asyncio.create_subprocess_exec(
-                *command_args,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=cwd,
-                env=full_env,
-            )
-
             stdout, stderr = await process.communicate()
 
             output = []
@@ -145,7 +310,7 @@ class AgentPumpMCPServer:
 
             return "\n".join(output)
         except Exception as e:
-            return f"Error executing tool: {e}"
+            return f"Error reading output: {e}"
 
     def _register_tools(self):
         @self.server.tool()

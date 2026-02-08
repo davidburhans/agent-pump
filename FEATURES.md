@@ -93,3 +93,42 @@ Configure in Project Settings > Verification:
 ### Audit Status: ✅ Fully implemented
 - **Implementation**: `src/agent_pump/models/verification_config.py`, `src/agent_pump/utils/coverage_parser.py`, `src/agent_pump/orchestrator/verification_executor.py`
 - **Tests**: `tests/unit/utils/test_coverage_parser.py`, `tests/unit/test_verification_config.py`, `tests/unit/test_verification_executor.py`
+
+## 🛡️ Enhanced Tool Security
+
+Secure execution environment for custom tools with fine-grained controls.
+
+### Features
+- **Interpreter Allow-list**: Restrict which interpreters (python, node, bash, etc.) can be used for custom tools.
+- **Argument Validation**: Validate tool arguments using Regex patterns and enforce path restrictions.
+- **Path Traversal Prevention**: Strictly prevents tools from accessing files outside the project root.
+- **Sandboxing**: Optionally execute tools inside Docker containers for isolation.
+- **Image Inference**: Automatically selects appropriate Docker images for Python, Node, Bash, and PowerShell tools.
+
+### Configuration
+Configure in Project Settings > Tool Security:
+
+```json
+"tool_security": {
+  "enabled": true,
+  "allowed_interpreters": ["python", "node", "bash"],
+  "allowed_path_patterns": ["src/*", "data/*.json"],
+  "allow_network_access": false
+}
+```
+
+Tool Definition (in `config.yml`):
+```yaml
+tools:
+  - name: sensitive_op
+    command: python scripts/op.py
+    sandbox: true
+    args:
+      - name: target_file
+        type: path
+        validation_regex: "^[a-z0-9_]+\.json$"
+```
+
+### Audit Status: ✅ Fully implemented
+- **Implementation**: `src/agent_pump/models/tool_security.py`, `src/agent_pump/communication/mcp_server.py`
+- **Tests**: `tests/unit/test_tool_security.py`, `tests/unit/test_tool_config.py`

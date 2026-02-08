@@ -12,6 +12,9 @@ class ToolArgument(BaseModel):
     type: str = Field(default="string", description="Type of the argument (string, integer, etc.)")
     description: str | None = Field(default=None, description="Description of the argument")
     required: bool = Field(default=True, description="Whether the argument is required")
+    validation_regex: str | None = Field(
+        default=None, description="Optional regex pattern to validate the argument"
+    )
 
 
 class ToolConfig(BaseModel):
@@ -26,6 +29,12 @@ class ToolConfig(BaseModel):
     env: dict[str, str] = Field(default_factory=dict, description="Environment variables to set")
     args: list[ToolArgument] = Field(
         default_factory=list, description="Arguments accepted by the tool"
+    )
+    sandbox: bool = Field(
+        default=False, description="Whether to execute the tool in a sandboxed environment"
+    )
+    sandbox_image: str | None = Field(
+        default=None, description="Docker image to use for sandboxing (e.g. 'python:3.11-slim')"
     )
 
     def get_command_args(self, input_args: dict[str, Any] | list[str]) -> list[str]:
