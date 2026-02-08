@@ -53,7 +53,7 @@ class StructuredLogFormatter(logging.Formatter):
             }:
                 log_data[key] = value
 
-        return json.dumps(log_data)
+        return json.dumps(log_data, default=str)
 
 
 class ColoredConsoleFormatter(logging.Formatter):
@@ -73,9 +73,16 @@ class ColoredConsoleFormatter(logging.Formatter):
         reset = self.COLORS["RESET"]
 
         timestamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
-        return (
+        log_msg = (
             f"{color}[{timestamp}] [{record.levelname}] {record.name}: {record.getMessage()}{reset}"
         )
+
+        if record.exc_info:
+            exc_text = self.formatException(record.exc_info)
+            if exc_text:
+                log_msg += f"\n{exc_text}"
+
+        return log_msg
 
 
 def configure_logging(

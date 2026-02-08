@@ -132,6 +132,15 @@ class WorkflowDefinition(BaseModel):
                 }
             )
 
+        if "troubleshooting" in self.terminal_states:
+            transitions.append(
+                {
+                    "trigger": "reset",
+                    "source": "troubleshooting",
+                    "dest": self.initial_state,
+                }
+            )
+
         if "completed" in self.terminal_states:
             dest = self.phases[0].name if self.phases else self.initial_state
             transitions.append(

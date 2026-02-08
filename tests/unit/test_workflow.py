@@ -111,13 +111,13 @@ class TestProjectWorkflow:
         workflow.brainstorming_complete()
         workflow.committing_complete()
         workflow.reviewing_failed()
-        assert workflow.state == "error"
+        assert workflow.state == "troubleshooting"
 
     def test_error_recovery(self, workflow):
         """Test error state and recovery."""
         workflow.start()
         workflow.planning_failed()
-        assert workflow.state == "error"
+        assert workflow.state == "troubleshooting"
 
         workflow.reset()
         assert workflow.state == "idle"

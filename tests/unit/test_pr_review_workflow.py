@@ -233,7 +233,7 @@ class TestPRReviewWorkflow:
         assert phase.name == "reviewing"
         assert phase.icon == "🔍"
         assert phase.on_success == "planning"
-        assert phase.on_failure == "error"
+        assert phase.on_failure == "troubleshooting"
 
     def test_workflow_has_reviewing_methods(self, workflow):
         """Test that workflow has reviewing transition methods."""
@@ -250,7 +250,7 @@ class TestPRReviewWorkflow:
         reviewing_failed = [t for t in transitions if t["trigger"] == "reviewing_failed"]
         assert len(reviewing_failed) == 1
         assert reviewing_failed[0]["source"] == "reviewing"
-        assert reviewing_failed[0]["dest"] == "error"
+        assert reviewing_failed[0]["dest"] == "troubleshooting"
 
     @pytest.mark.asyncio
     async def test_prepare_reviewing_phase_with_branch_state(self, workflow):
