@@ -15,162 +15,6 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Future Sprints
 
-### 🔴 Scheduled Workflow Runs
-**Priority: Medium**
-
-Cron-like scheduling for hands-free automation.
-
-#### Implementation Overview
-
-```
-src/agent_pump/
-├── scheduling/
-│   ├── __init__.py
-│   ├── scheduler.py         # APScheduler wrapper
-│   ├── schedule_config.py   # Pydantic models
-│   └── schedule_service.py  # CRUD operations
-├── models/
-│   └── schedule.py          # Schedule model
-```
-
-#### Step 1: Add Dependency
-
-```bash
-uv add apscheduler>=4.0
-```
-
-#### Step 2: Define Schedule Model (`src/agent_pump/models/schedule.py`)
-
-```python
-from pydantic import BaseModel
-from datetime import datetime, time
-from enum import Enum
-
-class ScheduleType(str, Enum):
-    CRON = "cron"
-    INTERVAL = "interval"
-    ONE_TIME = "one_time"
-
-class Schedule(BaseModel):
-    id: str
-    project_id: str
-    enabled: bool = True
-    schedule_type: ScheduleType
-    
-    # For cron: "0 2 * * *" (2 AM daily)
-    cron_expression: str | None = None
-    
-    # For interval: run every N minutes/hours
-    interval_minutes: int | None = None
-    
-    # For one-time: specific datetime
-    run_at: datetime | None = None
-    
-    # Constraints
-    timezone: str = "America/Chicago"
-    working_hours_only: bool = False
-    working_hours_start: time = time(9, 0)
-    working_hours_end: time = time(17, 0)
-    max_queue_depth: int = 3  # Don't queue more than N runs
-    
-    # Metadata
-    last_run: datetime | None = None
-    next_run: datetime | None = None
-    run_count: int = 0
-```
-
-#### Step 3: Scheduler Service (`src/agent_pump/scheduling/scheduler.py`)
-
-```python
-from apscheduler import AsyncScheduler
-from apscheduler.triggers.cron import CronTrigger
-from apscheduler.triggers.interval import IntervalTrigger
-
-class WorkflowScheduler:
-    def __init__(self, orchestrator_registry):
-        self.scheduler = AsyncScheduler()
-        self.orchestrator_registry = orchestrator_registry
-        self.schedules: dict[str, Schedule] = {}
-    
-    async def start(self):
-        await self.scheduler.start()
-        # Load saved schedules from disk
-        await self._load_schedules()
-    
-    async def add_schedule(self, schedule: Schedule):
-        trigger = self._create_trigger(schedule)
-        
-        await self.scheduler.add_job(
-            self._run_workflow,
-            trigger=trigger,
-            id=schedule.id,
-            kwargs={"project_id": schedule.project_id}
-        )
-        self.schedules[schedule.id] = schedule
-        await self._save_schedules()
-    
-    async def _run_workflow(self, project_id: str):
-        """Called by scheduler when it's time to run."""
-        schedule = self._get_schedule_for_project(project_id)
-        
-        # Check working hours constraint
-        if schedule.working_hours_only:
-            if not self._is_working_hours(schedule):
-                return  # Skip this run
-        
-        # Check queue depth
-        orchestrator = self.orchestrator_registry.get(project_id)
-        if orchestrator.queue_depth >= schedule.max_queue_depth:
-            return  # Too many queued, skip
-        
-        # Start the workflow
-        await orchestrator.start()
-    
-    def _create_trigger(self, schedule: Schedule):
-        if schedule.schedule_type == ScheduleType.CRON:
-            return CronTrigger.from_crontab(
-                schedule.cron_expression,
-                timezone=schedule.timezone
-            )
-        elif schedule.schedule_type == ScheduleType.INTERVAL:
-            return IntervalTrigger(minutes=schedule.interval_minutes)
-```
-
-#### Step 4: TUI Calendar View (`src/agent_pump/tui/screens/schedule_modal.py`)
-
-```python
-class ScheduleModal(ModalScreen):
-    """Configure scheduled runs for a project."""
-    
-    def compose(self):
-        yield Label("Schedule Workflow Runs", classes="title")
-        yield Select(
-            options=[
-                ("Daily at 2 AM", "0 2 * * *"),
-                ("Every 6 hours", "interval:360"),
-                ("Weekdays at midnight", "0 0 * * 1-5"),
-                ("Custom...", "custom"),
-            ],
-            id="schedule_preset"
-        )
-        yield Input(placeholder="Custom cron: 0 2 * * *", id="custom_cron")
-        yield Checkbox("Only during working hours", id="working_hours")
-        yield Input(value="3", id="max_queue", type="integer")
-        yield Button("Save Schedule", id="save")
-```
-
-#### Step 5: CLI Commands
-
-```bash
-uv run agent-pump schedule list
-uv run agent-pump schedule add ./my-project --cron "0 2 * * *"
-uv run agent-pump schedule add ./my-project --interval 360  # every 6 hours
-uv run agent-pump schedule remove <schedule-id>
-uv run agent-pump schedule enable/disable <schedule-id>
-```
-
----
-
 ### 🔴 GitHub Issue Sync
 **Priority: Medium**
 
@@ -403,6 +247,20 @@ async def _after_commit_phase(self, project: Project):
 **Priority: Medium**
 
 Start workflows from external events.
+
+---
+
+### 🔴 File Watcher Trigger
+**Priority: Low**
+
+Trigger workflows automatically when files change.
+
+#### Implementation Overview
+
+- **Watcher**: Use `watchfiles` to monitor project directory.
+- **Debounce**: Wait for changes to settle before triggering.
+- **Filters**: Ignore `.git`, `__pycache__`, etc.
+- **Action**: Trigger verification or full workflow on change.
 
 #### Implementation Overview
 

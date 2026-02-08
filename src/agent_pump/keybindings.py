@@ -149,6 +149,12 @@ KEYBINDINGS: list[Keybinding] = [
         scope="project",
     ),
     Keybinding(
+        key="H",
+        action="schedule_workflow",
+        description="Schedule",
+        scope="project",
+    ),
+    Keybinding(
         key="X",
         action="stop_all",
         description="All⏹",

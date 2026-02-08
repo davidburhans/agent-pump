@@ -1743,3 +1743,230 @@ def ask(query: str, path: Path) -> None:
         asyncio.run(_run_chat())
     except Exception as e:
         console.print(f"\n[bold red]Error: {e}[/bold red]")
+
+
+# ============================================================================
+# Schedule Commands
+# ============================================================================
+
+
+@main.group(name="schedule")
+def schedule_group() -> None:
+    """Manage scheduled workflow runs."""
+    pass
+
+
+@schedule_group.command(name="list")
+def list_schedules() -> None:
+    """List all scheduled workflows."""
+    import asyncio
+
+    from agent_pump.events.bus import EventBus
+    from agent_pump.models.app_state import AppState
+    from agent_pump.models.schedule import ScheduleType
+    from agent_pump.models.workspace import Workspace
+    from agent_pump.scheduling.scheduler import WorkflowScheduler
+    from agent_pump.services.project_service import ProjectService
+
+    async def _run() -> None:
+        app_state = AppState.load()
+        event_bus = EventBus()
+        # We need a workspace, but for listing schedules (which are global in file but hold project_id),
+        # we might not strictly need the exact workspace object if we just want to list.
+        # But ProjectService needs it.
+        workspace = Workspace.load(app_state.current_workspace)
+        project_service = ProjectService(event_bus, workspace, app_state)
+        scheduler = WorkflowScheduler(project_service)
+
+        # Load schedules (private method but accessible)
+        await scheduler._load_schedules()
+        schedules = scheduler.list_schedules()
+
+        if not schedules:
+            console.print("No schedules found.")
+            return
+
+        console.print(f"[bold]Scheduled Workflows ({len(schedules)}):[/bold]\n")
+
+        # Sort by project ID for better readability
+        schedules.sort(key=lambda x: x.project_id)
+
+        for s in schedules:
+            status = "[green]Enabled[/green]" if s.enabled else "[red]Disabled[/red]"
+            type_str = s.schedule_type.value.title()
+
+            desc = ""
+            if s.schedule_type == ScheduleType.CRON:
+                desc = f"Cron: {s.cron_expression}"
+            elif s.schedule_type == ScheduleType.INTERVAL:
+                desc = f"Interval: {s.interval_minutes}m"
+
+            project_name = Path(s.project_id).name
+
+            console.print(f"[bold]{project_name}[/bold] ({s.project_id})")
+            console.print(f"  ID: {s.id}")
+            console.print(f"  Status: {status}")
+            console.print(f"  Type: {type_str} ({desc})")
+
+            last_run = s.last_run.strftime("%Y-%m-%d %H:%M:%S") if s.last_run else "Never"
+            console.print(f"  Last Run: {last_run}")
+            console.print(f"  Run Count: {s.run_count}")
+            console.print("")
+
+    try:
+        asyncio.run(_run())
+    except Exception as e:
+        console.print(f"[bold red]Error: {e}[/bold red]")
+
+
+@schedule_group.command(name="remove")
+@click.argument("schedule_id")
+def remove_schedule(schedule_id: str) -> None:
+    """Remove a schedule."""
+    import asyncio
+
+    from agent_pump.events.bus import EventBus
+    from agent_pump.models.app_state import AppState
+    from agent_pump.models.workspace import Workspace
+    from agent_pump.scheduling.scheduler import WorkflowScheduler
+    from agent_pump.services.project_service import ProjectService
+
+    async def _run() -> None:
+        app_state = AppState.load()
+        event_bus = EventBus()
+        workspace = Workspace.load(app_state.current_workspace)
+        project_service = ProjectService(event_bus, workspace, app_state)
+        scheduler = WorkflowScheduler(project_service)
+        await scheduler._load_schedules()
+
+        if await scheduler.remove_schedule(schedule_id):
+            console.print(f"[green]Removed schedule {schedule_id}[/green]")
+        else:
+            console.print(f"[red]Schedule not found: {schedule_id}[/red]")
+
+    try:
+        asyncio.run(_run())
+    except Exception as e:
+        console.print(f"[bold red]Error: {e}[/bold red]")
+
+
+@schedule_group.command(name="enable")
+@click.argument("schedule_id")
+def enable_schedule(schedule_id: str) -> None:
+    """Enable a schedule."""
+    import asyncio
+
+    from agent_pump.events.bus import EventBus
+    from agent_pump.models.app_state import AppState
+    from agent_pump.models.workspace import Workspace
+    from agent_pump.scheduling.scheduler import WorkflowScheduler
+    from agent_pump.services.project_service import ProjectService
+
+    async def _run() -> None:
+        app_state = AppState.load()
+        event_bus = EventBus()
+        workspace = Workspace.load(app_state.current_workspace)
+        project_service = ProjectService(event_bus, workspace, app_state)
+        scheduler = WorkflowScheduler(project_service)
+        await scheduler._load_schedules()
+
+        schedule = scheduler.get_schedule(schedule_id)
+        if schedule:
+            schedule.enabled = True
+            await scheduler.add_schedule(schedule)
+            console.print(f"[green]Enabled schedule {schedule_id}[/green]")
+        else:
+            console.print(f"[red]Schedule not found: {schedule_id}[/red]")
+
+    try:
+        asyncio.run(_run())
+    except Exception as e:
+        console.print(f"[bold red]Error: {e}[/bold red]")
+
+
+@schedule_group.command(name="disable")
+@click.argument("schedule_id")
+def disable_schedule(schedule_id: str) -> None:
+    """Disable a schedule."""
+    import asyncio
+
+    from agent_pump.events.bus import EventBus
+    from agent_pump.models.app_state import AppState
+    from agent_pump.models.workspace import Workspace
+    from agent_pump.scheduling.scheduler import WorkflowScheduler
+    from agent_pump.services.project_service import ProjectService
+
+    async def _run() -> None:
+        app_state = AppState.load()
+        event_bus = EventBus()
+        workspace = Workspace.load(app_state.current_workspace)
+        project_service = ProjectService(event_bus, workspace, app_state)
+        scheduler = WorkflowScheduler(project_service)
+        await scheduler._load_schedules()
+
+        schedule = scheduler.get_schedule(schedule_id)
+        if schedule:
+            schedule.enabled = False
+            await scheduler.add_schedule(schedule)
+            console.print(f"[green]Disabled schedule {schedule_id}[/green]")
+        else:
+            console.print(f"[red]Schedule not found: {schedule_id}[/red]")
+
+    try:
+        asyncio.run(_run())
+    except Exception as e:
+        console.print(f"[bold red]Error: {e}[/bold red]")
+
+
+@schedule_group.command(name="add")
+@click.argument("project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path))
+@click.option("--cron", type=str, help="Cron expression (e.g. '0 2 * * *')")
+@click.option("--interval", type=int, help="Interval in minutes")
+@click.option("--working-hours/--no-working-hours", default=False, help="Run only during working hours (9am-5pm)")
+def add_schedule(project_path: Path, cron: str | None, interval: int | None, working_hours: bool) -> None:
+    """Add a schedule for a project."""
+    import asyncio
+
+    from agent_pump.events.bus import EventBus
+    from agent_pump.models.app_state import AppState
+    from agent_pump.models.schedule import Schedule, ScheduleType
+    from agent_pump.models.workspace import Workspace
+    from agent_pump.scheduling.scheduler import WorkflowScheduler
+    from agent_pump.services.project_service import ProjectService
+
+    # Validation
+    if not cron and not interval:
+        console.print("[red]Error: Must specify either --cron or --interval[/red]")
+        return
+    if cron and interval:
+        console.print("[red]Error: Cannot specify both --cron and --interval[/red]")
+        return
+
+    project_path = project_path.resolve()
+
+    async def _run() -> None:
+        app_state = AppState.load()
+        event_bus = EventBus()
+        workspace = Workspace.load(app_state.current_workspace)
+        project_service = ProjectService(event_bus, workspace, app_state)
+        scheduler = WorkflowScheduler(project_service)
+        await scheduler._load_schedules()
+
+        # Create schedule
+        schedule_type = ScheduleType.CRON if cron else ScheduleType.INTERVAL
+
+        schedule = Schedule(
+            project_id=str(project_path),
+            schedule_type=schedule_type,
+            cron_expression=cron,
+            interval_minutes=interval,
+            working_hours_only=working_hours
+        )
+
+        await scheduler.add_schedule(schedule)
+        console.print(f"[green]Added schedule {schedule.id} for {project_path}[/green]")
+
+    try:
+        asyncio.run(_run())
+    except Exception as e:
+        console.print(f"[bold red]Error: {e}[/bold red]")
