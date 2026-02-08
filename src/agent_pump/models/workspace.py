@@ -14,6 +14,7 @@ from .cost_tracking import BudgetConfig
 from .execution_queue import ExecutionQueueConfig, ExecutionQueueItem, QueuePriority, QueueStatus
 from .file_watcher_config import FileWatcherConfig
 from .github_integration import GitHubIntegrationConfig
+from .tool_security import ToolSecurityConfig
 from .verification_config import VerificationConfig
 from .webhook_config import WebhookConfig
 
@@ -253,6 +254,10 @@ class ProjectConfig(BaseModel):
     file_watcher: FileWatcherConfig = Field(
         default_factory=FileWatcherConfig,
         description="File watcher configuration for triggering workflows on changes.",
+    )
+    tool_security: ToolSecurityConfig = Field(
+        default_factory=ToolSecurityConfig,
+        description="Security configuration for custom tools.",
     )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

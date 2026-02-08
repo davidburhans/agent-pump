@@ -48,6 +48,9 @@ def mock_workflow():
     # Mock config with tools
     workflow.config = MagicMock(spec=Config)
     workflow.config.tools = []
+    # Mock project_config
+    workflow.project_config = MagicMock()
+    workflow.project_config.tool_security = None
     return workflow
 
 
@@ -104,6 +107,7 @@ async def test_get_project_tools_implicit(server, mock_project_service, mock_wor
 async def test_execute_tool_success(server, mock_project_service, mock_workflow):
     """Test successful tool execution."""
     project_path = Path("/tmp/project")
+    mock_project_service.workflows = {project_path: mock_workflow}
 
     tool_config = ToolConfig(
         name="test_tool",
@@ -133,6 +137,7 @@ async def test_execute_tool_success(server, mock_project_service, mock_workflow)
 async def test_execute_tool_failure(server, mock_project_service, mock_workflow):
     """Test failed tool execution."""
     project_path = Path("/tmp/project")
+    mock_project_service.workflows = {project_path: mock_workflow}
 
     tool_config = ToolConfig(
         name="test_tool",

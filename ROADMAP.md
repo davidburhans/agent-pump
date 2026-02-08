@@ -11,30 +11,23 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Current Sprint
 
-### 🔴 Enhanced Tool Security
-**Priority: Medium**
-
-Add security controls for custom tools execution.
-
-#### Implementation Overview
-
-- **Allow/Deny Lists**: Configure allowed commands and paths.
-- **Argument Validation**: Enhanced regex and type validation for tool arguments.
-- **Sandboxing**: Optional execution in isolated environments (e.g. Docker).
-
----
-
-## Future Sprints
-
 ### 🔴 Context Awareness Improvements
 **Priority: Medium**
 
 Improve the context provided to agents by intelligently selecting relevant files.
 
 #### Implementation Overview
-- **Embeddings**: Use embeddings to find relevant code snippets.
-- **Tree-sitter**: Parse code to understand structure and dependencies.
-- **Dynamic Context**: Inject only relevant parts of large files.
+- **Embeddings Service**: Implement a service to chunk and embed codebase using a local model (e.g. `sentence-transformers`).
+- **Vector Store**: Use a lightweight local vector store (e.g. `chromadb` or simple numpy index) to store embeddings.
+- **Retrieval Strategy**:
+    - Query expansion: Reword agent prompts to find relevant code.
+    - Re-ranking: Re-rank results based on recency or dependency graph.
+- **Tree-sitter Integration**: Use `tree-sitter` to identify function/class definitions for better chunking.
+- **Dynamic Context Injection**: Replace full file dumps with relevant snippets in the prompt context.
+
+---
+
+## Future Sprints
 
 ### 🔴 Remote MCP Server Support
 **Priority: Low**
@@ -163,3 +156,13 @@ When processing this roadmap:
    - Use `git add <specific-file>` for each changed file
    - NEVER use `git add .` or `git add -A`
    - Write clear commit messages
+
+### 🔴 Workflow Templates
+**Priority: Low**
+
+Allow users to define custom workflow states and transitions in configurable templates.
+
+#### Implementation Overview
+- **Template Schema**: Define a YAML/JSON schema for workflow definitions.
+- **Template Loader**: Load templates from `.agent-pump/templates/` or global config.
+- **Project Selection**: Allow selecting a workflow template when initializing a project.
