@@ -11,27 +11,28 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Current Sprint
 
-### 🔴 Branch Protection Rules Sync
+### 🔴 Interactive Review Dashboard
 **Priority: High**
 
-Ensure GitHub integration respects branch protection rules:
-- Read repository branch protection configuration
-- Respect required reviewers, status checks, and merge requirements
-- Wait for all required checks to pass before attempting merge
-- Display missing requirements in workflow status
+Allow users to interactively review and resolve issues found during the automated review phase:
+- **TUI Modal**: dedicated screen for reviewing code quality issues and best practice violations.
+- **Interactive Resolution**: Mark issues as "Fixed", "Ignored" (with reason), or "Auto-fix".
+- **AI Auto-fix**: Button to trigger AI backend to generate fix for specific issue.
+- **Review Decision**: Manually approve or reject the review to unblock merge.
+- **Diff View Integration**: Jump to diff viewer for specific file/line of issue.
 
 ---
 
 ## Future Sprints
 
-### 🔴 Interactive Review Dashboard
+### 🔴 Smart Reviewer Assignment
 **Priority: Medium**
 
-Allow users to interactively review and resolve issues found during the automated review phase:
-- Display review findings (issues, suggestions) in a TUI modal.
-- Allow marking issues as "Fixed" or "Ignored" (with comment).
-- Provide "Auto-fix" button for issues where the AI can propose a fix.
-- Approve/Reject the review manually if needed.
+Automatically assign reviewers to PRs based on project context:
+- Parse CODEOWNERS file.
+- Analyze git history for frequent contributors to modified files.
+- Assign reviewers via GitHub API during PR creation.
+- Load balance reviews across team members (if configured).
 
 ---
 

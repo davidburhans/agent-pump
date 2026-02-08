@@ -200,6 +200,7 @@ class BranchProtectionInfo(BaseModel):
     is_protected: bool = Field(description="Whether the branch is protected")
     required_status_checks: list[str] | None = Field(default=None)
     enforce_admins: bool = Field(default=False)
+    reviews_required: bool = Field(default=False)
     required_pull_request_reviews: list[str] | None = Field(default=None)
     dismiss_stale_reviews: bool = Field(default=True)
     require_code_owner_reviews: bool = Field(default=False)
