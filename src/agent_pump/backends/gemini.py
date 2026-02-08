@@ -123,50 +123,52 @@ class GeminiBackend(AgentBackend):
 
         from agent_pump.utils.subprocess_manager import SubprocessInfo, subprocess_manager
 
-        # Use create_subprocess_exec to avoid shell command injection
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            cwd=str(project_path),
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT,
-            env=env,
-            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
-        )
-
-        # Track process for lifecycle management
-        await subprocess_manager.track_process(
-            process.pid,
-            SubprocessInfo(
-                pid=process.pid,
-                command=" ".join(cmd),
-                project_path=project_path,
-                start_time=start_time,
-                timeout=timeout,
-                process=process,
-            ),
-        )
-
-        logger.debug(f"Process started with PID: {process.pid}")
-
-        # Write prompt to stdin
-        if process.stdin:
-            try:
-                logger.debug("Writing prompt to stdin...")
-                process.stdin.write(prompt.encode("utf-8"))
-                await asyncio.wait_for(process.stdin.drain(), timeout=30.0)
-                process.stdin.close()
-                await process.stdin.wait_closed()
-                logger.debug("Prompt written and stdin closed")
-            except Exception as e:
-                logger.error(f"Failed to write to stdin: {e}")
-
+        process = None
         try:
+            # Use create_subprocess_exec to avoid shell command injection
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                cwd=str(project_path),
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+                env=env,
+                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+            )
+
+            # Track process for lifecycle management
+            await subprocess_manager.track_process(
+                process.pid,
+                SubprocessInfo(
+                    pid=process.pid,
+                    command=" ".join(cmd),
+                    project_path=project_path,
+                    start_time=start_time,
+                    timeout=timeout,
+                    process=process,
+                ),
+            )
+
+            logger.debug(f"Process started with PID: {process.pid}")
+
+            # Write prompt to stdin
+            if process.stdin:
+                try:
+                    logger.debug("Writing prompt to stdin...")
+                    process.stdin.write(prompt.encode("utf-8"))
+                    await asyncio.wait_for(process.stdin.drain(), timeout=30.0)
+                    process.stdin.close()
+                    await process.stdin.wait_closed()
+                    logger.debug("Prompt written and stdin closed")
+                except Exception as e:
+                    logger.error(f"Failed to write to stdin: {e}")
+                    yield f"[ERROR] Failed to write prompt to backend: {e}\n"
+                    return
+
             while True:
                 elapsed = time.time() - start_time
                 if elapsed > timeout:
                     logger.warning(f"Process timeout after {timeout}s, terminating")
-                    from agent_pump.utils.subprocess_manager import subprocess_manager
                     await subprocess_manager.record_timeout(process.pid)
                     await subprocess_manager.terminate_process(process.pid)
                     yield f"\n[TIMEOUT] Process terminated after {timeout} seconds\n"
@@ -222,28 +224,37 @@ class GeminiBackend(AgentBackend):
                     continue
 
         except asyncio.CancelledError:
-            logger.info("Backend run cancelled, terminating process")
-            await subprocess_manager.record_cancellation(process.pid)
-            await subprocess_manager.terminate_process(process.pid)
+            if process:
+                logger.info("Backend run cancelled, terminating process")
+                await subprocess_manager.record_cancellation(process.pid)
+                await subprocess_manager.terminate_process(process.pid)
             raise
         finally:
             # Ensure process is terminated and resources released
-            try:
-                if process.returncode is None:
-                    logger.debug("Terminating process in finally block")
-                    await subprocess_manager.terminate_process(process.pid)
+            if process:
+                try:
+                    if process.returncode is None:
+                        logger.debug("Terminating process in finally block")
+                        await subprocess_manager.terminate_process(process.pid)
 
-                # Always wait to ensure pipes/transports are closed
-                await process.wait()
+                        # Fallback: manually terminate if manager didn't (e.g. if tracking failed)
+                        if process.returncode is None:
+                            try:
+                                process.terminate()
+                            except OSError:
+                                pass
 
-                # Untrack from manager
-                await subprocess_manager.untrack_process(process.pid, process.returncode)
+                    # Always wait to ensure pipes/transports are closed
+                    await process.wait()
 
-            except Exception as e:
-                logger.error(f"Error during process cleanup: {e}")
+                    # Untrack from manager
+                    await subprocess_manager.untrack_process(process.pid, process.returncode)
 
-            elapsed = time.time() - start_time
-            logger.info(
-                f"Gemini CLI completed: {line_count} lines in {elapsed:.1f}s, "
-                f"exit code: {process.returncode}"
-            )
+                except Exception as e:
+                    logger.error(f"Error during process cleanup: {e}")
+
+                elapsed = time.time() - start_time
+                logger.info(
+                    f"Gemini CLI completed: {line_count} lines in {elapsed:.1f}s, "
+                    f"exit code: {process.returncode}"
+                )
