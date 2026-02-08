@@ -5,6 +5,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from agent_pump.models.review import ReviewReportModel
+
 
 class Event(BaseModel):
     """Base class for all events."""
@@ -121,6 +123,13 @@ class VerificationCompletedEvent(Event):
     status: str  # 'success', 'failure', 'skipped'
     duration_seconds: float
     feature: str | None
+
+
+class ReviewRequestedEvent(Event):
+    """Emitted when a PR review requires interactive resolution."""
+
+    project_path: Path
+    report: ReviewReportModel
 
 
 class ProjectQueuedEvent(Event):

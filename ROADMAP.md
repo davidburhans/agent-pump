@@ -11,18 +11,6 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Current Sprint
 
-### 🔴 Interactive Review Dashboard
-**Priority: High**
-
-Allow users to interactively review and resolve issues found during the automated review phase:
-- **TUI Modal**: dedicated screen for reviewing code quality issues and best practice violations.
-- **Interactive Resolution**: Mark issues as "Fixed", "Ignored" (with reason), or "Auto-fix".
-- **AI Auto-fix**: Button to trigger AI backend to generate fix for specific issue.
-- **Review Decision**: Manually approve or reject the review to unblock merge.
-- **Diff View Integration**: Jump to diff viewer for specific file/line of issue.
-
----
-
 ### 🔴 Backend Communication Protocol
 **Priority: High**
 
@@ -964,6 +952,24 @@ async def _create_fix_task(self, project: Project, failure_info: FailureInfo):
         }
     )
 ```
+
+---
+
+### 🔴 Code Coverage Integration
+**Priority: Medium**
+
+Visualize code coverage directly in the TUI and use it as a verification gate.
+
+#### Implementation Overview
+
+- **Coverage Collection**: Run tests with coverage (e.g. `pytest --cov`, `cargo tarpaulin`).
+- **Parsing**: Parse standard coverage formats (Cobertura XML, LCOV, JSON).
+- **TUI Visualization**:
+    - Project-wide coverage percentage in dashboard.
+    - File-level coverage in diff viewer or file browser.
+    - Heatmap visualization for specific files.
+- **Verification Gate**: Fail verification if coverage drops below threshold.
+- **Agent Context**: Feed coverage gaps to the agent to suggest missing tests.
 
 ---
 

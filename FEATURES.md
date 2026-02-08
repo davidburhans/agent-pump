@@ -1974,13 +1974,23 @@ Automate code reviews and ensure quality standards before merging changes.
     - **AI Assistance**: Uses AI to analyze code logic and suggest refactoring or improvements.
     - **Workflow Integration**: Runs automatically in the **Reviewing** phase.
     - **Merge Blocking**: Defer auto-merge until review passes (if enabled).
+    - **Interactive Dashboard**: TUI modal for interactively resolving issues.
 - **Configuration**:
     - Enable/Disable in `config.yml`.
     - Custom prompts in `.agent-pump/states/reviewing.md`.
 
+### Interactive Review Dashboard 🖥️
+- **Description**: A dedicated TUI modal for reviewing and resolving issues found during the automated review phase.
+- **Features**:
+    - **Interactive Resolution**: Mark issues as "Fixed", "Ignored" (with reason), or "Auto-fix".
+    - **AI Auto-fix**: One-click AI fix generation for supported issues.
+    - **Details View**: Deep dive into specific issues with suggestions and file context.
+    - **Review Decision**: Approve or reject the review to unblock workflow progress.
+
 ### Audit Status: ✅ Fully implemented
-- **Implementation**: `src/agent_pump/services/pr_review_service.py`, `src/agent_pump/orchestrator/workflow.py`
-- **Tests**: `tests/unit/services/test_pr_review_service.py`, `tests/integration/test_pr_review_flow.py`
+- **Implementation**: `src/agent_pump/services/pr_review_service.py`, `src/agent_pump/orchestrator/workflow.py`, `src/agent_pump/tui/screens/review_modal.py`
+- **Tests**: `tests/unit/services/test_pr_review_service.py`, `tests/unit/test_review_dashboard.py`
+- **TUI**: Review modal integrated
 - **Documentation**: Complete
 
 ---

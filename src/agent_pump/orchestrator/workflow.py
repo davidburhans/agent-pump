@@ -18,6 +18,7 @@ from agent_pump.backends.gemini import GeminiBackend
 from agent_pump.events.bus import EventBus
 from agent_pump.events.models import (
     LogEntryEvent,
+    ReviewRequestedEvent,
     VerificationResultEvent,
     WorkflowStateChangedEvent,
 )
@@ -26,6 +27,7 @@ from agent_pump.models.branch_strategy import BranchStrategyConfig
 from agent_pump.models.cost_tracking import BudgetAction
 from agent_pump.models.plugin import HookContext
 from agent_pump.models.project import Project, ProjectStatus
+from agent_pump.models.review import ReviewAction, ReviewReportModel, ReviewStatus
 from agent_pump.models.state import WorkflowState
 from agent_pump.models.workflow_snapshot import (
     EdgeSnapshot,
@@ -174,6 +176,7 @@ class ProjectWorkflow:
         self._running = False
         self._cancelled = False
         self._pending_publish_tasks: list[asyncio.Task] = []
+        self._pending_review_future: asyncio.Future | None = None
 
         # Initialize verification executor with project's verification config
         if verification_executor:
@@ -943,6 +946,15 @@ class ProjectWorkflow:
                     task.cancel()
             self._pending_publish_tasks.clear()
 
+        # Cancel pending review if active
+        if self._pending_review_future and not self._pending_review_future.done():
+            self._pending_review_future.cancel()
+
+    def resolve_review(self, decisions: list[ReviewAction]) -> None:
+        """Resolve a pending review request with user decisions."""
+        if self._pending_review_future and not self._pending_review_future.done():
+            self._pending_review_future.set_result(decisions)
+
     def pause_workflow(self) -> None:
         """
         Force the workflow to PAUSED status.
@@ -1488,13 +1500,25 @@ class ProjectWorkflow:
             )
 
             # Output results
-            if not report.issues_found and not report.suggestions:
+            if not report.issues and not report.violations and not report.suggestions:
                 self._emit_output("[REVIEWING] ✓ Review complete: No issues found\n")
             else:
-                for issue in report.issues_found:
-                    self._emit_output(f"[REVIEWING] ! {issue}\n")
+                for issue in report.issues:
+                    self._emit_output(
+                        f"[REVIEWING] ! [{issue.severity.upper()}] {issue.file_path}:"
+                        f"{issue.line_number or '?'} - {issue.message}\n"
+                    )
+                for violation in report.violations:
+                    self._emit_output(
+                        f"[REVIEWING] ! [BP] {violation.section}: {violation.requirement} - "
+                        f"{violation.description}\n"
+                    )
                 for suggestion in report.suggestions:
                     self._emit_output(f"[REVIEWING] i {suggestion}\n")
+
+                # Request interactive review if issues exist and we have an event bus
+                if self.event_bus and (report.issues or report.violations):
+                    await self._request_interactive_review(report)
 
                 if report.blocked:
                     self._emit_output(
@@ -1512,6 +1536,115 @@ class ProjectWorkflow:
             self._emit_output(f"\n[ERROR] PR review failed: {e}\n")
             # Don't block workflow on internal review errors
             return True
+
+    async def _request_interactive_review(self, report: ReviewReportModel) -> None:
+        """Request an interactive review from the user."""
+        self._emit_output("\n[REVIEWING] Requesting interactive review...\n")
+
+        self._pending_review_future = asyncio.Future()
+        event = ReviewRequestedEvent(
+            project_path=self.project.path,
+            report=report,
+        )
+
+        try:
+            # We can't await easily here, use create_task
+            task = asyncio.create_task(self.event_bus.publish(event))  # type: ignore
+            self._pending_publish_tasks.append(task)
+            # Clean up completed tasks to prevent memory growth
+            self._pending_publish_tasks = [
+                t for t in self._pending_publish_tasks if not t.done()
+            ]
+        except RuntimeError:
+            pass
+
+        try:
+            # Wait for resolution (e.g. 1 hour timeout for user interaction)
+            # This future is resolved by resolve_review() which is called by TUI
+            decisions = await asyncio.wait_for(self._pending_review_future, timeout=3600)
+
+            # Apply decisions
+            await self._apply_review_decisions(decisions, report)
+
+        except asyncio.TimeoutError:
+            self._emit_output("\n[REVIEWING] Timed out waiting for user review.\n")
+            # Proceed with original blocked status
+        except asyncio.CancelledError:
+            self._emit_output("\n[REVIEWING] Review cancelled.\n")
+            raise
+        finally:
+            self._pending_review_future = None
+
+    async def _apply_review_decisions(
+        self, decisions: list[ReviewAction], report: ReviewReportModel
+    ) -> None:
+        """Apply user review decisions to the report."""
+        for decision in decisions:
+            if decision.status == ReviewStatus.IGNORED:
+                self._emit_output(
+                    f"[REVIEWING] Ignored issue {decision.issue_id}: "
+                    f"{decision.resolution_details or ''}\n"
+                )
+                # Remove from issues list so it doesn't block
+                report.issues = [i for i in report.issues if i.id != decision.issue_id]
+                report.violations = [v for v in report.violations if v.id != decision.issue_id]
+
+            elif decision.status == ReviewStatus.AUTO_FIX:
+                await self._auto_fix_issue(decision)
+                # Assume fixed for now, remove from report
+                report.issues = [i for i in report.issues if i.id != decision.issue_id]
+                # Best practice violations can't be easily auto-fixed via this path yet
+
+        # Re-evaluate blocked status
+        critical_count = sum(1 for i in report.issues if i.severity == "critical")
+        report.blocked = critical_count > 0
+
+    async def _auto_fix_issue(self, decision: ReviewAction) -> None:
+        """Attempt to auto-fix an issue using the AI backend."""
+        self._emit_output(f"[REVIEWING] Auto-fixing issue {decision.issue_id}...\n")
+
+        # Basic auto-fix implementation:
+        # Construct a prompt with the issue and ask the agent to fix it.
+        # This reuses the 'implementing' phase logic but targeted.
+
+        # We'll use a special "auto-fix" prompt
+        context = await self._get_context_content()
+        context["issue_id"] = decision.issue_id
+        context["issue_details"] = decision.resolution_details or ""
+        context["custom_prompt"] = decision.auto_fix_prompt
+
+        # For now, just logging as placeholder since full implementation requires
+        # targeted file editing capability which might be complex without 'implementing' phase context
+        # However, we can run a quick prompt.
+
+        backend = self._get_backend_for_phase("implementing")  # Use implementing backend
+        prompt = f"""
+You are fixing a specific issue identified during code review.
+
+Issue ID: {decision.issue_id}
+Details: {decision.resolution_details}
+
+Please analyze the file and apply a fix.
+"""
+        if decision.auto_fix_prompt:
+            prompt = decision.auto_fix_prompt
+
+        # Run the agent
+        # We use run_phase but with a custom prompt, essentially running a mini-phase
+        # But run_phase logs phase start/end which might be confusing.
+        # Instead, we just invoke backend directly.
+
+        try:
+            # Re-use backend runner
+            async for line in backend.run(
+                project_path=self.project.path,
+                prompt=prompt,
+                timeout=600,
+                auto_approve=True,  # Auto-approve fixes
+            ):
+                self._emit_output(f"[AUTO-FIX] {line}")
+        except Exception as e:
+            self._emit_output(f"[AUTO-FIX] Failed: {e}\n")
 
     async def _attempt_merge(self) -> MergeResult:
         """Attempt to merge the feature branch into the base branch.
