@@ -132,3 +132,21 @@ tools:
 ### Audit Status: ✅ Fully implemented
 - **Implementation**: `src/agent_pump/models/tool_security.py`, `src/agent_pump/communication/mcp_server.py`
 - **Tests**: `tests/unit/test_tool_security.py`, `tests/unit/test_tool_config.py`
+
+## 🧠 Context Awareness Improvements
+
+Improve the context provided to agents by intelligently selecting relevant files using embeddings.
+
+### Features
+- **Semantic Search**: Uses `sentence-transformers` to generate embeddings for code chunks.
+- **Incremental Indexing**: Efficiently updates the index by only re-processing changed files.
+- **Prompt Injection**: Automatically injects relevant code snippets into the planning and implementing prompts.
+- **Language Aware Chunking**: Uses regex-based chunking for Python and Markdown files.
+
+### Configuration
+Enabled automatically. Requires `sentence-transformers` and `scikit-learn` dependencies.
+Index is stored in `.agent-pump/embeddings/`.
+
+### Audit Status: ✅ Fully implemented
+- **Implementation**: `src/agent_pump/services/context_service.py`, `src/agent_pump/services/embeddings_service.py`, `src/agent_pump/services/vector_store.py`, `src/agent_pump/utils/code_chunker.py`
+- **Tests**: `tests/services/test_context_service.py`, `tests/services/test_embeddings_service.py`, `tests/services/test_vector_store.py`, `tests/services/test_code_chunker.py`

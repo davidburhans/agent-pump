@@ -1,7 +1,7 @@
 """Tests for the workflow state machine."""
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -12,6 +12,14 @@ from agent_pump.orchestrator.workflow import ProjectWorkflow
 
 class TestProjectWorkflow:
     """Tests for the ProjectWorkflow state machine."""
+
+    @pytest.fixture(autouse=True)
+    def mock_context_service(self):
+        with patch("agent_pump.orchestrator.workflow.ContextService") as mock:
+            instance = mock.return_value
+            instance.index_project = AsyncMock()
+            instance.get_relevant_context = AsyncMock(return_value=[])
+            yield instance
 
     @pytest.fixture
     def project(self, sample_project_path):
