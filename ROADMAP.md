@@ -15,118 +15,10 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Future Sprints
 
-### 🔴 Automatic PR Creation
-**Priority: Medium**
-
-Auto-create PRs after successful commits.
-
-#### Implementation Overview
-
-```
-src/agent_pump/
-├── integrations/
-│   └── pr_creator.py        # PR creation logic
-├── models/
-│   └── pr_config.py         # Configuration
-```
-
-#### Step 1: PR Config Model
-
-```python
-class PRCreationConfig(BaseModel):
-    enabled: bool = False
-    create_draft: bool = True  # Draft PR for review
-    auto_assign_reviewers: bool = True
-    
-    # Templates
-    title_template: str = "[Agent Pump] {feature_title}"
-    body_template: str = """
-## Summary
-{engineering_plan_summary}
-
-## Changes
-{commit_messages}
-
-## Verification
-{verification_results}
-
----
-*Created automatically by Agent Pump*
-"""
-```
-
-#### Step 2: PR Creator Service
-
-```python
-class PRCreator:
-    def __init__(self, github_client, config: PRCreationConfig):
-        self.github = github_client
-        self.config = config
-    
-    async def create_pr(
-        self,
-        project: Project,
-        feature_branch: str,
-        base_branch: str = "main"
-    ) -> str:
-        """Create a PR and return the URL."""
-        # Gather context
-        plan = project.read_file("ENGINEERING_PLAN.md")
-        commits = self._get_branch_commits(feature_branch, base_branch)
-        verification = project.last_verification_result
-        
-        # Build PR content
-        title = self.config.title_template.format(
-            feature_title=self._extract_feature_title(plan)
-        )
-        body = self.config.body_template.format(
-            engineering_plan_summary=self._summarize_plan(plan),
-            commit_messages=self._format_commits(commits),
-            verification_results=self._format_verification(verification),
-        )
-        
-        # Create PR
-        repo = self.github.get_repo(project.github_repo)
-        pr = repo.create_pull(
-            title=title,
-            body=body,
-            head=feature_branch,
-            base=base_branch,
-            draft=self.config.create_draft,
-        )
-        
-        # Assign reviewers
-        if self.config.auto_assign_reviewers:
-            reviewers = await self._get_reviewers(project)
-            pr.create_review_request(reviewers=reviewers)
-        
-        return pr.html_url
-```
-
-#### Step 3: Integration with Workflow
-
-In `src/agent_pump/orchestrator/workflow.py`, after the commit phase:
-
-```python
-async def _after_commit_phase(self, project: Project):
-    if project.config.pr_creation.enabled:
-        if project.branch_strategy.enabled:
-            pr_url = await self.pr_creator.create_pr(
-                project=project,
-                feature_branch=project.current_branch,
-                base_branch=project.branch_strategy.base_branch,
-            )
-            self.log(f"Created PR: {pr_url}")
-```
-
----
-
 ### 🔴 Webhook Triggers
 **Priority: Medium**
 
 Start workflows from external events.
-
----
 
 ### 🔴 File Watcher Trigger
 **Priority: Low**
@@ -483,3 +375,13 @@ Add native support for Ollama to run local models easily.
 - **Configuration**: Endpoint URL (default http://localhost:11434), model name.
 - **Integration**: Add to `BackendFactory`.
 - **Streaming**: Support streaming responses for real-time feedback.
+
+### 🔴 Knowledge Base Integration
+**Priority: Low**
+
+Allow agents to index and search project documentation and external resources.
+
+#### Implementation Overview
+- **Indexer**: Index markdown files in `docs/` or wiki.
+- **Retrieval**: RAG (Retrieval-Augmented Generation) for planning phase.
+- **Context**: Inject relevant docs into context.

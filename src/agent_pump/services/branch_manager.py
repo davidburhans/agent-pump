@@ -164,6 +164,27 @@ class BranchManager:
         except GitCommandError:
             return False
 
+    def get_branch_commits(self, feature_branch: str, base_branch: str = "main") -> list[str]:
+        """Get list of commit messages on feature branch that are not on base branch.
+
+        Args:
+            feature_branch: Name of the feature branch
+            base_branch: Name of the base branch
+
+        Returns:
+            List of commit messages
+        """
+        try:
+            # Equivalent to: git log base..feature --pretty=format:%s
+            # %s gives just the subject.
+            commit_range = f"{base_branch}..{feature_branch}"
+            logs = self.repo.git.log(commit_range, "--pretty=format:%s")
+            if not logs:
+                return []
+            return logs.split("\n")
+        except GitCommandError:
+            return []
+
     def delete_branch(self, branch_name: str, force: bool = False) -> bool:
         """Delete a branch.
 
