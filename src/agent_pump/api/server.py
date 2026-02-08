@@ -43,6 +43,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict[str, Any], None]:
 
     # Initialize services
     try:
+        from agent_pump.integrations.ci_watcher import CIWatcher
         from agent_pump.services.metrics_service import MetricsService
         from agent_pump.services.project_service import ProjectService
         from agent_pump.services.workspace_service import WorkspaceService
@@ -55,6 +56,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict[str, Any], None]:
         app.state.project_service = ProjectService(
             app.state.event_bus, workspace, app.state.app_state
         )
+
+        # Initialize CI Watcher
+        app.state.ci_watcher = CIWatcher(app.state.project_service)
+        logger.info("CI Watcher service initialized")
 
         # Initialize metrics service
         app.state.metrics_service = MetricsService(app.state.event_bus, workspace.name)

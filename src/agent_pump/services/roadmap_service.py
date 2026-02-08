@@ -57,6 +57,7 @@ class RoadmapService:
         status: RoadmapStatus = RoadmapStatus.NOT_STARTED,
         metadata: dict[str, Any] | None = None,
         section: str = "future",
+        position: str = "bottom",
     ) -> None:
         """Add a new item to the roadmap.
 
@@ -67,6 +68,7 @@ class RoadmapService:
             status: Initial status.
             metadata: Additional metadata.
             section: Target section ('current', 'future', 'deferred').
+            position: Position to insert the item ('top', 'bottom').
         """
         roadmap = self.load()
         item = RoadmapItem(
@@ -77,12 +79,16 @@ class RoadmapService:
             metadata=metadata or {},
         )
 
+        target_list = roadmap.future_sprints
         if section == "current":
-            roadmap.current_sprint.append(item)
+            target_list = roadmap.current_sprint
         elif section == "deferred":
-            roadmap.deferred.append(item)
+            target_list = roadmap.deferred
+
+        if position == "top":
+            target_list.insert(0, item)
         else:
-            roadmap.future_sprints.append(item)
+            target_list.append(item)
 
         self.save(roadmap)
 

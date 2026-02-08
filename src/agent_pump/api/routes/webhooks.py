@@ -9,6 +9,7 @@ from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request
 
+from agent_pump.integrations.ci_watcher import CIWatcher
 from agent_pump.models.project import ProjectStatus
 from agent_pump.models.webhook_config import WebhookConfig
 
@@ -71,6 +72,25 @@ async def start_workflow_task(project_path: Path, app_state: Any) -> None:
         logger.exception(f"Failed to start workflow for {project_path}: {e}")
 
 
+async def handle_check_run_webhook(
+    request: Request, body: bytes, background_tasks: BackgroundTasks
+) -> dict:
+    """Handle GitHub check_run webhook."""
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+
+    app_state = request.app.state
+    # Instantiate CIWatcher
+    ci_watcher = CIWatcher(app_state.project_service)
+
+    # Run in background
+    background_tasks.add_task(ci_watcher.handle_check_run, payload)
+
+    return {"status": "received", "message": "Check run event processed"}
+
+
 async def handle_github_webhook(
     request: Request, body: bytes, background_tasks: BackgroundTasks, config: WebhookConfig
 ) -> dict:
@@ -79,6 +99,9 @@ async def handle_github_webhook(
 
     if event_type == "ping":
         return {"status": "pong", "message": "GitHub webhook ping received"}
+
+    if event_type == "check_run":
+        return await handle_check_run_webhook(request, body, background_tasks)
 
     if event_type != "push":
         return {"status": "ignored", "reason": f"Event {event_type} not supported"}
@@ -97,7 +120,7 @@ async def handle_github_webhook(
 
     repo_full_name = payload.get("repository", {}).get("full_name")
     if not repo_full_name:
-         return {"status": "ignored", "reason": "No repository name found"}
+        return {"status": "ignored", "reason": "No repository name found"}
 
     # Find project
     workspace = request.app.state.workspace_service.get_current_workspace()

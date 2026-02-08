@@ -28,3 +28,21 @@ webhook_config:
 - **Implementation**: `src/agent_pump/api/routes/webhooks.py`, `src/agent_pump/models/webhook_config.py`
 - **Tests**: `tests/unit/api/test_webhooks.py`, `tests/unit/models/test_webhook_config.py`
 - **Documentation**: Complete
+
+## 🔧 Auto-Fix CI Failures
+
+Automatically detect and attempt to fix CI failures.
+
+### Features
+- **CI Watcher**: Monitors GitHub Actions for build failures.
+- **Log Parsing**: Parses build logs to identify common errors (Python, TypeScript, Rust, etc.).
+- **Auto-Fix Tasks**: Creates high-priority roadmap tasks with suggested fixes and error details.
+- **Workflow Trigger**: Automatically starts the agent workflow to implement the fix.
+- **Smart Retries**: Prevents infinite loops by tracking consecutive failures on the same branch.
+
+### Configuration
+Enabled automatically when GitHub Webhooks are configured with `check_run` events.
+
+### Audit Status: ✅ Fully implemented
+- **Implementation**: `src/agent_pump/integrations/ci_watcher.py`, `src/agent_pump/integrations/failure_parser.py`, `src/agent_pump/integrations/auto_fix.py`
+- **Tests**: `tests/integrations/test_ci_watcher.py`, `tests/integrations/test_failure_parser.py`, `tests/integrations/test_auto_fix.py`
