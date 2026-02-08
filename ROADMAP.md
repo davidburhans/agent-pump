@@ -15,19 +15,6 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Future Sprints
 
-### 🔴 MCP Tool Registry
-**Priority: Medium**
-
-Allow users to define custom tools (scripts, API calls) that are exposed to the agent via MCP.
-
-#### Implementation Overview
-
-- **Configuration**: Define tools in `config.yml` or `.agent-pump/tools/`.
-- **Registration**: Dynamically register these tools with the `AgentPumpMCPServer`.
-- **Execution**: Securely execute the defined tools when called by the agent.
-
----
-
 ### 🔴 Scheduled Workflow Runs
 **Priority: Medium**
 
@@ -724,3 +711,27 @@ When processing this roadmap:
    - Use `git add <specific-file>` for each changed file
    - NEVER use `git add .` or `git add -A`
    - Write clear commit messages
+
+### 🔴 Enhanced Tool Security
+**Priority: Medium**
+
+Add security controls for custom tools execution.
+
+#### Implementation Overview
+
+- **Allow/Deny Lists**: Configure allowed commands and paths.
+- **Argument Validation**: Enhanced regex and type validation for tool arguments.
+- **Sandboxing**: Optional execution in isolated environments (e.g. Docker).
+
+---
+
+### 🔴 Remote MCP Server Support
+**Priority: Low**
+
+Connect to external MCP servers to extend capabilities beyond local tools.
+
+#### Implementation Overview
+
+- **Client Integration**: Add MCP client capabilities to Agent Pump.
+- **Configuration**: Define remote servers in `config.yml`.
+- **Proxying**: Expose remote tools to the internal agent loop.

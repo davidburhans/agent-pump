@@ -6,6 +6,7 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, Field
 
+from agent_pump.models.tool_config import ToolConfig
 from agent_pump.models.verification_config import VerificationConfig
 
 DEFAULT_CONFIG_TEMPLATE = """# Agent Pump Host Configuration
@@ -73,6 +74,7 @@ class Config(BaseModel):
     verification: VerificationConfig = Field(
         default_factory=VerificationConfig, description="Verification command configuration"
     )
+    tools: list[ToolConfig] = Field(default_factory=list, description="Custom tool configurations")
 
     @classmethod
     def load(cls, project_path: Path) -> "Config":

@@ -5,22 +5,23 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from agent_pump.models.project import Project, ProjectStatus
+
 # These imports will fail until implementation is complete
 from agent_pump.models.review import (
-    ReviewAction,
-    ReviewStatus,
-    ReviewReportModel,
     IssueModel,
+    ReviewAction,
+    ReviewReportModel,
+    ReviewStatus,
 )
 from agent_pump.orchestrator.workflow import ProjectWorkflow
-from agent_pump.models.project import Project, ProjectStatus
 
 # Create a dummy ReviewRequestedEvent if it doesn't exist to allow tests to be collected
 try:
     from agent_pump.events.models import ReviewRequestedEvent
 except ImportError:
+
     from agent_pump.events.models import Event
-    from pydantic import Field
     class ReviewRequestedEvent(Event):
         project_path: str
         report: ReviewReportModel

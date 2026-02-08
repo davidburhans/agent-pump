@@ -1,13 +1,9 @@
 """Interfaces for core orchestration components."""
 
 from abc import abstractmethod
-from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
-from agent_pump.events.models import VerificationResultEvent
 from agent_pump.models.checkpoint import Checkpoint
-from agent_pump.models.verification_config import VerificationConfig
-from agent_pump.models.workflow_snapshot import WorkflowSnapshot
 
 
 @runtime_checkable

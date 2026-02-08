@@ -34,7 +34,7 @@ def inject_communication_config(
 
             gemini_config.parent.mkdir(parents=True, exist_ok=True)
             gemini_config.write_text(json.dumps(config, indent=2), encoding="utf-8")
-        except Exception as e:
+        except Exception:
             # Log or ignore if we can't write config (e.g. permission error)
             # We don't have a logger here easily, so maybe just print/ignore
             pass
@@ -57,7 +57,7 @@ def inject_communication_config(
 
             claude_config.parent.mkdir(parents=True, exist_ok=True)
             claude_config.write_text(json.dumps(config, indent=2), encoding="utf-8")
-        except Exception as e:
+        except Exception:
             pass
 
     return env

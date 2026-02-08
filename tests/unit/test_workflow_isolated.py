@@ -1,7 +1,6 @@
 """Isolated unit tests for ProjectWorkflow using mocked dependencies."""
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 

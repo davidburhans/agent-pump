@@ -1,5 +1,7 @@
 from pathlib import Path
+
 from fastapi import APIRouter, HTTPException, Request
+
 from agent_pump.models.backend_signal import BackendSignal, SignalType
 
 router = APIRouter(prefix="/callback", tags=["Backend Callbacks"])

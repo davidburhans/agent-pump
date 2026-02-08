@@ -87,12 +87,12 @@ class TestAutoMergeWorkflow:
         project.current_feature = "Test Feature"
 
         branch_config = BranchStrategyConfig(enabled=True, auto_merge=True, delete_on_merge=True)
-        
+
         review_config = PRReviewConfig(enabled=False)
         github_config = GitHubIntegrationConfig(pr_review_config=review_config)
 
         project_config = ProjectConfig(
-            path=project_path, 
+            path=project_path,
             branch_strategy=branch_config,
             github_integration=github_config
         )
@@ -157,12 +157,12 @@ class TestAutoMergeWorkflow:
             auto_merge=True,
             delete_on_merge=False,  # Disabled deletion
         )
-        
+
         review_config = PRReviewConfig(enabled=False)
         github_config = GitHubIntegrationConfig(pr_review_config=review_config)
 
         project_config = ProjectConfig(
-            path=project_path, 
+            path=project_path,
             branch_strategy=branch_config,
             github_integration=github_config
         )
