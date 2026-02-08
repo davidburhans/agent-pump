@@ -65,3 +65,12 @@ class CheckpointManager(Protocol):
     ) -> Checkpoint:
         """Create a new checkpoint."""
         ...
+
+    @abstractmethod
+    def rollback_to_checkpoint(
+        self,
+        checkpoint: Checkpoint,
+        create_backup_branch: bool = True,
+    ) -> bool:
+        """Rollback to a specific checkpoint."""
+        ...

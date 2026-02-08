@@ -171,7 +171,7 @@ Create a `backends/` folder in `.agent-pump/` and add:
 
         try:
             if platform.system() == "Windows":
-                os.startfile(path_str)
+                os.startfile(path_str)  # type: ignore
             elif platform.system() == "Darwin":
                 subprocess.run(["open", path_str], check=True)
             else:

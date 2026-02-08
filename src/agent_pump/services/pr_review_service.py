@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 from pathlib import Path
+from typing import Any
 
 try:
     from github import GithubException, RateLimitExceededException, UnknownObjectException
@@ -147,13 +148,15 @@ class PRReviewService:
         project_path: Path to the project being reviewed
     """
 
-    def __init__(self, project_path: Path):
+    def __init__(self, project_path: Path, github_config: Any | None = None):
         """Initialize the PR review service.
 
         Args:
             project_path: Path to the project being reviewed
+            github_config: Optional GitHub integration configuration
         """
         self.project_path = project_path
+        self.github_config = github_config
         self.diff_service = DiffService(project_path)
         self.verification_executor = VerificationExecutor(project_path)
 

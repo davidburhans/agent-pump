@@ -1182,8 +1182,12 @@ class ProjectWorkflow:
             edges=edges,
         )
 
-    async def _prepare_phase(self, phase_name: str, context: dict[str, Any]) -> None:
-        """Run preparation logic before a phase starts."""
+    async def _prepare_phase(self, phase_name: str, context: dict[str, Any]) -> bool:
+        """Run preparation logic before a phase starts.
+
+        Returns:
+            bool: True if agent should run, False to skip agent execution
+        """
         # Create auto-checkpoint before each phase (skip if dry-run mode)
         if not self._dry_run:
             try:
@@ -1456,7 +1460,7 @@ class ProjectWorkflow:
             issues = await review_service.analyze_code_quality(changes)
 
             # 3. Check best practices
-            best_practice_violations = await review_service.check_best_practices(changes)
+            best_practice_violations = await review_service.check_best_practices(issues)
 
             # 4. Generate report
             report = await review_service.generate_review_report(
