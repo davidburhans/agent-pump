@@ -1214,7 +1214,9 @@ class ProjectWorkflow:
                 context["queued_ideas"] = self.idea_queue
 
         if phase_name == "planning":
-            await self._prepare_planning_phase(context)
+            success = await self._prepare_planning_phase(context)
+            if not success:
+                return False
 
         if phase_name == "reviewing":
             return await self._prepare_reviewing_phase(context)
@@ -1300,8 +1302,12 @@ class ProjectWorkflow:
             return success
 
         return True
-    async def _prepare_planning_phase(self, context: dict[str, Any]) -> None:
-        """Logic to pick next task from roadmap if not set."""
+    async def _prepare_planning_phase(self, context: dict[str, Any]) -> bool:
+        """Logic to pick next task from roadmap if not set.
+
+        Returns:
+            bool: True if preparation succeeded, False if failed (e.g. branch creation error)
+        """
         # Read TASK_NAME directly
         feature_request = await self._read_file_content("TASK_NAME")
 
@@ -1347,13 +1353,22 @@ class ProjectWorkflow:
             and self.branch_config.auto_create_branch
             and self.project.current_feature
         ):
-            await self._create_feature_branch(self.project.current_feature)
+            success = await self._create_feature_branch(self.project.current_feature)
+            if not success:
+                self._emit_output("\n[ERROR] Branch creation failed. Aborting workflow.\n")
+                self.pause_workflow()
+                return False
 
-    async def _create_feature_branch(self, feature_name: str) -> None:
+        return True
+
+    async def _create_feature_branch(self, feature_name: str) -> bool:
         """Create a feature branch for the current feature.
 
         Args:
             feature_name: Name of the feature to create branch for
+
+        Returns:
+            bool: True if branch creation succeeded or was skipped, False if failed
         """
         try:
             from git import InvalidGitRepositoryError
@@ -1365,7 +1380,7 @@ class ProjectWorkflow:
                 )
             except InvalidGitRepositoryError:
                 self._emit_output("\n[WARNING] Not a git repository. Skipping branch creation.\n")
-                return
+                return True
 
             # Check if worktree is clean (if required)
             if self.branch_config.require_clean_worktree:
@@ -1374,7 +1389,7 @@ class ProjectWorkflow:
                         "\n[WARNING] Worktree is not clean. "
                         "Stash or commit changes before creating feature branch.\n"
                     )
-                    return
+                    return True
 
             # Check if already on a feature branch
             current_branch = branch_manager.get_current_branch()
@@ -1384,7 +1399,7 @@ class ProjectWorkflow:
                     feature_branch=current_branch,
                     base_branch=self.branch_config.base_branch,
                 )
-                return
+                return True
 
             # Create feature branch
             branch_name = branch_manager.create_feature_branch(feature_name)
@@ -1393,10 +1408,12 @@ class ProjectWorkflow:
                 base_branch=self.branch_config.base_branch,
             )
             self._emit_output(f"\n[BRANCH] Created feature branch: {branch_name}\n")
+            return True
 
         except Exception as e:
             logger.warning(f"Failed to create feature branch: {e}")
             self._emit_output(f"\n[WARNING] Failed to create feature branch: {e}\n")
+            return False
 
     async def _prepare_reviewing_phase(self, context: dict[str, Any]) -> bool:
         """Prepare for the PR review phase.
