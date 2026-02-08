@@ -2053,3 +2053,38 @@ Backends receive environment variables:
 - **Implementation**: `src/agent_pump/communication/`
 - **Tests**: `tests/unit/test_communication.py`
 - **TUI**: `InputRequestModal` for user interaction.
+
+## 🛠️ MCP Tool Registry
+
+Register custom scripts as tools available to the AI agent via the Model Context Protocol (MCP).
+
+### Features
+- **Custom Tool Definition**: Define tools in `.agent-pump/config.yml` with descriptions, commands, and arguments.
+- **Implicit Discovery**: Automatically discovers scripts in `.agent-pump/tools/` as executable tools.
+- **MCP Integration**: Exposes tools dynamically to MCP-compatible agents (like Claude Desktop or Agent Pump's own backends).
+- **Secure Execution**: Runs tools as subprocesses with proper argument handling.
+- **Interpreter Detection**: Automatically detects and uses appropriate interpreters for scripts (Python, Node.js, Bash, PowerShell).
+
+### Configuration
+
+Define tools in `.agent-pump/config.yml`:
+
+```yaml
+tools:
+  - name: deploy
+    description: Deploy the application to staging
+    command: ./scripts/deploy.sh
+    args:
+      - name: environment
+        description: Target environment (staging/prod)
+        required: true
+```
+
+Or simply place scripts in `.agent-pump/tools/`:
+- `my-script.py` -> Exposed as `my-script` tool
+- `cleanup.sh` -> Exposed as `cleanup` tool
+
+### Audit Status: ✅ Fully implemented
+- **Implementation**: `src/agent_pump/communication/mcp_server.py`, `src/agent_pump/models/tool_config.py`
+- **Tests**: `tests/unit/test_mcp_tools.py`, `tests/unit/test_tool_config.py`
+- **Documentation**: Complete with configuration examples

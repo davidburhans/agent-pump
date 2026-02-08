@@ -5,7 +5,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from agent_pump.models.github_integration import (
-    BranchProtectionInfo,
     GitHubIntegrationConfig,
     PRReviewResult,
 )

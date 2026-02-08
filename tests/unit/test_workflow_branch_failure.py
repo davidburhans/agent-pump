@@ -2,12 +2,13 @@
 import asyncio
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
+from agent_pump.models.branch_strategy import BranchStrategyConfig
 from agent_pump.models.project import Project, ProjectStatus
 from agent_pump.models.workspace import ProjectConfig
-from agent_pump.models.branch_strategy import BranchStrategyConfig
 from agent_pump.orchestrator.workflow import ProjectWorkflow
+
 
 class TestBranchCreationFailure(unittest.TestCase):
     def setUp(self):

@@ -10,7 +10,7 @@ from agent_pump.models.github_integration import (
     GitHubIntegrationConfig,
     PRReviewResult,
 )
-from agent_pump.models.project import Project, ProjectStatus
+from agent_pump.models.project import ProjectStatus
 from agent_pump.models.workspace import ProjectConfig
 from agent_pump.orchestrator.workflow import ProjectWorkflow
 from agent_pump.services.branch_manager import MergeResult

@@ -49,7 +49,7 @@ from agent_pump.services.cost_tracking_service import CostTrackingService
 from agent_pump.services.github_service import GitHubService
 from agent_pump.services.plugin_manager import PluginManager
 from agent_pump.utils.notifier import Notifier
-from agent_pump.utils.token_counter import DefaultTokenCounterService, TokenCounter
+from agent_pump.utils.token_counter import DefaultTokenCounterService
 
 logger = logging.getLogger(__name__)
 
@@ -824,7 +824,7 @@ class ProjectWorkflow:
 
                             # Build prompt directly from file system
                             backend_runner = self._get_backend_for_phase(phase.name)
-                            
+
                             from agent_pump.orchestrator.base_prompts import get_base_prompt_manager
                             default_prompt = get_base_prompt_manager().get_default(phase.name)
 
@@ -1007,7 +1007,7 @@ class ProjectWorkflow:
             response = await asyncio.wait_for(self._pending_input_future, timeout=timeout)
             self._emit_output(f"[INPUT RECEIVED] {response}\n")
             return response
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self._emit_output("\n[INPUT TIMEOUT] No response received.\n")
             raise
         finally:
@@ -1624,7 +1624,7 @@ class ProjectWorkflow:
             # Apply decisions
             await self._apply_review_decisions(decisions, report)
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self._emit_output("\n[REVIEWING] Timed out waiting for user review.\n")
             # Proceed with original blocked status
         except asyncio.CancelledError:

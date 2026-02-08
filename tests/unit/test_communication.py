@@ -7,8 +7,6 @@ from pydantic import ValidationError
 from agent_pump.communication.injection import inject_communication_config
 from agent_pump.models.backend_signal import (
     BackendSignal,
-    DecisionPayload,
-    ProgressPayload,
     RequestInputPayload,
     SignalType,
 )
@@ -87,8 +85,8 @@ def test_inject_communication_config_writes_correct_url():
 
 @pytest.mark.asyncio
 async def test_workflow_request_input():
-    from unittest.mock import MagicMock
     import asyncio
+    from unittest.mock import MagicMock
 
     from agent_pump.events.bus import EventBus
     from agent_pump.models.project import Project
@@ -118,8 +116,8 @@ async def test_workflow_request_input():
 
 @pytest.mark.asyncio
 async def test_workflow_request_input_timeout():
-    from unittest.mock import MagicMock
     import asyncio
+    from unittest.mock import MagicMock
 
     from agent_pump.models.project import Project
     from agent_pump.orchestrator.workflow import ProjectWorkflow

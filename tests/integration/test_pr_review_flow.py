@@ -31,7 +31,7 @@ class TestPRReviewFlow:
         branch_config = BranchStrategyConfig(enabled=True, auto_merge=True, base_branch="main")
         review_config = PRReviewConfig(enabled=True)
         github_config = GitHubIntegrationConfig(pr_review_config=review_config)
-        
+
         project_config = ProjectConfig(
             path=project_path,
             branch_strategy=branch_config,
@@ -44,11 +44,11 @@ class TestPRReviewFlow:
         with patch("agent_pump.orchestrator.workflow.BranchManager") as mock_bm_cls:
             mock_manager = MagicMock()
             mock_bm_cls.return_value = mock_manager
-            
+
             # 1. Run Committing Post-Phase
             # Should NOT merge because review is enabled
             await workflow._post_phase("committing", True)
-            
+
             mock_manager.merge_to_base.assert_not_called()
 
     @pytest.mark.asyncio
@@ -63,7 +63,7 @@ class TestPRReviewFlow:
         branch_config = BranchStrategyConfig(enabled=True, auto_merge=True, base_branch="main")
         review_config = PRReviewConfig(enabled=False)
         github_config = GitHubIntegrationConfig(pr_review_config=review_config)
-        
+
         project_config = ProjectConfig(
             path=project_path,
             branch_strategy=branch_config,
@@ -77,11 +77,11 @@ class TestPRReviewFlow:
             mock_manager = MagicMock()
             mock_bm_cls.return_value = mock_manager
             mock_manager.merge_to_base.return_value = MergeResult(success=True)
-            
+
             # 1. Run Committing Post-Phase
             # Should merge because review is disabled
             await workflow._post_phase("committing", True)
-            
+
             mock_manager.merge_to_base.assert_called_once()
 
     @pytest.mark.asyncio
@@ -96,7 +96,7 @@ class TestPRReviewFlow:
         branch_config = BranchStrategyConfig(enabled=True, auto_merge=True, base_branch="main")
         review_config = PRReviewConfig(enabled=True)
         github_config = GitHubIntegrationConfig(pr_review_config=review_config)
-        
+
         project_config = ProjectConfig(
             path=project_path,
             branch_strategy=branch_config,
@@ -121,28 +121,28 @@ class TestPRReviewFlow:
             # We need to mock _handle_reviewing_phase internal calls or mock the method itself.
             # But here we are testing _post_phase logic.
             # _post_phase calls _handle_reviewing_phase.
-            
+
             # Let's mock _handle_reviewing_phase on the workflow instance to isolate logic
             workflow._handle_reviewing_phase = MagicMock()
-            
+
             # Scenario 1: Review Passes
             workflow._handle_reviewing_phase.return_value = True # awaitable?
-            
+
             # We need to patch the async method on the instance
             async def async_true(): return True
             workflow._handle_reviewing_phase.side_effect = async_true
 
             await workflow._post_phase("reviewing", True)
-            
+
             mock_manager.merge_to_base.assert_called_once()
-            
+
             # Reset mocks
             mock_manager.reset_mock()
-            
+
             # Scenario 2: Review Fails
             async def async_false(): return False
             workflow._handle_reviewing_phase.side_effect = async_false
-            
+
             await workflow._post_phase("reviewing", True)
-            
+
             mock_manager.merge_to_base.assert_not_called()
