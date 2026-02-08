@@ -77,6 +77,7 @@ class DryRunBackend(AgentBackend):
         timeout: int = 600,
         verbose: bool = False,
         extra_args: list[str] | None = None,
+        auto_approve: bool = False,
     ) -> AsyncGenerator[str, None]:
         """
         Run the backend in dry-run mode.
@@ -89,18 +90,28 @@ class DryRunBackend(AgentBackend):
             timeout: Timeout in seconds (ignored in dry-run)
             verbose: Whether to run in verbose mode (ignored in dry-run)
             extra_args: Additional command-line arguments
+            auto_approve: Whether to allow dangerous actions without confirmation
 
         Yields:
             Simulated output lines
         """
         if not self._context.enabled:
             # If dry-run is not enabled, delegate to wrapped backend
-            async for line in self._wrapped.run(project_path, prompt, timeout, verbose, extra_args):
+            async for line in self._wrapped.run(
+                project_path,
+                prompt,
+                timeout,
+                verbose,
+                extra_args,
+                auto_approve=auto_approve,
+            ):
                 yield line
             return
 
         # Build command representation
-        cmd_parts = [self._wrapped.name, "--yolo"]
+        cmd_parts = [self._wrapped.name]
+        if auto_approve:
+            cmd_parts.append("--yolo")
         if extra_args:
             cmd_parts.extend(extra_args)
         if verbose:
@@ -133,6 +144,7 @@ class DryRunBackend(AgentBackend):
                 "timeout": timeout,
                 "verbose": verbose,
                 "extra_args": extra_args or [],
+                "auto_approve": auto_approve,
             },
             estimated_tokens=estimated_total_tokens,
             estimated_cost=estimated_cost,
@@ -153,7 +165,14 @@ class DryRunBackend(AgentBackend):
 
         if would_execute:
             # Should not happen in dry-run mode, but handle just in case
-            async for line in self._wrapped.run(project_path, prompt, timeout, verbose, extra_args):
+            async for line in self._wrapped.run(
+                project_path,
+                prompt,
+                timeout,
+                verbose,
+                extra_args,
+                auto_approve=auto_approve,
+            ):
                 yield line
         else:
             # Yield dry-run simulation output

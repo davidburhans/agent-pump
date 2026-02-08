@@ -123,6 +123,7 @@ class QwenBackend(AgentBackend):
         timeout: int = 600,
         verbose: bool = False,
         extra_args: list[str] | None = None,
+        auto_approve: bool = False,
     ) -> AsyncGenerator[str, None]:
         """
         Execute Qwen Code CLI with the given prompt.
@@ -136,11 +137,13 @@ class QwenBackend(AgentBackend):
             yield self.get_setup_instructions()
             return
 
-        # Build command: qwen --yolo (prompt via stdin)
-        # Note: While 'qwen -h' suggests positional arguments for non-interactive mode,
-        # we stick to passing prompt via stdin + --yolo for stability and to avoid
-        # command-line length limits on Windows.
-        cmd = [executable, "--yolo"]
+        # Build command: qwen (prompt via stdin)
+        cmd = [executable]
+
+        if auto_approve:
+            cmd.append("--yolo")
+        else:
+            yield "[WARNING] Auto-approve disabled. Agent may stall if it requests confirmation.\n"
 
         # Apply extra args (e.g., --model)
         # Apply extra args (e.g., --model)

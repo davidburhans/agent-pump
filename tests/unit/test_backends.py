@@ -80,6 +80,7 @@ async def test_gemini_run_success(gemini_backend, sample_project_path):
     )
     mock_process.stdout = mock_stdout
     mock_process.wait = AsyncMock()
+    mock_process.stdin.wait_closed = AsyncMock()
 
     # Determine which subprocess creator to mock based on platform
     if sys.platform == "win32":
@@ -92,7 +93,8 @@ async def test_gemini_run_success(gemini_backend, sample_project_path):
         patch("agent_pump.backends.gemini.cached_which", return_value="/usr/bin/gemini"),
     ):
         lines = []
-        async for line in gemini_backend.run(sample_project_path, "Test prompt"):
+        # Pass auto_approve=True to mimic old behavior and avoid warning
+        async for line in gemini_backend.run(sample_project_path, "Test prompt", auto_approve=True):
             lines.append(line)
 
         assert len(lines) == 2
@@ -103,6 +105,14 @@ async def test_gemini_run_success(gemini_backend, sample_project_path):
         mock_process.stdin.write.assert_called_once()
         assert b"Test prompt" in mock_process.stdin.write.call_args[0][0]
 
+        # Verify command DID have --yolo (because auto_approve=True)
+        if sys.platform == "win32":
+            args = mock_exec.call_args[0][0]
+            assert "--yolo" in args
+        else:
+            args = mock_exec.call_args[0]
+            assert "--yolo" in args
+
         # Verify command did NOT have --verbose
         if sys.platform == "win32":
             args = mock_exec.call_args[0][0]
@@ -110,6 +120,52 @@ async def test_gemini_run_success(gemini_backend, sample_project_path):
         else:
             args = mock_exec.call_args[0]
             assert "--verbose" not in args
+
+
+@pytest.mark.asyncio
+@pytest.mark.xfail(
+    sys.platform == "win32", reason="Subprocess tests require external CLI tools on Windows"
+)
+async def test_gemini_run_no_auto_approve(gemini_backend, sample_project_path):
+    # Mock process
+    mock_process = MagicMock()
+    mock_process.pid = 12345
+    mock_process.returncode = 0
+    mock_process.stdin = MagicMock()
+    mock_process.stdin.write = MagicMock()
+    mock_process.stdin.drain = AsyncMock()
+    mock_process.stdin.close = MagicMock()
+    mock_process.stdin.wait_closed = AsyncMock()
+
+    # Mock stdout
+    mock_stdout = MagicMock()
+    mock_stdout.readline = AsyncMock(side_effect=[b""])
+    mock_process.stdout = mock_stdout
+    mock_process.wait = AsyncMock()
+
+    if sys.platform == "win32":
+        target = "asyncio.create_subprocess_shell"
+    else:
+        target = "asyncio.create_subprocess_exec"
+
+    with (
+        patch(target, return_value=mock_process) as mock_exec,
+        patch("agent_pump.backends.gemini.cached_which", return_value="/usr/bin/gemini"),
+    ):
+        lines = []
+        async for line in gemini_backend.run(sample_project_path, "Test prompt", auto_approve=False):
+            lines.append(line)
+
+        # Should have warning
+        assert any("[WARNING] Auto-approve disabled" in line for line in lines)
+
+        # Verify command did NOT have --yolo
+        if sys.platform == "win32":
+            args = mock_exec.call_args[0][0]
+            assert "--yolo" not in args
+        else:
+            args = mock_exec.call_args[0]
+            assert "--yolo" not in args
 
 
 @pytest.mark.asyncio
@@ -125,6 +181,7 @@ async def test_gemini_run_verbose(gemini_backend, sample_project_path):
     mock_process.stdin.write = MagicMock()
     mock_process.stdin.drain = AsyncMock()
     mock_process.stdin.close = MagicMock()
+    mock_process.stdin.wait_closed = AsyncMock()
 
     # Mock stdout
     mock_stdout = MagicMock()
@@ -372,6 +429,7 @@ async def test_qwen_run_success(qwen_backend, sample_project_path):
     )
     mock_process.stdout = mock_stdout
     mock_process.wait = AsyncMock()
+    mock_process.stdin.wait_closed = AsyncMock()
 
     target = (
         "asyncio.create_subprocess_shell"
@@ -384,7 +442,8 @@ async def test_qwen_run_success(qwen_backend, sample_project_path):
         patch("agent_pump.backends.qwen.cached_which", return_value="/usr/bin/qwen"),
     ):
         lines = []
-        async for line in qwen_backend.run(sample_project_path, "Test prompt"):
+        # Pass auto_approve=True to ensure --yolo is used
+        async for line in qwen_backend.run(sample_project_path, "Test prompt", auto_approve=True):
             lines.append(line)
 
         assert len(lines) == 1

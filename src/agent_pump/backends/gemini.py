@@ -50,11 +50,12 @@ class GeminiBackend(AgentBackend):
         timeout: int = 600,
         verbose: bool = False,
         extra_args: list[str] | None = None,
+        auto_approve: bool = False,
     ) -> AsyncGenerator[str, None]:
         """
         Execute gemini-cli with the given prompt.
 
-        Uses --yolo for non-interactive mode (auto-approve all actions).
+        Uses --yolo for non-interactive mode only if auto_approve is True.
         """
         executable = cached_which(self.command)
         if not executable:
@@ -65,12 +66,18 @@ class GeminiBackend(AgentBackend):
             )
             return
 
-        # Use --yolo for auto-approval mode
+        # Use --yolo for auto-approval mode if requested
         # Pass prompt via stdin to avoid shell escaping issues and length limits
         cmd = [
             executable,
-            "--yolo",
         ]
+
+        if auto_approve:
+            cmd.append("--yolo")
+        else:
+            logger.info("Running Gemini without --yolo (auto-approve disabled)")
+            # We might yield a warning to the user
+            yield "[WARNING] Auto-approve disabled. Agent may stall if it requests confirmation.\n"
 
         if verbose:
             cmd.append("--verbose")
