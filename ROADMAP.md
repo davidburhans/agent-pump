@@ -15,128 +15,6 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Future Sprints
 
-### 🔴 GitHub Issue Sync
-**Priority: Medium**
-
-Automatically sync GitHub Issues with ROADMAP.md.
-
-#### Implementation Overview
-
-```
-src/agent_pump/
-├── integrations/
-│   ├── __init__.py
-│   ├── github_client.py     # PyGithub wrapper
-│   ├── issue_sync.py        # Sync logic
-│   └── issue_mapper.py      # Issue <-> Roadmap mapping
-├── models/
-│   └── github_config.py     # Config model
-```
-
-#### Step 1: Add Dependency
-
-```bash
-uv add PyGithub
-```
-
-#### Step 2: GitHub Config Model (`src/agent_pump/models/github_config.py`)
-
-```python
-class GitHubSyncConfig(BaseModel):
-    enabled: bool = False
-    repo: str  # "owner/repo"
-    token: str  # GitHub PAT (store securely!)
-    
-    # Filtering
-    sync_labels: list[str] = ["agent-pump"]  # Only sync issues with these labels
-    ignore_labels: list[str] = ["wontfix", "duplicate"]
-    
-    # Mapping
-    priority_map: dict[str, str] = {
-        "priority:high": "High",
-        "priority:medium": "Medium",
-        "priority:low": "Low",
-    }
-    
-    # Behavior
-    auto_close_on_complete: bool = True
-    sync_direction: str = "bidirectional"  # "github_to_roadmap", "roadmap_to_github", "bidirectional"
-    sync_interval_minutes: int = 30
-```
-
-#### Step 3: Issue Sync Service (`src/agent_pump/integrations/issue_sync.py`)
-
-```python
-from github import Github
-
-class GitHubIssueSync:
-    def __init__(self, config: GitHubSyncConfig, roadmap_service):
-        self.github = Github(config.token)
-        self.repo = self.github.get_repo(config.repo)
-        self.config = config
-        self.roadmap_service = roadmap_service
-    
-    async def sync(self):
-        """
-        Main sync loop:
-        1. Fetch open issues from GitHub with matching labels
-        2. Compare with ROADMAP.md items
-        3. Create missing items in roadmap
-        4. Close issues for completed roadmap items
-        """
-        issues = self._fetch_issues()
-        roadmap_items = self.roadmap_service.get_all_items()
-        
-        # GitHub -> Roadmap
-        for issue in issues:
-            if not self._find_roadmap_item(issue, roadmap_items):
-                self._create_roadmap_item(issue)
-        
-        # Roadmap -> GitHub (close completed)
-        if self.config.auto_close_on_complete:
-            for item in roadmap_items:
-                if item.status == "completed":
-                    issue = self._find_github_issue(item)
-                    if issue and issue.state == "open":
-                        issue.edit(state="closed")
-                        issue.create_comment(
-                            "✅ Closed by Agent Pump - feature completed!"
-                        )
-    
-    def _fetch_issues(self):
-        labels = self.config.sync_labels
-        return self.repo.get_issues(state="open", labels=labels)
-    
-    def _create_roadmap_item(self, issue):
-        priority = self._map_priority(issue.labels)
-        self.roadmap_service.add_item(
-            title=issue.title,
-            description=issue.body,
-            priority=priority,
-            metadata={"github_issue": issue.number}
-        )
-```
-
-#### Step 4: Webhook Handler (for real-time sync)
-
-Add to existing FastAPI server:
-
-```python
-@router.post("/webhooks/github")
-async def github_webhook(request: Request):
-    payload = await request.json()
-    event = request.headers.get("X-GitHub-Event")
-    
-    if event == "issues":
-        action = payload["action"]
-        if action in ("opened", "edited", "labeled"):
-            await issue_sync.sync_single_issue(payload["issue"])
-        elif action == "closed":
-            await issue_sync.mark_roadmap_complete(payload["issue"])
-```
-
----
-
 ### 🔴 Automatic PR Creation
 **Priority: Medium**
 
@@ -593,3 +471,15 @@ Connect to external MCP servers to extend capabilities beyond local tools.
 - **Client Integration**: Add MCP client capabilities to Agent Pump.
 - **Configuration**: Define remote servers in `config.yml`.
 - **Proxying**: Expose remote tools to the internal agent loop.
+
+### 🔴 Ollama Backend Support
+**Priority: Medium**
+
+Add native support for Ollama to run local models easily.
+
+#### Implementation Overview
+
+- **Backend Class**: `src/agent_pump/backends/ollama.py`
+- **Configuration**: Endpoint URL (default http://localhost:11434), model name.
+- **Integration**: Add to `BackendFactory`.
+- **Streaming**: Support streaming responses for real-time feedback.
