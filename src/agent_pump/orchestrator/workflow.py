@@ -22,6 +22,8 @@ from agent_pump.events.models import (
     LogEntryEvent,
     ReviewRequestedEvent,
     VerificationResultEvent,
+    WorkflowCompletedEvent,
+    WorkflowFailedEvent,
     WorkflowStateChangedEvent,
 )
 from agent_pump.models.branch_state import BranchState
@@ -180,7 +182,7 @@ class ProjectWorkflow:
         self.on_ideas_processed = on_ideas_processed
         self._running = False
         self._cancelled = False
-        self._pending_publish_tasks: list[asyncio.Task] = []
+        self._pending_publish_tasks: set[asyncio.Task] = set()
         self._pending_review_future: asyncio.Future | None = None
         self._pending_input_future: asyncio.Future | None = None
 
@@ -329,6 +331,18 @@ class ProjectWorkflow:
 
         return context
 
+    def _publish_event_background(self, event: Any) -> None:
+        """Publish an event in the background."""
+        if not self.event_bus:
+            return
+
+        try:
+            task = asyncio.create_task(self.event_bus.publish(event))
+            self._pending_publish_tasks.add(task)
+            task.add_done_callback(self._pending_publish_tasks.discard)
+        except RuntimeError:
+            pass
+
     def _after_state_change(self, *args: Any, **kwargs: Any) -> None:
         """Called after each state change."""
         old_state = self.workflow_state.current_state
@@ -367,16 +381,26 @@ class ProjectWorkflow:
                 old_state=old_state,
                 new_state=new_state,
             )
-            try:
-                # We can't await easily here, use create_task
-                task = asyncio.create_task(self.event_bus.publish(event))
-                self._pending_publish_tasks.append(task)
-                # Clean up completed tasks to prevent memory growth
-                self._pending_publish_tasks = [
-                    t for t in self._pending_publish_tasks if not t.done()
-                ]
-            except RuntimeError:
-                pass  # No event loop
+            self._publish_event_background(event)
+
+            # Emit WorkflowCompletedEvent
+            if new_state == "completed":
+                comp_event = WorkflowCompletedEvent(
+                    project_path=self.project.path,
+                    project_name=self.project.name,
+                    feature_name=self.project.current_feature,
+                )
+                self._publish_event_background(comp_event)
+
+            # Emit WorkflowFailedEvent
+            if new_state == "error":
+                fail_event = WorkflowFailedEvent(
+                    project_path=self.project.path,
+                    project_name=self.project.name,
+                    feature_name=self.project.current_feature,
+                    error="Workflow entered error state",
+                )
+                self._publish_event_background(fail_event)
 
         # Notify callback
         if self.on_state_change:
@@ -463,15 +487,7 @@ class ProjectWorkflow:
                 state=self.workflow_state.current_state,
                 task=self.project.current_feature,
             )
-            try:
-                task = asyncio.create_task(self.event_bus.publish(event))
-                self._pending_publish_tasks.append(task)
-                # Clean up completed tasks to prevent memory growth
-                self._pending_publish_tasks = [
-                    t for t in self._pending_publish_tasks if not t.done()
-                ]
-            except RuntimeError:
-                pass
+            self._publish_event_background(event)
 
         if self.on_output:
             # Pass current state and current feature as metadata
@@ -779,15 +795,7 @@ class ProjectWorkflow:
                             old_state="paused",
                             new_state=self.state,  # type: ignore
                         )
-                        try:
-                            task = asyncio.create_task(self.event_bus.publish(event))
-                            self._pending_publish_tasks.append(task)
-                            # Clean up completed tasks to prevent memory growth
-                            self._pending_publish_tasks = [
-                                t for t in self._pending_publish_tasks if not t.done()
-                            ]
-                        except RuntimeError:
-                            pass
+                        self._publish_event_background(event)
                 except ValueError:
                     pass
 
@@ -961,15 +969,7 @@ class ProjectWorkflow:
                         old_state=old_status,
                         new_state="paused",
                     )
-                    try:
-                        task = asyncio.create_task(self.event_bus.publish(event))
-                        self._pending_publish_tasks.append(task)
-                        # Clean up completed tasks to prevent memory growth
-                        self._pending_publish_tasks = [
-                            t for t in self._pending_publish_tasks if not t.done()
-                        ]
-                    except RuntimeError:
-                        pass
+                    self._publish_event_background(event)
 
     def cancel(self) -> None:
         """Cancel the running workflow."""
@@ -1026,15 +1026,7 @@ class ProjectWorkflow:
         )
 
         if self.event_bus:
-            try:
-                task = asyncio.create_task(self.event_bus.publish(event))
-                self._pending_publish_tasks.append(task)
-                # Clean up completed tasks
-                self._pending_publish_tasks = [
-                    t for t in self._pending_publish_tasks if not t.done()
-                ]
-            except RuntimeError:
-                pass
+            self._publish_event_background(event)
 
         try:
             # Wait for response
@@ -1077,10 +1069,7 @@ class ProjectWorkflow:
                     old_state=old_status,
                     new_state="paused",
                 )
-                try:
-                    asyncio.create_task(self.event_bus.publish(event))
-                except RuntimeError:
-                    pass
+                self._publish_event_background(event)
 
             logger.info(f"Workflow {self.project.name} forced to PAUSED")
 
@@ -1353,10 +1342,7 @@ class ProjectWorkflow:
                         project_path=self.project.path,
                         ideas=self.idea_queue.copy(),
                     )
-                    try:
-                        asyncio.create_task(self.event_bus.publish(event))
-                    except RuntimeError:
-                        pass
+                    self._publish_event_background(event)
 
                 if self.on_ideas_processed:
                     self.on_ideas_processed(self.project.path)
@@ -1663,16 +1649,7 @@ class ProjectWorkflow:
             report=report,
         )
 
-        try:
-            # We can't await easily here, use create_task
-            task = asyncio.create_task(self.event_bus.publish(event))  # type: ignore
-            self._pending_publish_tasks.append(task)
-            # Clean up completed tasks to prevent memory growth
-            self._pending_publish_tasks = [
-                t for t in self._pending_publish_tasks if not t.done()
-            ]
-        except RuntimeError:
-            pass
+        self._publish_event_background(event)
 
         try:
             # Wait for resolution (e.g. 1 hour timeout for user interaction)
@@ -1952,10 +1929,7 @@ Please analyze the file and apply a fix.
                             success=(report.total_coverage >= threshold),
                             threshold=threshold,
                         )
-                        try:
-                            asyncio.create_task(self.event_bus.publish(event))
-                        except RuntimeError:
-                            pass
+                        self._publish_event_background(event)
                 else:
                     self._emit_output("\n[WARNING] Could not parse coverage output\n")
 
@@ -1982,10 +1956,7 @@ Please analyze the file and apply a fix.
                     stdout=result.stdout,
                     stderr=result.stderr,
                 )
-                try:
-                    asyncio.create_task(self.event_bus.publish(event))
-                except RuntimeError:
-                    pass
+                self._publish_event_background(event)
 
         # Execute post-verification plugin hooks
         if self.plugin_manager:

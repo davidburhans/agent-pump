@@ -69,6 +69,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict[str, Any], None]:
         app.state.ci_watcher = CIWatcher(app.state.project_service)
         logger.info("CI Watcher service initialized")
 
+        # Initialize Notification Service
+        from agent_pump.services.notification_service import NotificationService
+
+        app.state.notification_service = NotificationService(
+            workspace.notification_config, app.state.event_bus
+        )
+        await app.state.notification_service.start()
+        logger.info("Notification service initialized")
+
         # Initialize metrics service
         app.state.metrics_service = MetricsService(app.state.event_bus, workspace.name)
         await app.state.metrics_service.start()
@@ -99,6 +108,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict[str, Any], None]:
     yield {"startup_time": app.state.startup_time}
 
     # Shutdown
+    if hasattr(app.state, "notification_service"):
+        try:
+            await app.state.notification_service.stop()
+        except Exception as e:
+            logger.error(f"Error shutting down Notification Service: {e}")
+
     if hasattr(app.state, "mcp_server"):
         try:
             await app.state.mcp_server.shutdown()

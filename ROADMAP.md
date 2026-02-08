@@ -11,17 +11,6 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Current Sprint
 
-### 🔴 Slack Notifications
-**Priority: Low**
-
-Notify users via Slack when workflow events occur.
-
-#### Implementation Overview
-- **Event Listener**: Listen to `WorkflowCompletedEvent`, `WorkflowFailedEvent`.
-- **Slack Client**: Use `slack-sdk` or simple webhook.
-- **Configuration**: `webhook_config` extension or new `notification_config`.
-- **Message**: Send status, link to PR (if applicable), and summary.
-
 ### 🔴 Interactive Troubleshooting
 **Priority: Low**
 
@@ -57,6 +46,17 @@ Allow agent to crawl external documentation URLs and add them to context.
 ---
 
 ## Deferred Features
+
+### 🔴 Self-Healing Verification
+**Priority: Low**
+
+When verification fails, attempt to automatically fix the code.
+
+#### Implementation Overview
+- **New Phase**: Add `repairing` phase.
+- **Workflow Update**: Change `verifying` failure transition to `repairing`.
+- **Repair Loop**: `repairing` -> `verifying`.
+- **Retry Limit**: Enforce max retries to prevent infinite loops.
 
 ### ⚫ Template Library Marketplace
 **Priority: Low**
