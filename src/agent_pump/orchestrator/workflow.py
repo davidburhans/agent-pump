@@ -48,6 +48,7 @@ from agent_pump.services.checkpoint_service import CheckpointService
 from agent_pump.services.cost_tracking_service import CostTrackingService
 from agent_pump.services.github_service import GitHubService
 from agent_pump.services.plugin_manager import PluginManager
+from agent_pump.services.pr_creator_service import PRCreatorService
 from agent_pump.utils.notifier import Notifier
 from agent_pump.utils.token_counter import DefaultTokenCounterService
 
@@ -1331,6 +1332,30 @@ class ProjectWorkflow:
                 self.idea_queue = []
 
         if phase_name == "committing":
+            # Attempt to create PR if enabled
+            if (
+                self.project_config
+                and self.project_config.github_integration
+                and self.project_config.github_integration.create_pr_on_complete
+            ):
+                try:
+                    self._emit_output("\n[INFO] Creating Pull Request...\n")
+                    github_config = self.project_config.github_integration
+
+                    # Instantiate GitHub service
+                    github_service = GitHubService(github_config)
+
+                    pr_service = PRCreatorService(self.project, github_service)
+                    pr_url = await pr_service.create_pr()
+
+                    if pr_url:
+                        self._emit_output(f"[SUCCESS] Created PR: {pr_url}\n")
+                    else:
+                        self._emit_output("[WARNING] Failed to create PR.\n")
+                except Exception as e:
+                    logger.error(f"Error creating PR: {e}")
+                    self._emit_output(f"[WARNING] Error creating PR: {e}\n")
+
             if self.project.current_feature:
                 self.project.completed_features.append(self.project.current_feature)
 
