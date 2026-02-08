@@ -24,6 +24,7 @@ from agent_pump.communication.callback_server import router as callback_router
 from agent_pump.communication.mcp_server import AgentPumpMCPServer
 from agent_pump.events.bus import EventBus
 from agent_pump.models.app_state import AppState
+import os
 
 if TYPE_CHECKING:
     pass
@@ -156,6 +157,10 @@ def create_server(
         openapi_url="/openapi.json" if debug else None,
     )
     app.state.autoload_projects = autoload_projects
+
+    # Fallback to env var if not provided
+    if api_key is None:
+        api_key = os.environ.get("AGENT_PUMP_API_KEY")
 
     # Add CORS middleware
     if api_key:
