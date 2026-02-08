@@ -2108,3 +2108,37 @@ Or simply place scripts in `.agent-pump/tools/`:
 - **Implementation**: `src/agent_pump/communication/mcp_server.py`, `src/agent_pump/models/tool_config.py`
 - **Tests**: `tests/unit/test_mcp_tools.py`, `tests/unit/test_tool_config.py`
 - **Documentation**: Complete with configuration examples
+
+## 🐙 GitHub Issue Sync
+
+Automatically sync GitHub Issues with ROADMAP.md, enabling seamless issue tracking.
+
+### Features
+- **Issue Import**: Automatically imports open issues matching configured labels (default: `agent-pump`) into `ROADMAP.md` as "Not Started" items.
+- **Priority Mapping**: Maps GitHub labels (e.g., `priority:high`) to roadmap priority levels.
+- **Status Sync**: Automatically closes GitHub issues when the corresponding roadmap item is marked as "Completed".
+- **Bidirectional Sync**: Keeps issue status and roadmap items in sync.
+
+### Configuration
+Configure sync behavior in `.agent-pump/config.yml`:
+
+```yaml
+github_config:
+  sync:
+    enabled: true
+    sync_labels: ["agent-pump"]
+    priority_map:
+      "priority:high": "High"
+      "priority:medium": "Medium"
+    auto_close_on_complete: true
+    sync_interval_minutes: 30
+```
+
+### Usage
+- Run the sync manually or let it run automatically at intervals (if configured in workflow).
+- Issues imported will appear in "Future Sprints" by default.
+
+### Audit Status: ✅ Fully implemented
+- **Implementation**: `src/agent_pump/integrations/issue_sync.py`, `src/agent_pump/services/roadmap_service.py`
+- **Tests**: `tests/unit/test_issue_sync.py`, `tests/unit/test_roadmap_service.py`
+- **Documentation**: Complete
