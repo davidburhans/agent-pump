@@ -17,6 +17,7 @@ from .github_integration import GitHubIntegrationConfig
 from .tool_security import ToolSecurityConfig
 from .verification_config import VerificationConfig
 from .webhook_config import WebhookConfig
+from .notification_config import NotificationConfig
 
 logger = logging.getLogger(__name__)
 
@@ -339,6 +340,10 @@ class Workspace(BaseModel):
     webhook_config: WebhookConfig = Field(
         default_factory=WebhookConfig,
         description="Webhook configuration",
+    )
+    notification_config: NotificationConfig = Field(
+        default_factory=NotificationConfig,
+        description="Notification configuration",
     )
     created_at: datetime = Field(default_factory=datetime.now)
     last_modified: datetime = Field(default_factory=datetime.now)

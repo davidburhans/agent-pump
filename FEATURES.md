@@ -236,3 +236,29 @@ Configure in Project Settings (workspace.json):
 ### Audit Status: ✅ Fully implemented
 - **Implementation**: `src/agent_pump/services/context_service.py`, `src/agent_pump/models/workspace.py`
 - **Tests**: `tests/services/test_context_service_kb.py`, `tests/models/test_workspace_kb.py`
+
+## 🔔 Slack Notifications
+
+Notify users via Slack when workflow events occur.
+
+### Features
+- **Workflow Completion**: Sends a success message to Slack when a workflow completes.
+- **Workflow Failure**: Sends an error message to Slack when a workflow fails.
+- **Configuration**: Simple configuration via workspace settings.
+
+### Configuration
+Configure in Workspace Settings:
+
+```json
+"notification_config": {
+  "slack": {
+    "enabled": true,
+    "webhook_url": "https://hooks.slack.com/services/...",
+    "channel": "#alerts"
+  }
+}
+```
+
+### Audit Status: ✅ Fully implemented
+- **Implementation**: `src/agent_pump/services/notification_service.py`, `src/agent_pump/models/notification_config.py`
+- **Tests**: `tests/services/test_notification_service.py`, `tests/orchestrator/test_workflow_events.py`

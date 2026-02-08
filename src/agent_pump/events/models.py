@@ -35,6 +35,23 @@ class WorkflowStateChangedEvent(Event):
     new_state: str
 
 
+class WorkflowCompletedEvent(Event):
+    """Emitted when a workflow completes successfully."""
+
+    project_path: Path
+    project_name: str
+    feature_name: str | None
+
+
+class WorkflowFailedEvent(Event):
+    """Emitted when a workflow fails."""
+
+    project_path: Path
+    project_name: str
+    feature_name: str | None
+    error: str | None = None
+
+
 class IdeaAddedEvent(Event):
     """Emitted when an idea is added to a queue."""
 
