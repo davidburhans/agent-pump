@@ -150,3 +150,31 @@ Index is stored in `.agent-pump/embeddings/`.
 ### Audit Status: ✅ Fully implemented
 - **Implementation**: `src/agent_pump/services/context_service.py`, `src/agent_pump/services/embeddings_service.py`, `src/agent_pump/services/vector_store.py`, `src/agent_pump/utils/code_chunker.py`
 - **Tests**: `tests/services/test_context_service.py`, `tests/services/test_embeddings_service.py`, `tests/services/test_vector_store.py`, `tests/services/test_code_chunker.py`
+
+## 🔗 Remote MCP Server Support
+
+Connect to external MCP servers to extend capabilities beyond local tools.
+
+### Features
+- **Meta-Tool Architecture**: Exposes `list_remote_tools` and `run_remote_tool` to agents to discover and use remote capabilities dynamically.
+- **Client Manager**: Manages persistent connections to multiple remote MCP servers.
+- **Protocol Support**: Supports both `stdio` (local subprocess) and `sse` (HTTP) transport protocols.
+- **Configuration**: Define remote servers in `config.yml` per project or globally.
+
+### Configuration
+Add to `config.yml`:
+
+```yaml
+mcp_servers:
+  - name: "weather-server"
+    type: "stdio"
+    command: "uv"
+    args: ["run", "mcp-weather"]
+  - name: "remote-docs"
+    type: "sse"
+    url: "http://docs.example.com/mcp/sse"
+```
+
+### Audit Status: ✅ Fully implemented
+- **Implementation**: `src/agent_pump/communication/mcp_client.py`, `src/agent_pump/models/mcp_config.py`, `src/agent_pump/communication/mcp_server.py`
+- **Tests**: `tests/communication/test_mcp_client.py`, `tests/models/test_mcp_config.py`

@@ -11,6 +11,8 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 from starlette.applications import Starlette
 
+from agent_pump.communication.mcp_client import MCPClientManager
+from agent_pump.models.mcp_config import MCPServerConfig
 from agent_pump.models.tool_config import ToolConfig
 
 logger = logging.getLogger(__name__)
@@ -20,8 +22,13 @@ class AgentPumpMCPServer:
     def __init__(self, app_state: Any):
         self.server = FastMCP("agent-pump")
         self.app_state = app_state
+        self.client_manager = MCPClientManager()
         self._register_tools()
         self._register_resources()
+
+    async def shutdown(self):
+        """Shutdown the MCP server and cleanup."""
+        await self.client_manager.close()
 
     @property
     def project_service(self):
@@ -50,6 +57,20 @@ class AgentPumpMCPServer:
             return None
 
         return project_path
+
+    def _get_remote_tools_config(self, project_path: Any) -> list[MCPServerConfig]:
+        """Get remote MCP server configurations for a project."""
+        project_service = self.project_service
+        if not project_service:
+            return []
+
+        workflow = project_service.workflows.get(project_path)
+        if not workflow or not workflow.config:
+            return []
+
+        if hasattr(workflow.config, "mcp_servers"):
+            return workflow.config.mcp_servers
+        return []
 
     def _get_project_tools(self, project_id: str) -> list[ToolConfig]:
         """Get available tools for a project."""
@@ -385,6 +406,65 @@ class AgentPumpMCPServer:
                 return f"Error: Tool '{tool_name}' not found for project {project_id}"
 
             return await self._execute_tool(tool, arguments, project_path)
+
+        # Register remote tool methods
+        self.server.tool()(self.list_remote_tools)
+        self.server.tool()(self.run_remote_tool)
+
+    async def list_remote_tools(self, project_id: str) -> str:
+        """List available tools from configured remote MCP servers."""
+        project_path = self._resolve_project_path(project_id)
+        if not project_path:
+            return "[]"
+
+        configs = self._get_remote_tools_config(project_path)
+        tools = []
+
+        for config in configs:
+            try:
+                session = await self.client_manager.get_session(config)
+                result = await session.list_tools()
+
+                # Convert to list of dicts and add server info
+                for t in result.tools:
+                    tool_dict = t.model_dump()
+                    tool_dict["server"] = config.name
+                    tools.append(tool_dict)
+            except Exception as e:
+                logger.warning(f"Failed to list tools from {config.name}: {e}")
+
+        return json.dumps(tools)
+
+    async def run_remote_tool(
+        self, project_id: str, server_name: str, tool_name: str, arguments: dict
+    ) -> str:
+        """Execute a tool on a remote MCP server."""
+        project_path = self._resolve_project_path(project_id)
+        if not project_path:
+            return f"Error: Project not found {project_id}"
+
+        configs = self._get_remote_tools_config(project_path)
+        config = next((c for c in configs if c.name == server_name), None)
+
+        if not config:
+            return f"Error: MCP server '{server_name}' not configured for project"
+
+        try:
+            session = await self.client_manager.get_session(config)
+            result = await session.call_tool(tool_name, arguments)
+
+            # Format result
+            output = []
+            for content in result.content:
+                if content.type == "text":
+                    output.append(content.text)
+                elif content.type == "image":
+                    output.append(f"[Image: {content.mimeType}]")
+
+            return "\n".join(output) if output else "Tool executed successfully."
+
+        except Exception as e:
+            return f"Error executing remote tool: {e}"
 
     def _register_resources(self):
         @self.server.resource("agent_pump://roadmap/{project_id}")
