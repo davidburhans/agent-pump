@@ -56,6 +56,7 @@ class AgentBackend(ABC):
         timeout: int = 600,
         verbose: bool = False,
         extra_args: list[str] | None = None,
+        auto_approve: bool = False,
     ) -> AsyncGenerator[str, None]:
         """
         Execute the agent with the given prompt, yielding output lines.
@@ -66,6 +67,7 @@ class AgentBackend(ABC):
             timeout: Maximum time in seconds before terminating
             verbose: whether to run the agent in verbose mode
             extra_args: Additional command-line arguments for the backend
+            auto_approve: Whether to allow dangerous actions without confirmation
 
         Yields:
             Lines of output from the agent

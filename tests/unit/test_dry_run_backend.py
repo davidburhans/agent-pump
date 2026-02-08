@@ -61,7 +61,8 @@ class TestDryRunBackend:
         prompt = "Write a function to add two numbers"
 
         output_lines = []
-        async for line in dry_run_backend.run(project_path, prompt, timeout=60):
+        # Pass auto_approve=True to ensure --yolo is included in dry run output
+        async for line in dry_run_backend.run(project_path, prompt, timeout=60, auto_approve=True):
             output_lines.append(line)
 
         # Should have dry-run output lines
@@ -75,6 +76,22 @@ class TestDryRunBackend:
         op = dry_run_context.operations[0]
         assert op.operation_type == OperationType.BACKEND_COMMAND
         assert "gemini" in op.description
+
+    @pytest.mark.asyncio
+    async def test_run_in_dry_run_mode_no_auto_approve(self, dry_run_backend, dry_run_context):
+        """Test running in dry-run mode without auto-approve."""
+        project_path = Path("/test/project")
+        prompt = "Write a function to add two numbers"
+
+        output_lines = []
+        async for line in dry_run_backend.run(project_path, prompt, timeout=60, auto_approve=False):
+            output_lines.append(line)
+
+        # Should have dry-run output lines
+        output_text = "".join(output_lines)
+        assert "[DRY RUN]" in output_text
+        assert "gemini" in output_text
+        assert "--yolo" not in output_text
 
     @pytest.mark.asyncio
     async def test_run_delegates_when_disabled(self, mock_backend):

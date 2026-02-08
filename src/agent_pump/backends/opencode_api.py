@@ -107,6 +107,7 @@ class OpenCodeAPIBackend(AgentBackend):
         timeout: int = 600,
         verbose: bool = False,
         extra_args: list[str] | None = None,
+        auto_approve: bool = False,
     ) -> AsyncGenerator[str, None]:
         """
         Execute OpenCode via API.

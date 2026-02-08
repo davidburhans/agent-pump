@@ -47,6 +47,7 @@ class LockingBackendWrapper(AgentBackend):
         timeout: int = 600,
         verbose: bool = False,
         extra_args: list[str] | None = None,
+        auto_approve: bool = False,
     ) -> AsyncGenerator[str, None]:
         """
         Execute the agent with concurrency locking.
@@ -58,7 +59,12 @@ class LockingBackendWrapper(AgentBackend):
             try:
                 # pyright ignores for abstract generator propagation
                 async for line in self._wrapped.run(  # type: ignore
-                    project_path, prompt, timeout, verbose, extra_args
+                    project_path,
+                    prompt,
+                    timeout,
+                    verbose,
+                    extra_args,
+                    auto_approve=auto_approve,
                 ):
                     yield line
             finally:

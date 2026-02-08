@@ -132,6 +132,15 @@ class IdeaQueueItem(BaseModel):
     source: str = Field(default="user", description="Where the idea came from")
 
 
+class SafetyConfig(BaseModel):
+    """Global safety configuration."""
+
+    auto_approve_dangerous_actions: bool = Field(
+        default=False,
+        description="Whether to allow agents to execute dangerous commands (like --yolo) without confirmation.",
+    )
+
+
 class GlobalPromptSettings(BaseModel):
     """Global prompt settings applied across all phases.
 
@@ -263,6 +272,9 @@ class Workspace(BaseModel):
     default_phase_backends: PhaseBackends = Field(
         default_factory=PhaseBackends,
         description="Default backend config for new projects",
+    )
+    safety: SafetyConfig = Field(
+        default_factory=SafetyConfig, description="Global safety settings"
     )
     global_prompt_settings: GlobalPromptSettings = Field(
         default_factory=GlobalPromptSettings,

@@ -57,6 +57,7 @@ class BackendRunner(Protocol):
         timeout: int = 600,
         verbose: bool = False,
         extra_args: list[str] | None = None,
+        auto_approve: bool = False,
     ) -> AsyncGenerator[str, None]: ...
 
 
@@ -572,11 +573,17 @@ class ProjectWorkflow:
         # Count input tokens for cost tracking
         input_tokens = TokenCounter.count_tokens(prompt, backend.name, metrics_model_name)
 
+        # Determine safety setting
+        auto_approve = False
+        if self.workspace:
+            auto_approve = self.workspace.safety.auto_approve_dangerous_actions
+
         try:
             async for line in backend.run(
                 project_path=self.project.path,
                 prompt=prompt,
                 timeout=timeout,
+                auto_approve=auto_approve,
             ):
                 if self._cancelled:
                     self._emit_output("\n[PAUSED] Workflow paused by user\n")

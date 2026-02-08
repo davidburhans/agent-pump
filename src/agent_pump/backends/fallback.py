@@ -126,6 +126,7 @@ class FallbackBackendRunner:
         timeout: int = 600,
         verbose: bool = False,
         extra_args: list[str] | None = None,
+        auto_approve: bool = False,
     ) -> AsyncGenerator[str, None]:
         """
         Try each backend in order until one succeeds.
@@ -136,6 +137,7 @@ class FallbackBackendRunner:
             timeout: Timeout per backend attempt
             verbose: Whether to run in verbose mode
             extra_args: Additional args (merged with backend-specific args)
+            auto_approve: Whether to allow dangerous actions without confirmation
 
         Yields:
             Lines of output from the successful backend
@@ -177,7 +179,12 @@ class FallbackBackendRunner:
                 hit_quota = False
                 # pyright doesn't fully understand abstract async generators
                 async for line in backend.run(  # type: ignore[reportGeneralTypeIssues]
-                    project_path, prompt, timeout, verbose, extra_args=args_for_backend
+                    project_path,
+                    prompt,
+                    timeout,
+                    verbose,
+                    extra_args=args_for_backend,
+                    auto_approve=auto_approve,
                 ):
                     # Check for quota/rate limit errors in output
                     if self._is_quota_error(line):
