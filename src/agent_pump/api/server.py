@@ -57,6 +57,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict[str, Any], None]:
             app.state.event_bus, workspace, app.state.app_state
         )
 
+        # Initialize File Watcher
+        from agent_pump.services.file_watcher_service import FileWatcherService
+
+        app.state.file_watcher_service = FileWatcherService(
+            app.state.event_bus, app.state.project_service, workspace
+        )
+        logger.info("File Watcher service initialized")
+
         # Initialize CI Watcher
         app.state.ci_watcher = CIWatcher(app.state.project_service)
         logger.info("CI Watcher service initialized")

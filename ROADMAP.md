@@ -11,22 +11,6 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Current Sprint
 
-### 🔴 File Watcher Trigger
-**Priority: Low**
-
-Trigger workflows automatically when files change.
-
-#### Implementation Overview
-
-- **Watcher**: Use `watchfiles` to monitor project directory.
-- **Debounce**: Wait for changes to settle before triggering.
-- **Filters**: Ignore `.git`, `__pycache__`, etc.
-- **Action**: Trigger verification or full workflow on change.
-
----
-
-## Future Sprints
-
 ### 🔴 Code Coverage Integration
 **Priority: Medium**
 
@@ -42,6 +26,10 @@ Visualize code coverage directly in the TUI and use it as a verification gate.
     - Heatmap visualization for specific files.
 - **Verification Gate**: Fail verification if coverage drops below threshold.
 - **Agent Context**: Feed coverage gaps to the agent to suggest missing tests.
+
+---
+
+## Future Sprints
 
 ### 🔴 Enhanced Tool Security
 **Priority: Medium**
@@ -99,6 +87,17 @@ Notify users via Slack when workflow events occur.
 - **Slack Client**: Use `slack-sdk` or simple webhook.
 - **Configuration**: `webhook_config` extension or new `notification_config`.
 - **Message**: Send status, link to PR (if applicable), and summary.
+
+### 🔴 Interactive Troubleshooting
+**Priority: Low**
+
+Enable interactive chat session when a workflow fails to help diagnose issues.
+
+#### Implementation Overview
+- **Pause on Error**: Instead of stopping, transition to a "troubleshooting" state.
+- **Chat Interface**: Enable a chat input in the TUI associated with the error context.
+- **Context Injection**: Provide error logs and stack traces to the chat agent.
+- **Resume/Retry**: Allow user to ask agent to "try again" or "apply fix" from chat.
 
 ---
 

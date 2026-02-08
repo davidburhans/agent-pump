@@ -12,6 +12,7 @@ from .approval_gate_config import ApprovalGateConfig
 from .branch_strategy import BranchStrategyConfig
 from .cost_tracking import BudgetConfig
 from .execution_queue import ExecutionQueueConfig, ExecutionQueueItem, QueuePriority, QueueStatus
+from .file_watcher_config import FileWatcherConfig
 from .github_integration import GitHubIntegrationConfig
 from .verification_config import VerificationConfig
 from .webhook_config import WebhookConfig
@@ -248,6 +249,10 @@ class ProjectConfig(BaseModel):
         description=(
             "GitHub integration settings for PR creation, issue linking, and status updates"
         ),
+    )
+    file_watcher: FileWatcherConfig = Field(
+        default_factory=FileWatcherConfig,
+        description="File watcher configuration for triggering workflows on changes.",
     )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

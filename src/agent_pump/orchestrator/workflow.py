@@ -1846,6 +1846,15 @@ Please analyze the file and apply a fix.
             logger.exception("Error during merge attempt")
             return MergeResult(success=False, error=str(e))
 
+    async def run_verification(self) -> bool:
+        """
+        Run verification commands independently of workflow state.
+
+        Returns:
+            bool: True if all verification commands pass, False otherwise.
+        """
+        return await self._run_custom_verification()
+
     async def _run_custom_verification(self) -> bool:
         """Run the custom verification commands (post-verifying phase)."""
         self._emit_output("\n[INFO] Running custom verification commands...\n")
