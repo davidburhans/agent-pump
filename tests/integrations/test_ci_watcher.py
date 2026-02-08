@@ -1,9 +1,11 @@
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from agent_pump.integrations.ci_watcher import CIWatcher
 from agent_pump.models.project import Project
+
 
 @pytest.mark.asyncio
 async def test_handle_check_run_success():

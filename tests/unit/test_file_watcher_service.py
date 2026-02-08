@@ -5,7 +5,6 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from watchfiles import DefaultFilter
 
 from agent_pump.events.bus import EventBus
 from agent_pump.events.models import ConfigUpdatedEvent, ProjectAddedEvent, ProjectRemovedEvent

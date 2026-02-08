@@ -1,8 +1,8 @@
 """CI Watcher for handling build failures."""
 
 import logging
-from typing import Any, TYPE_CHECKING
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from agent_pump.integrations.auto_fix import AutoFixService
 from agent_pump.integrations.failure_parser import FailureParser

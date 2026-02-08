@@ -1,9 +1,10 @@
 """Service for creating Pull Requests."""
 
 import logging
+
 from agent_pump.models.project import Project
-from agent_pump.services.github_service import GitHubService
 from agent_pump.services.branch_manager import BranchManager
+from agent_pump.services.github_service import GitHubService
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +77,7 @@ class PRCreatorService:
 
             return pr_info.pr_url
 
-        except Exception as e:
+        except Exception:
             logger.exception("Failed to create PR")
             return None
 

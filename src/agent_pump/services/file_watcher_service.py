@@ -1,10 +1,10 @@
 """File watcher service for triggering workflows on changes."""
 
 import asyncio
+import fnmatch
 import logging
 from pathlib import Path
 
-import fnmatch
 from watchfiles import DefaultFilter, awatch
 
 from agent_pump.events.bus import EventBus

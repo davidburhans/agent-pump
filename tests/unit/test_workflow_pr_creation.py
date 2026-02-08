@@ -1,9 +1,12 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
-from agent_pump.models.project import Project, ProjectStatus
-from agent_pump.orchestrator.workflow import ProjectWorkflow
-from agent_pump.models.workspace import ProjectConfig
+
 from agent_pump.models.github_integration import GitHubIntegrationConfig
+from agent_pump.models.project import Project, ProjectStatus
+from agent_pump.models.workspace import ProjectConfig
+from agent_pump.orchestrator.workflow import ProjectWorkflow
+
 
 @pytest.fixture
 def mock_project(tmp_path):

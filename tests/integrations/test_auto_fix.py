@@ -1,7 +1,7 @@
-from unittest.mock import MagicMock
 from agent_pump.integrations.auto_fix import AutoFixService
 from agent_pump.integrations.failure_parser import FailureInfo
 from agent_pump.models.project import Project
+
 
 def test_create_fix_task(tmp_path):
     project_path = tmp_path / "project"

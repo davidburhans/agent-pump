@@ -58,6 +58,9 @@ class Project(BaseModel):
     current_activity: str | None = Field(
         default=None, description="Transient granular activity description (e.g. 'Reading file...')"
     )
+    coverage: float | None = Field(
+        default=None, description="Last known code coverage percentage (0.0-100.0)"
+    )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 

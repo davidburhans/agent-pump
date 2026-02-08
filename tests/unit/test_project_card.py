@@ -44,6 +44,23 @@ def test_project_card_formatting_empty():
     assert "No features processed yet" in progress_str
 
 
+def test_project_card_coverage_formatting():
+    """Test that ProjectCard formats coverage correctly."""
+    project = Project(
+        path=Path("/tmp/test"),
+        name="Test Project",
+        status=ProjectStatus.VERIFYING,
+        coverage=85.5,
+    )
+    # Configure coverage command
+    project.config.coverage_cmd = "pytest --cov"
+
+    card = ProjectCard(project)
+
+    progress_str = card._format_progress()
+    assert "coverage: pytest --cov (85.5%)" in progress_str
+
+
 def test_timer_lifecycle():
     """Test that timer starts/stops based on project status."""
     project = Project(

@@ -1,6 +1,6 @@
-from pathlib import Path
-from agent_pump.services.roadmap_service import RoadmapService
 from agent_pump.models.project import Project
+from agent_pump.services.roadmap_service import RoadmapService
+
 
 def test_add_item_top(tmp_path):
     # Setup project

@@ -1,9 +1,11 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
-from pathlib import Path
+
 from agent_pump.models.project import Project
 from agent_pump.services.github_service import GitHubService, PRInfo
 from agent_pump.services.pr_creator_service import PRCreatorService
+
 
 @pytest.fixture
 def mock_project(tmp_path):

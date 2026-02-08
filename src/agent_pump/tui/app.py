@@ -36,8 +36,8 @@ from agent_pump.orchestrator.workflow_definition import (
     WorkflowDefinition,
     get_workflow,
 )
-from agent_pump.services.idea_service import IdeaService
 from agent_pump.scheduling.scheduler import WorkflowScheduler
+from agent_pump.services.idea_service import IdeaService
 from agent_pump.services.log_service import LogService
 from agent_pump.services.metrics_service import MetricsService
 from agent_pump.services.project_service import ProjectService

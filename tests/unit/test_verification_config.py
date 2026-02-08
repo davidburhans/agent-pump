@@ -18,6 +18,8 @@ class TestVerificationConfig:
         assert config.build_cmd is None
         assert config.lint_cmd is None
         assert config.test_cmd is None
+        assert config.coverage_cmd is None
+        assert config.coverage_threshold == 0.0
         assert config.skip_verification is False
 
     def test_custom_values(self):
@@ -26,11 +28,15 @@ class TestVerificationConfig:
             build_cmd="npm run build",
             lint_cmd="npm run lint",
             test_cmd="npm test",
+            coverage_cmd="npm run coverage",
+            coverage_threshold=80.0,
             skip_verification=True,
         )
         assert config.build_cmd == "npm run build"
         assert config.lint_cmd == "npm run lint"
         assert config.test_cmd == "npm test"
+        assert config.coverage_cmd == "npm run coverage"
+        assert config.coverage_threshold == 80.0
         assert config.skip_verification is True
 
     def test_command_validation_safe_commands(self):
@@ -43,6 +49,9 @@ class TestVerificationConfig:
 
         config = VerificationConfig(test_cmd="pytest tests/")
         assert config.test_cmd == "pytest tests/"
+
+        config = VerificationConfig(coverage_cmd="pytest --cov")
+        assert config.coverage_cmd == "pytest --cov"
 
     def test_command_validation_dangerous_patterns(self):
         """Test that dangerous command patterns are rejected."""
@@ -58,6 +67,10 @@ class TestVerificationConfig:
         with pytest.raises(ValueError, match="contains potentially dangerous pattern"):
             VerificationConfig(test_cmd="echo hello; rm -rf /")
 
+        # Test coverage command
+        with pytest.raises(ValueError, match="contains potentially dangerous pattern"):
+            VerificationConfig(coverage_cmd="pytest --cov; rm -rf /")
+
         # Test command substitution $(...)
         with pytest.raises(ValueError, match="contains potentially dangerous pattern"):
             VerificationConfig(build_cmd="echo $(whoami)")
@@ -68,10 +81,11 @@ class TestVerificationConfig:
 
     def test_none_values_allowed(self):
         """Test that None values are allowed for commands."""
-        config = VerificationConfig(build_cmd=None, lint_cmd=None, test_cmd=None)
+        config = VerificationConfig(build_cmd=None, lint_cmd=None, test_cmd=None, coverage_cmd=None)
         assert config.build_cmd is None
         assert config.lint_cmd is None
         assert config.test_cmd is None
+        assert config.coverage_cmd is None
 
 
 class TestProjectDetectionResult:
@@ -84,6 +98,7 @@ class TestProjectDetectionResult:
         assert result.build_cmd is None
         assert result.lint_cmd is None
         assert result.test_cmd is None
+        assert result.coverage_cmd is None
 
     def test_custom_values(self):
         """Test that ProjectDetectionResult accepts custom values."""
@@ -92,11 +107,13 @@ class TestProjectDetectionResult:
             build_cmd="npm run build",
             lint_cmd="npm run lint",
             test_cmd="npm test",
+            coverage_cmd="npm run coverage",
         )
         assert result.project_type == "npm"
         assert result.build_cmd == "npm run build"
         assert result.lint_cmd == "npm run lint"
         assert result.test_cmd == "npm test"
+        assert result.coverage_cmd == "npm run coverage"
 
 
 class TestDetectProjectType:
@@ -110,6 +127,7 @@ class TestDetectProjectType:
         assert result.build_cmd is None
         assert result.lint_cmd is None
         assert result.test_cmd is None
+        assert result.coverage_cmd is None
 
     def test_detect_cargo_project(self, tmp_path):
         """Test detection of Cargo project."""
@@ -121,6 +139,7 @@ class TestDetectProjectType:
         assert result.build_cmd == "cargo build"
         assert result.lint_cmd == "cargo clippy"
         assert result.test_cmd == "cargo test"
+        assert result.coverage_cmd == "cargo tarpaulin"
 
     def test_detect_npm_project(self, tmp_path):
         """Test detection of npm project."""
@@ -132,6 +151,7 @@ class TestDetectProjectType:
         assert result.build_cmd == "npm run build"
         assert result.lint_cmd == "npm run lint"
         assert result.test_cmd == "npm test"
+        assert result.coverage_cmd == "npm run coverage"
 
     def test_detect_go_project(self, tmp_path):
         """Test detection of Go project."""
@@ -143,6 +163,7 @@ class TestDetectProjectType:
         assert result.build_cmd == "go build ./..."
         assert result.lint_cmd == "golangci-lint run"
         assert result.test_cmd == "go test ./..."
+        assert result.coverage_cmd == "go test -cover ./..."
 
     def test_detect_python_uv_project(self, tmp_path):
         """Test detection of Python project with uv."""
@@ -161,6 +182,7 @@ dev-dependencies = ["pytest"]
         assert result.build_cmd == "uv build"
         assert result.lint_cmd == "uv run ruff check ."
         assert result.test_cmd == "uv run pytest"
+        assert result.coverage_cmd == "uv run pytest --cov"
 
     def test_detect_python_poetry_project(self, tmp_path):
         """Test detection of Poetry project."""
@@ -179,6 +201,7 @@ python = "^3.9"
         assert result.build_cmd == "poetry build"
         assert result.lint_cmd == "poetry run ruff check ."
         assert result.test_cmd == "poetry run pytest"
+        assert result.coverage_cmd == "poetry run pytest --cov"
 
     def test_detect_python_standard_project(self, tmp_path):
         """Test detection of standard Python project."""
@@ -194,6 +217,7 @@ version = "0.1.0"
         assert result.build_cmd == "python -m build"
         assert result.lint_cmd == "ruff check ."
         assert result.test_cmd == "pytest"
+        assert result.coverage_cmd == "pytest --cov"
 
     def test_detect_make_project(self, tmp_path):
         """Test detection of Make project."""
@@ -205,6 +229,7 @@ version = "0.1.0"
         assert result.build_cmd == "make"
         assert result.lint_cmd is None
         assert result.test_cmd == "make test"
+        assert result.coverage_cmd == "make coverage"
 
     def test_detect_maven_project(self, tmp_path):
         """Test detection of Maven project."""
@@ -222,6 +247,7 @@ version = "0.1.0"
         assert result.build_cmd == "mvn compile"
         assert result.lint_cmd == "mvn checkstyle:check"
         assert result.test_cmd == "mvn test"
+        assert result.coverage_cmd == "mvn jacoco:report"
 
     def test_detect_gradle_project(self, tmp_path):
         """Test detection of Gradle project."""
@@ -233,6 +259,7 @@ version = "0.1.0"
         assert result.build_cmd == "gradle build"
         assert result.lint_cmd == "gradle check"
         assert result.test_cmd == "gradle test"
+        assert result.coverage_cmd == "gradle jacocoTestReport"
 
     def test_detect_gradle_kotlin_project(self, tmp_path):
         """Test detection of Gradle Kotlin project."""
@@ -244,3 +271,4 @@ version = "0.1.0"
         assert result.build_cmd == "gradle build"
         assert result.lint_cmd == "gradle check"
         assert result.test_cmd == "gradle test"
+        assert result.coverage_cmd == "gradle jacocoTestReport"
