@@ -7,14 +7,20 @@ import yaml
 from pydantic import BaseModel, Field
 
 from agent_pump.models.mcp_config import MCPServerConfig
+from agent_pump.models.ollama_config import OllamaConfig
 from agent_pump.models.tool_config import ToolConfig
 from agent_pump.models.verification_config import VerificationConfig
 
 DEFAULT_CONFIG_TEMPLATE = """# Agent Pump Host Configuration
 # Generated automatically. Edit this file to customize behavior for this project.
 
-# The AI backend to use (e.g., "gemini", "openai:gpt-4")
+# The AI backend to use (e.g., "gemini", "openai:gpt-4", "ollama")
 backend: gemini
+
+# Ollama Configuration (optional)
+# ollama:
+#   endpoint: http://localhost:11434
+#   model: llama3
 
 workflow:
   # Maximum number of autonomous iterations per run
@@ -74,6 +80,9 @@ class Config(BaseModel):
     workflow: WorkflowConfig = Field(default_factory=WorkflowConfig)
     verification: VerificationConfig = Field(
         default_factory=VerificationConfig, description="Verification command configuration"
+    )
+    ollama: OllamaConfig = Field(
+        default_factory=OllamaConfig, description="Ollama backend configuration"
     )
     tools: list[ToolConfig] = Field(default_factory=list, description="Custom tool configurations")
     mcp_servers: list[MCPServerConfig] = Field(

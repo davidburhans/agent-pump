@@ -11,22 +11,6 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Current Sprint
 
-### 🔴 Ollama Backend Support
-**Priority: Medium**
-
-Add native support for Ollama to run local models easily.
-
-#### Implementation Overview
-
-- **Backend Class**: `src/agent_pump/backends/ollama.py`
-- **Configuration**: Endpoint URL (default http://localhost:11434), model name.
-- **Integration**: Add to `BackendFactory`.
-- **Streaming**: Support streaming responses for real-time feedback.
-
----
-
-## Future Sprints
-
 ### 🔴 Knowledge Base Integration
 **Priority: Low**
 
@@ -162,3 +146,13 @@ Allow users to define custom workflow states and transitions in configurable tem
 - **Template Schema**: Define a YAML/JSON schema for workflow definitions.
 - **Template Loader**: Load templates from `.agent-pump/templates/` or global config.
 - **Project Selection**: Allow selecting a workflow template when initializing a project.
+
+### 🔴 Configurable Backend Parameters
+**Priority: Low**
+
+Allow fine-tuning of backend parameters (temperature, top_p, max_tokens) via configuration.
+
+#### Implementation Overview
+- **Configuration**: Extend `Config` model to support `backend_options` dict.
+- **Backend Interface**: Update `AgentBackend.run` to accept options.
+- **Implementation**: Pass options to LLM API calls.
