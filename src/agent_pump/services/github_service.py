@@ -2,22 +2,33 @@
 
 from __future__ import annotations
 
-try:
-    from github import (
-        Github as PyGithubClient,
-    )
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from github import Github as PyGithubClient
     from github import (
         GithubException,
         RateLimitExceededException,
         UnknownObjectException,
     )
     from github.PullRequest import PullRequest as PyGithubPR
-except ImportError:
-    PyGithubClient = None
-    PyGithubPR = None
-    GithubException = Exception
-    RateLimitExceededException = Exception
-    UnknownObjectException = Exception
+else:
+    try:
+        from github import (
+            Github as PyGithubClient,
+        )
+        from github import (
+            GithubException,
+            RateLimitExceededException,
+            UnknownObjectException,
+        )
+        from github.PullRequest import PullRequest as PyGithubPR
+    except ImportError:
+        PyGithubClient = Any
+        PyGithubPR = Any
+        GithubException = Exception
+        RateLimitExceededException = Exception
+        UnknownObjectException = Exception
 
 from agent_pump.models.github_integration import (
     BranchProtectionConfig,
