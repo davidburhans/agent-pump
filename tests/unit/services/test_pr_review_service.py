@@ -76,14 +76,18 @@ class TestPRReviewReport:
 
     def test_initialization(self):
         """Test PRReviewReport initialization."""
+        issues = [
+            Issue(file_path="f1", line_number=1, severity="low", message="m1"),
+            Issue(file_path="f2", line_number=2, severity="medium", message="m2"),
+        ]
         report = PRReviewReport(
             approved=True,
-            issues_found=["Issue 1", "Issue 2"],
+            issues=issues,
             suggestions=["Suggestion 1"],
             blocked=False,
         )
         assert report.approved is True
-        assert len(report.issues_found) == 2
+        assert len(report.issues) == 2
         assert len(report.suggestions) == 1
         assert report.blocked is False
 
@@ -91,21 +95,23 @@ class TestPRReviewReport:
         """Test PRReviewReport repr."""
         report = PRReviewReport(
             approved=True,
-            issues_found=[],
+            issues=[],
             suggestions=[],
             blocked=False,
         )
-        assert "APPROVED" in repr(report)
-        assert "issues=0" in repr(report)
+        # Pydantic repr shows fields
+        assert "approved=True" in repr(report)
+        assert "issues=[]" in repr(report)
 
+        issue = Issue(file_path="f1", line_number=1, severity="critical", message="m1")
         report_blocked = PRReviewReport(
             approved=False,
-            issues_found=["Issue 1"],
+            issues=[issue],
             suggestions=[],
             blocked=True,
         )
-        assert "BLOCKED" in repr(report_blocked)
-        assert "issues=1" in repr(report_blocked)
+        assert "approved=False" in repr(report_blocked)
+        assert "blocked=True" in repr(report_blocked)
 
 
 class TestPRReviewService:
@@ -226,7 +232,7 @@ class TestPRReviewService:
 
         assert report.approved is True
         assert report.blocked is False
-        assert len(report.issues_found) == 0
+        assert len(report.issues) == 0
 
     @pytest.mark.asyncio
     async def test_generate_review_report_blocked(self, service):
@@ -246,7 +252,7 @@ class TestPRReviewService:
 
         assert report.blocked is True
         assert report.approved is False
-        assert len(report.issues_found) == 1
+        assert len(report.issues) == 1
 
     @pytest.mark.asyncio
     async def test_generate_review_report_large_pr(self, service):

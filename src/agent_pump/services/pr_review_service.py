@@ -14,7 +14,17 @@ except ImportError:
     RateLimitExceededException = Exception
     UnknownObjectException = Exception
 
+from agent_pump.models.review import (
+    BestPracticeViolationModel,
+    IssueModel,
+    ReviewReportModel,
+)
 from agent_pump.orchestrator.verification_executor import VerificationExecutor
+
+# Aliases for backward compatibility
+PRReviewReport = ReviewReportModel
+Issue = IssueModel
+BestPracticeViolation = BestPracticeViolationModel
 from agent_pump.services.diff_service import DiffService
 from agent_pump.utils.diff_parser import parse_git_diff
 
@@ -46,93 +56,6 @@ class ChangedFile:
         self.diff = diff
         self.additions = additions
         self.deletions = deletions
-
-
-class Issue:
-    """Represents an issue found during review."""
-
-    def __init__(
-        self,
-        file_path: str,
-        line_number: int | None,
-        severity: str,
-        message: str,
-        suggestion: str = "",
-    ):
-        """Initialize an issue.
-
-        Args:
-            file_path: Path to the file with the issue
-            line_number: Line number where issue occurs (if applicable)
-            severity: Issue severity (critical, high, medium, low)
-            message: Description of the issue
-            suggestion: How to fix the issue
-        """
-        self.file_path = file_path
-        self.line_number = line_number
-        self.severity = severity
-        self.message = message
-        self.suggestion = suggestion
-
-
-class BestPracticeViolation:
-    """Represents a BEST_PRACTICES.md violation."""
-
-    def __init__(
-        self,
-        section: str,
-        requirement: str,
-        file_path: str,
-        line_number: int | None,
-        description: str,
-    ):
-        """Initialize a best practice violation.
-
-        Args:
-            section: Section of BEST_PRACTICES.md violated
-            requirement: Specific requirement not met
-            file_path: File where violation occurred
-            line_number: Line number (if applicable)
-            description: Description of the violation
-        """
-        self.section = section
-        self.requirement = requirement
-        self.file_path = file_path
-        self.line_number = line_number
-        self.description = description
-
-
-class PRReviewReport:
-    """Result of a PR review.
-
-    Args:
-        approved: Whether the PR passed review
-        issues_found: List of all issues found
-        suggestions: Suggested improvements
-        blocked: Whether merge is blocked due to critical issues
-    """
-
-    def __init__(
-        self,
-        approved: bool,
-        issues_found: list[str],
-        suggestions: list[str],
-        blocked: bool = False,
-    ):
-        """Initialize a review report."""
-        self.approved = approved
-        self.issues_found = issues_found
-        self.suggestions = suggestions
-        self.blocked = blocked
-
-    def __repr__(self) -> str:
-        status = "APPROVED" if self.approved else "BLOCKED"
-        return (
-            f"PRReviewReport("
-            f"status={status}, "
-            f"issues={len(self.issues_found)}, "
-            f"suggestions={len(self.suggestions)})"
-        )
 
 
 class PRReviewService:
@@ -229,7 +152,7 @@ class PRReviewService:
             logger.warning(f"Failed to fetch PR changes: {e}")
             return []
 
-    async def analyze_code_quality(self, files: list[ChangedFile]) -> list[Issue]:
+    async def analyze_code_quality(self, files: list[ChangedFile]) -> list[IssueModel]:
         """Analyze code for quality issues.
 
         Args:
@@ -266,7 +189,7 @@ class PRReviewService:
 
         return issues
 
-    async def _run_linter(self) -> list[Issue]:
+    async def _run_linter(self) -> list[IssueModel]:
         """Run linter and parse output for issues."""
         issues = []
 
@@ -291,7 +214,7 @@ class PRReviewService:
 
         return issues
 
-    async def _run_type_checker(self) -> list[Issue]:
+    async def _run_type_checker(self) -> list[IssueModel]:
         """Run type checker and parse output for issues."""
         issues = []
 
@@ -306,7 +229,7 @@ class PRReviewService:
 
         return issues
 
-    async def _check_code_smells(self, files: list[ChangedFile]) -> list[Issue]:
+    async def _check_code_smells(self, files: list[ChangedFile]) -> list[IssueModel]:
         """Check for common code smells in changed files."""
         issues = []
 
@@ -329,7 +252,7 @@ class PRReviewService:
                     # Check for TODO/FIXME without issue reference
                     if re.search(r"#\s*(TODO|FIXME)\s*$", line, re.IGNORECASE):
                         issues.append(
-                            Issue(
+                            IssueModel(
                                 file_path=file.path,
                                 line_number=line_num,
                                 severity="medium",
@@ -341,7 +264,7 @@ class PRReviewService:
                     # Check for print statements (should use logging)
                     if re.search(r"\bprint\s*\(", line) and not line.strip().startswith("#"):
                         issues.append(
-                            Issue(
+                            IssueModel(
                                 file_path=file.path,
                                 line_number=line_num,
                                 severity="low",
@@ -353,7 +276,7 @@ class PRReviewService:
                     # Check for bare except clauses
                     if re.search(r"except\s*:", line):
                         issues.append(
-                            Issue(
+                            IssueModel(
                                 file_path=file.path,
                                 line_number=line_num,
                                 severity="high",
@@ -365,7 +288,7 @@ class PRReviewService:
                     # Check for very long lines
                     if len(line) > 120:
                         issues.append(
-                            Issue(
+                            IssueModel(
                                 file_path=file.path,
                                 line_number=line_num,
                                 severity="low",
@@ -379,7 +302,7 @@ class PRReviewService:
 
         return issues
 
-    def _parse_ruff_output(self, output: str) -> list[Issue]:
+    def _parse_ruff_output(self, output: str) -> list[IssueModel]:
         """Parse ruff linter output."""
         issues = []
         # Ruff format: file.py:1:1: E501 Line too long
@@ -391,17 +314,18 @@ class PRReviewService:
                 file_path, line_num, col, code, message = match.groups()
                 severity = self._map_linter_code_to_severity(code)
                 issues.append(
-                    Issue(
+                    IssueModel(
                         file_path=file_path,
                         line_number=int(line_num),
                         severity=severity,
                         message=f"[{code}] {message}",
+                        code=code,
                     )
                 )
 
         return issues
 
-    def _parse_flake8_output(self, output: str) -> list[Issue]:
+    def _parse_flake8_output(self, output: str) -> list[IssueModel]:
         """Parse flake8 linter output."""
         issues = []
         # Flake8 format: file.py:1:1: E501 Line too long
@@ -413,17 +337,18 @@ class PRReviewService:
                 file_path, line_num, col, code, message = match.groups()
                 severity = self._map_linter_code_to_severity(code)
                 issues.append(
-                    Issue(
+                    IssueModel(
                         file_path=file_path,
                         line_number=int(line_num),
                         severity=severity,
                         message=f"[{code}] {message}",
+                        code=code,
                     )
                 )
 
         return issues
 
-    def _parse_mypy_output(self, output: str) -> list[Issue]:
+    def _parse_mypy_output(self, output: str) -> list[IssueModel]:
         """Parse mypy type checker output."""
         issues = []
         # Mypy format: file.py:1: error: Message
@@ -435,7 +360,7 @@ class PRReviewService:
                 file_path, line_num, level, message = match.groups()
                 severity = "critical" if level == "error" else "medium"
                 issues.append(
-                    Issue(
+                    IssueModel(
                         file_path=file_path,
                         line_number=int(line_num),
                         severity=severity,
@@ -460,7 +385,7 @@ class PRReviewService:
         else:
             return "low"
 
-    async def check_best_practices(self, issues: list[Issue]) -> list[BestPracticeViolation]:
+    async def check_best_practices(self, issues: list[IssueModel]) -> list[BestPracticeViolationModel]:
         """Check changes against BEST_PRACTICES.md requirements.
 
         Args:
@@ -529,7 +454,7 @@ class PRReviewService:
 
         return requirements
 
-    def _check_requirement(self, req: dict) -> BestPracticeViolation | None:
+    def _check_requirement(self, req: dict) -> BestPracticeViolationModel | None:
         """Check if a requirement is violated."""
         # This is a simplified check - in practice, you'd have more sophisticated
         # logic to verify each type of requirement
@@ -544,7 +469,7 @@ class PRReviewService:
             ]
             has_tests = any(p.exists() and p.is_dir() for p in test_paths)
             if not has_tests and req.get("required", False):
-                return BestPracticeViolation(
+                return BestPracticeViolationModel(
                     section=req["section"],
                     requirement=req["text"],
                     file_path="",
@@ -568,7 +493,7 @@ class PRReviewService:
                     continue
 
             if files_without_docstrings and req.get("required", False):
-                return BestPracticeViolation(
+                return BestPracticeViolationModel(
                     section=req["section"],
                     requirement=req["text"],
                     file_path=str(files_without_docstrings[0]),
@@ -581,9 +506,9 @@ class PRReviewService:
     async def generate_review_report(
         self,
         files: list[ChangedFile],
-        code_quality_issues: list[Issue],
-        best_practice_violations: list[BestPracticeViolation],
-    ) -> PRReviewReport:
+        code_quality_issues: list[IssueModel],
+        best_practice_violations: list[BestPracticeViolationModel],
+    ) -> ReviewReportModel:
         """Generate a comprehensive review report.
 
         Args:
@@ -592,9 +517,8 @@ class PRReviewService:
             best_practice_violations: Best practice violations found
 
         Returns:
-            PRReviewReport with all findings and suggestions
+            ReviewReportModel with all findings and suggestions
         """
-        issues_found = []
         suggestions = []
         blocked = False
 
@@ -603,13 +527,6 @@ class PRReviewService:
         high_count = 0
 
         for issue in code_quality_issues:
-            issue_text = f"[{issue.severity.upper()}] {issue.file_path}"
-            if issue.line_number:
-                issue_text += f":{issue.line_number}"
-            issue_text += f" - {issue.message}"
-
-            issues_found.append(issue_text)
-
             if issue.suggestion:
                 suggestions.append(f"{issue.file_path}: {issue.suggestion}")
 
@@ -617,18 +534,6 @@ class PRReviewService:
                 critical_count += 1
             elif issue.severity == "high":
                 high_count += 1
-
-        # Process best practice violations
-        for violation in best_practice_violations:
-            violation_text = f"[BEST_PRACTICE] {violation.section}: {violation.requirement}"
-            if violation.file_path:
-                violation_text += f" ({violation.file_path}"
-                if violation.line_number:
-                    violation_text += f":{violation.line_number}"
-                violation_text += ")"
-            violation_text += f" - {violation.description}"
-
-            issues_found.append(violation_text)
 
         # Block if critical issues found
         if critical_count > 0:
@@ -653,9 +558,10 @@ class PRReviewService:
                 "Consider splitting into smaller PRs"
             )
 
-        return PRReviewReport(
+        return ReviewReportModel(
             approved=approved,
-            issues_found=issues_found,
+            issues=code_quality_issues,
+            violations=best_practice_violations,
             suggestions=suggestions,
             blocked=blocked,
         )

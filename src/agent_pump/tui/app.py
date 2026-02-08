@@ -17,12 +17,14 @@ from agent_pump.events.models import (
     LogEntryEvent,
     ProjectAddedEvent,
     ProjectRemovedEvent,
+    ReviewRequestedEvent,
     WorkflowStateChangedEvent,
     WorkspaceSwitchedEvent,
 )
 from agent_pump.keybindings import KEYBINDINGS
 from agent_pump.models.app_state import AppState
 from agent_pump.models.project import Project
+from agent_pump.models.review import ReviewAction
 from agent_pump.models.template import ProjectTemplate
 from agent_pump.models.workspace import (
     GlobalPromptSettings,
@@ -51,6 +53,7 @@ from agent_pump.tui.screens import (
     IdeaInputModal,
     MetricsModal,
     ProjectConfigModal,
+    ReviewModal,
     ProjectSummaryModal,
     PromptConfigModal,
     RoadmapModal,
@@ -227,6 +230,21 @@ class AgentPumpApp(App):
                 )
             elif isinstance(event, WorkspaceSwitchedEvent):
                 self._log(f"Workspace switched from {event.old_workspace} to {event.new_workspace}")
+            elif isinstance(event, ReviewRequestedEvent):
+                self._on_review_requested(event)
+
+    def _on_review_requested(self, event: ReviewRequestedEvent) -> None:
+        """Handle review request event."""
+
+        def handle_review_result(decisions: list[ReviewAction]) -> None:
+            # We need to find the workflow and call resolve_review
+            workflow = self.workflows.get(event.project_path)
+            if workflow:
+                workflow.resolve_review(decisions)
+            else:
+                self._log(f"Workflow not found for {event.project_path}")
+
+        self.push_screen(ReviewModal(event.report), handle_review_result)
 
     def _log(
         self,

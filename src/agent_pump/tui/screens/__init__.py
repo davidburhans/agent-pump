@@ -14,6 +14,7 @@ from .metrics_modal import MetricsModal as MetricsModal
 from .project_config_modal import ProjectConfigModal as ProjectConfigModal
 from .project_summary_modal import ProjectSummaryModal as ProjectSummaryModal
 from .prompt_config_modal import PromptConfigModal as PromptConfigModal
+from .review_modal import ReviewModal as ReviewModal
 from .roadmap_modal import RoadmapModal as RoadmapModal
 from .settings_modal import SettingsModal as SettingsModal
 from .template_apply_modal import TemplateApplyModal as TemplateApplyModal
