@@ -2,9 +2,10 @@ from pathlib import Path
 
 from textual import on, work
 from textual.app import ComposeResult
-from textual.containers import Vertical
+from textual.containers import Horizontal, Vertical
+from textual.message import Message
 from textual.screen import ModalScreen
-from textual.widgets import Input, RichLog
+from textual.widgets import Button, Input, RichLog
 
 from agent_pump.services.chat_service import ChatService
 
@@ -35,25 +36,70 @@ class ChatScreen(ModalScreen):
     #chat-input {
         dock: bottom;
     }
+
+    #action-bar {
+        height: auto;
+        dock: bottom;
+        margin-bottom: 1;
+        align: right middle;
+    }
     """
+
+    class RetryRequested(Message):
+        """Message emitted when retry is requested."""
+
+        def __init__(self, project_path: Path) -> None:
+            self.project_path = project_path
+            super().__init__()
 
     def __init__(self, project_path: Path):
         super().__init__()
         self.project_path = project_path
         self.history: list[dict[str, str]] = []
+        self.error_context: str | None = None
+
+        # Load error context if in troubleshooting
+        from agent_pump.models.state import WorkflowState
+
+        state = WorkflowState.load(project_path)
+        if state and state.current_state == "troubleshooting" and state.last_error:
+            self.error_context = state.last_error
+            self.history.append(
+                {
+                    "role": "system",
+                    "content": (
+                        f"Workflow failed in phase '{state.last_failed_phase}'. "
+                        "Error context loaded."
+                    ),
+                }
+            )
 
     def compose(self) -> ComposeResult:
         with Vertical(id="chat-container"):
             yield RichLog(id="chat-history", highlight=True, markup=True, wrap=True)
+
+            if self.error_context:
+                with Horizontal(id="action-bar"):
+                    yield Button("Retry Phase", id="btn-retry", variant="warning")
+
             yield Input(
                 placeholder="Ask a question about the project... (Esc to close)", id="chat-input"
             )
+
+    @on(Button.Pressed, "#btn-retry")
+    def on_retry(self) -> None:
+        self.post_message(self.RetryRequested(self.project_path))
+        self.dismiss()
 
     def on_mount(self) -> None:
         self.query_one("#chat-input").focus()
         log = self.query_one("#chat-history", RichLog)
         log.write(f"[bold blue]Chatting with {self.project_path.name}[/]")
         log.write("[dim]Context will be loaded automatically.[/dim]")
+
+        if self.error_context:
+            log.write("\n[bold red]Troubleshooting Mode Active[/]")
+            log.write("[dim]Error context has been loaded into the chat session.[/dim]")
 
     @on(Input.Submitted)
     async def on_submit(self, event: Input.Submitted) -> None:
@@ -96,7 +142,12 @@ class ChatScreen(ModalScreen):
             # RichLog.write appends.
             # So we will write chunks. It might look a bit fragmented if chunks are small,
             # but RichLog handles it okay usually.
-            async for chunk in service.chat_stream(query, self.project_path, history=self.history):
+            async for chunk in service.chat_stream(
+                query,
+                self.project_path,
+                history=self.history,
+                error_context=self.error_context,
+            ):
                 # log.write(chunk) - RichLog writes new lines for each write,
                 # so we accumulate and write once
                 response_content += chunk

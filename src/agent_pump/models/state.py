@@ -39,6 +39,12 @@ class WorkflowState(BaseModel):
     last_coverage: float | None = Field(
         default=None, description="Last recorded code coverage percentage"
     )
+    last_error: str | None = Field(
+        default=None, description="Error details from the last failed phase"
+    )
+    last_failed_phase: str | None = Field(
+        default=None, description="The phase that failed and triggered troubleshooting"
+    )
 
     model_config = {"arbitrary_types_allowed": True}
 

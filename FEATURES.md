@@ -262,3 +262,24 @@ Configure in Workspace Settings:
 ### Audit Status: ✅ Fully implemented
 - **Implementation**: `src/agent_pump/services/notification_service.py`, `src/agent_pump/models/notification_config.py`
 - **Tests**: `tests/services/test_notification_service.py`, `tests/orchestrator/test_workflow_events.py`
+
+## 🐞 Interactive Troubleshooting
+
+Interactive chat session when a workflow fails to help diagnose and retry issues.
+
+### Features
+- **Pause on Error**: Workflows transition to a "troubleshooting" state instead of failing immediately.
+- **Error Context**: Automatically captures error logs and stack traces for the failed phase.
+- **Chat Interface**: Provides an interactive chat with the agent, pre-loaded with the error context.
+- **Retry Mechanism**: Allows users to retry the failed phase directly from the chat interface after applying fixes.
+
+### Usage
+1. When a workflow fails, it enters the `Troubleshooting` state.
+2. Open the project chat (via `Chat` button or command).
+3. The chat will show the error context.
+4. Discuss the issue with the agent.
+5. Click "Retry Phase" to resume execution from the failed phase.
+
+### Audit Status: ✅ Fully implemented
+- **Implementation**: `src/agent_pump/orchestrator/workflow.py`, `src/agent_pump/services/chat_service.py`, `src/agent_pump/tui/screens/chat_screen.py`
+- **Tests**: `tests/orchestrator/test_workflow_troubleshooting.py`

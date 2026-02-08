@@ -25,6 +25,7 @@ class ChatService(BaseService):
         project_path: Path,
         backend_name: str | None = None,
         history: list[dict[str, str]] | None = None,
+        error_context: str | None = None,
     ) -> AsyncGenerator[str, None]:
         """
         Stream a chat response from the backend.
@@ -34,6 +35,7 @@ class ChatService(BaseService):
             project_path: Path to the project root.
             backend_name: Optional backend name to use (defaults to 'gemini').
             history: Optional list of previous messages [{'role': 'user', 'content': '...'}, ...].
+            error_context: Optional error details to include in the context.
 
         Yields:
             Chunks of the response text.
@@ -78,9 +80,14 @@ class ChatService(BaseService):
                 content = msg.get("content", "")
                 history_str += f"{role.upper()}: {content}\\n\\n"
 
+        error_section = ""
+        if error_context:
+            error_section = f"ERROR CONTEXT:\\n{error_context}\\n\\n"
+
         full_prompt = (
             f"{system_prompt}\\n\\n"
             f"CONTEXT:\\n{context_str}\\n\\n"
+            f"{error_section}"
             f"CHAT HISTORY:\\n{history_str}"
             f"USER: {query}\\n"
             f"ASSISTANT:"

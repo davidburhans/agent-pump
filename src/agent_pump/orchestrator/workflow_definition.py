@@ -188,28 +188,28 @@ DEFAULT_WORKFLOW = WorkflowDefinition(
     name="default",
     description="Standard 6-phase development workflow: Plan → Implement → Verify → Brainstorm → Commit → Review",  # noqa: E501
     initial_state="idle",
-    terminal_states=["completed", "error"],
+    terminal_states=["completed", "error", "troubleshooting"],
     phases=[
         WorkflowPhase(
             name="planning",
             description="Creates ENGINEERING_PLAN.md from ROADMAP.md",
             icon="📋",
             on_success="implementing",
-            on_failure="error",
+            on_failure="troubleshooting",
         ),
         WorkflowPhase(
             name="implementing",
             description="Executes tasks from ENGINEERING_PLAN.md",
             icon="🔨",
             on_success="verifying",
-            on_failure="error",
+            on_failure="troubleshooting",
         ),
         WorkflowPhase(
             name="verifying",
             description="Runs verification checklist from BEST_PRACTICES.md",
             icon="✅",
             on_success="brainstorming",
-            on_failure="error",
+            on_failure="troubleshooting",
         ),
         WorkflowPhase(
             name="brainstorming",
@@ -223,7 +223,7 @@ DEFAULT_WORKFLOW = WorkflowDefinition(
             description="Commits changes to git",
             icon="📝",
             on_success="reviewing",
-            on_failure="error",
+            on_failure="troubleshooting",
         ),
         WorkflowPhase(
             name="reviewing",
@@ -232,7 +232,7 @@ DEFAULT_WORKFLOW = WorkflowDefinition(
             ),
             icon="🔍",
             on_success="planning",  # Loop back for next feature
-            on_failure="error",
+            on_failure="troubleshooting",
             timeout=900,  # 15 minutes max for review
             max_retries=2,
             retry_delay=30.0,
