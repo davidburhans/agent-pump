@@ -36,8 +36,9 @@ class WorkflowScheduler:
         await self._load_schedules()
 
         # Start the scheduler in background context manager
-        self._scheduler_cm = self.scheduler.start_in_background()
+        self._scheduler_cm = self.scheduler
         await self._scheduler_cm.__aenter__()
+        await self.scheduler.start_in_background()
 
         # Re-schedule loaded jobs
         for schedule in self.schedules.values():

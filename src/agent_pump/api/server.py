@@ -18,6 +18,7 @@ from agent_pump.api.middleware.cors import get_cors_config, get_cors_config_secu
 from agent_pump.api.routes.health import router as health_router
 from agent_pump.api.routes.metrics import router as metrics_router
 from agent_pump.api.routes.projects import router as projects_router
+from agent_pump.api.routes.webhooks import router as webhooks_router
 from agent_pump.api.routes.websocket import router as websocket_router
 from agent_pump.communication.callback_server import router as callback_router
 from agent_pump.communication.mcp_server import AgentPumpMCPServer
@@ -143,6 +144,7 @@ def create_server(
     app.include_router(metrics_router, prefix="/api")
     app.include_router(websocket_router)
     app.include_router(callback_router, prefix="/api")
+    app.include_router(webhooks_router, prefix="/api")
 
     # Static files (SPA)
     # Determine static path relative to this file

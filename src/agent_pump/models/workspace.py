@@ -14,6 +14,7 @@ from .cost_tracking import BudgetConfig
 from .execution_queue import ExecutionQueueConfig, ExecutionQueueItem, QueuePriority, QueueStatus
 from .github_integration import GitHubIntegrationConfig
 from .verification_config import VerificationConfig
+from .webhook_config import WebhookConfig
 
 logger = logging.getLogger(__name__)
 
@@ -302,6 +303,10 @@ class Workspace(BaseModel):
     budget_config: BudgetConfig = Field(
         default_factory=BudgetConfig,
         description="Budget configuration for cost tracking",
+    )
+    webhook_config: WebhookConfig = Field(
+        default_factory=WebhookConfig,
+        description="Webhook configuration",
     )
     created_at: datetime = Field(default_factory=datetime.now)
     last_modified: datetime = Field(default_factory=datetime.now)

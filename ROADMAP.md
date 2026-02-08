@@ -11,116 +11,6 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Current Sprint
 
-(No items currently)
-
-## Future Sprints
-
-### 🔴 Webhook Triggers
-**Priority: Medium**
-
-Start workflows from external events.
-
-### 🔴 File Watcher Trigger
-**Priority: Low**
-
-Trigger workflows automatically when files change.
-
-#### Implementation Overview
-
-- **Watcher**: Use `watchfiles` to monitor project directory.
-- **Debounce**: Wait for changes to settle before triggering.
-- **Filters**: Ignore `.git`, `__pycache__`, etc.
-- **Action**: Trigger verification or full workflow on change.
-
-#### Implementation Overview
-
-```
-src/agent_pump/
-├── api/
-│   └── webhooks.py          # Webhook endpoints
-├── models/
-│   └── webhook_config.py    # Security config
-```
-
-#### Step 1: Webhook Config
-
-```python
-class WebhookConfig(BaseModel):
-    enabled: bool = False
-    secret_key: str  # For HMAC validation
-    allowed_sources: list[str] = ["github", "slack", "custom"]
-    
-class WebhookTrigger(BaseModel):
-    source: str  # "github", "slack", "custom"
-    event_type: str  # "push", "issue_comment", "slash_command"
-    project_id: str | None  # Specific project, or None for routing
-    phase: str | None  # Start at specific phase
-```
-
-#### Step 2: Webhook Endpoints
-
-```python
-@router.post("/webhooks/trigger/{source}")
-async def webhook_trigger(
-    source: str,
-    request: Request,
-    x_signature: str = Header(None)
-):
-    # Validate signature
-    body = await request.body()
-    if not validate_hmac(body, x_signature, config.secret_key):
-        raise HTTPException(401, "Invalid signature")
-    
-    payload = await request.json()
-    
-    # Route to appropriate handler
-    if source == "github":
-        return await handle_github_webhook(payload, request.headers)
-    elif source == "slack":
-        return await handle_slack_webhook(payload)
-    else:
-        return await handle_custom_webhook(payload)
-
-async def handle_github_webhook(payload, headers):
-    event = headers.get("X-GitHub-Event")
-    
-    if event == "issue_comment":
-        # Check for trigger phrase like "/agent-pump run"
-        comment = payload["comment"]["body"]
-        if comment.startswith("/agent-pump"):
-            command = parse_command(comment)
-            await execute_command(command, payload)
-    
-    elif event == "push":
-        # Auto-trigger on push to specific branches
-        branch = payload["ref"].split("/")[-1]
-        if branch in config.auto_trigger_branches:
-            project = find_project_by_repo(payload["repository"]["full_name"])
-            await orchestrator.start(project)
-```
-
-#### Step 3: Slack Integration
-
-```python
-async def handle_slack_webhook(payload):
-    """Handle Slack slash commands like /agent-pump start my-project"""
-    command = payload.get("command")
-    text = payload.get("text", "").split()
-    
-    if command == "/agent-pump":
-        action = text[0] if text else "status"
-        project_name = text[1] if len(text) > 1 else None
-        
-        if action == "start":
-            project = find_project_by_name(project_name)
-            await orchestrator.start(project)
-            return {"text": f"Started workflow for {project_name}"}
-        elif action == "status":
-            return {"text": format_status_for_slack()}
-```
-
----
-
 ### 🔴 Auto-Fix CI Failures
 **Priority: Medium**
 
@@ -261,6 +151,22 @@ async def _create_fix_task(self, project: Project, failure_info: FailureInfo):
 
 ---
 
+## Future Sprints
+
+### 🔴 File Watcher Trigger
+**Priority: Low**
+
+Trigger workflows automatically when files change.
+
+#### Implementation Overview
+
+- **Watcher**: Use `watchfiles` to monitor project directory.
+- **Debounce**: Wait for changes to settle before triggering.
+- **Filters**: Ignore `.git`, `__pycache__`, etc.
+- **Action**: Trigger verification or full workflow on change.
+
+---
+
 ### 🔴 Code Coverage Integration
 **Priority: Medium**
 
@@ -322,6 +228,16 @@ Team collaboration features:
 - Real-time collaboration on features
 - Conflict resolution for simultaneous edits
 - Team-wide metrics and analytics
+
+---
+
+### ⚫ IDE Extension
+**Priority: Low**
+
+VS Code extension to interface with Agent Pump.
+- Status bar integration
+- Command palette commands
+- Inline chat
 
 ---
 
