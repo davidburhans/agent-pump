@@ -1316,6 +1316,17 @@ class AgentPumpApp(App):
 
         self.push_screen(ChatScreen(self.selected_project))
 
+    @on(ChatScreen.RetryRequested)
+    def on_chat_retry(self, event: ChatScreen.RetryRequested) -> None:
+        """Handle retry request from chat screen."""
+        workflow = self.workflows.get(event.project_path)
+        if workflow:
+            workflow.retry_last_phase()
+            self._log(f"Retrying phase for {workflow.project.name}")
+            self.notify(f"Retrying phase for {workflow.project.name}")
+        else:
+            self._log(f"Workflow not found for {event.project_path}")
+
     async def _bootstrap_project(self, path: Path, backend_name: str, dry_run: bool) -> None:
         """Execute the bootstrap operation.
 

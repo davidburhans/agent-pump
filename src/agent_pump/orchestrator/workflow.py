@@ -433,6 +433,14 @@ class ProjectWorkflow:
                     f"The workflow for project '{self.project.name}' has encountered an error."
                 ),
             )
+        elif new_state == "troubleshooting":
+            Notifier.send(
+                title="Workflow Paused (Troubleshooting)",
+                message=(
+                    f"The workflow for project '{self.project.name}' "
+                    "has paused for troubleshooting."
+                ),
+            )
 
     def _check_task_name_file(self) -> None:
         """Check TASK_NAME file and update project state."""
@@ -667,6 +675,8 @@ class ProjectWorkflow:
                 # Check for explicit error markers
                 if "[ERROR]" in line or "[TIMEOUT]" in line:
                     success = False
+                    self.workflow_state.last_error = line
+                    self.workflow_state.last_failed_phase = phase_name
 
                 output_lines.append(line)
                 self._emit_output(line)
@@ -704,6 +714,8 @@ class ProjectWorkflow:
             logger.exception(f"Error in {phase_name} phase")
             self._emit_output(f"\n[ERROR] {e}\n")
             success = False
+            self.workflow_state.last_error = str(e)
+            self.workflow_state.last_failed_phase = phase_name
 
         # Calculate duration
         duration = (datetime.now() - start_time).total_seconds()
@@ -715,11 +727,18 @@ class ProjectWorkflow:
                     f"\n[ERROR] Backend execution too short ({duration:.1f}s < {self.project.min_execution_time_seconds}s). Assuming failure.\n"  # noqa: E501
                 )
                 success = False
+                self.workflow_state.last_error = (
+                    f"Backend execution too short ({duration:.1f}s < "
+                    f"{self.project.min_execution_time_seconds}s)"
+                )
+                self.workflow_state.last_failed_phase = phase_name
 
         # Fail if no output received and not cancelled
         if not output_lines and success and not self._cancelled:
             self._emit_output("\n[ERROR] No output received from backend\n")
             success = False
+            self.workflow_state.last_error = "No output received from backend"
+            self.workflow_state.last_failed_phase = phase_name
 
         # Log phase completion
         summary = "".join(output_lines[-10:]) if output_lines else None
@@ -843,6 +862,13 @@ class ProjectWorkflow:
                         self.reset()  # type: ignore
                         continue
 
+                    case "troubleshooting":
+                        # In troubleshooting state, we wait for user interaction (retry or reset).
+                        # We just sleep to avoid busy loop.
+                        # The UI or external command will trigger state change.
+                        await asyncio.sleep(1)
+                        continue
+
                     case _:
                         # Generic Phase Handler
                         phase = self.workflow_def.get_phase(current_state)
@@ -907,6 +933,12 @@ class ProjectWorkflow:
                         # Post-phase hook (Verification, side effects)
                         if should_run_agent and success:
                             success = await self._post_phase(phase.name, success)
+                            if not success:
+                                if not self.workflow_state.last_error:
+                                    self.workflow_state.last_error = (
+                                        f"Phase {phase.name} post-processing failed"
+                                    )
+                                    self.workflow_state.last_failed_phase = phase.name
 
                         # Execute post-phase hooks
                         if self.plugin_manager:
@@ -1107,6 +1139,28 @@ class ProjectWorkflow:
         # Notify UI
         if self.on_state_change:
             self.on_state_change("reset", "idle")
+
+    def retry_last_phase(self) -> None:
+        """Retry the last failed phase."""
+        if self.state != "troubleshooting":
+            logger.warning("Cannot retry: Workflow is not in troubleshooting state")
+            return
+
+        last_phase = self.workflow_state.last_failed_phase
+        if not last_phase:
+            logger.warning("Cannot retry: No last failed phase recorded")
+            return
+
+        logger.info(f"Retrying phase: {last_phase}")
+        self._emit_output(f"\n[TROUBLESHOOTING] Retrying phase: {last_phase}...\n")
+
+        # Clear error state
+        self.workflow_state.last_error = None
+        self.workflow_state.last_failed_phase = None
+        self.workflow_state.save()
+
+        # Transition back to the failed phase
+        self.machine.set_state(last_phase)
 
     def is_running(self) -> bool:
         """Check if the workflow is currently running."""

@@ -22,6 +22,7 @@ class ProjectStatus(str, Enum):
     PAUSED = "paused"
     ERROR = "error"
     COMPLETED = "completed"
+    TROUBLESHOOTING = "troubleshooting"
 
 
 class Project(BaseModel):

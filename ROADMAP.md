@@ -11,17 +11,6 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Current Sprint
 
-### 🔴 Interactive Troubleshooting
-**Priority: Low**
-
-Enable interactive chat session when a workflow fails to help diagnose issues.
-
-#### Implementation Overview
-- **Pause on Error**: Instead of stopping, transition to a "troubleshooting" state.
-- **Chat Interface**: Enable a chat input in the TUI associated with the error context.
-- **Context Injection**: Provide error logs and stack traces to the chat agent.
-- **Resume/Retry**: Allow user to ask agent to "try again" or "apply fix" from chat.
-
 ### 🔴 Code Context Visualizer
 **Priority: Low**
 
@@ -121,6 +110,16 @@ Visualize workflow performance metrics and costs over time.
 - **Data Collection**: Aggregate metrics from `CostTrackingService` and `WorkflowState`.
 - **TUI Dashboard**: Add a new screen in TUI to show graphs (using textual-plotext or similar).
 - **Metrics**: Success rate, average phase duration, token usage, cost per feature.
+
+### 🔴 Enhanced Troubleshooting with Auto-Fix
+**Priority: Low**
+
+Automatically suggest and apply fixes during troubleshooting mode.
+
+#### Implementation Overview
+- **Auto-Fix Analysis**: When in troubleshooting mode, automatically run an "analysis" agent to suggest fixes.
+- **One-Click Fix**: Add "Apply Fix" button in the chat interface.
+- **Diff Preview**: Show diff of proposed fix before applying.
 
 ---
 
