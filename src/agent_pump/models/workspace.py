@@ -21,6 +21,24 @@ from .webhook_config import WebhookConfig
 logger = logging.getLogger(__name__)
 
 
+class KnowledgeBaseConfig(BaseModel):
+    """Configuration for the project knowledge base."""
+
+    enabled: bool = Field(default=True, description="Enable knowledge base indexing and retrieval")
+    docs_dirs: list[str] = Field(
+        default_factory=lambda: ["docs"],
+        description="Directories containing documentation to index (relative to project root)",
+    )
+    external_resources: list[str] = Field(
+        default_factory=list,
+        description="List of external URLs to index",
+    )
+    file_extensions: list[str] = Field(
+        default_factory=lambda: [".md", ".txt", ".rst"],
+        description="File extensions to index as documentation",
+    )
+
+
 class BackendInstance(BaseModel):
     """A backend with its configuration."""
 
@@ -258,6 +276,10 @@ class ProjectConfig(BaseModel):
     tool_security: ToolSecurityConfig = Field(
         default_factory=ToolSecurityConfig,
         description="Security configuration for custom tools.",
+    )
+    knowledge_base: KnowledgeBaseConfig = Field(
+        default_factory=KnowledgeBaseConfig,
+        description="Knowledge base configuration for documentation and external resources.",
     )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

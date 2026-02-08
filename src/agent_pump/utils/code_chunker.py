@@ -24,11 +24,7 @@ class CodeChunker:
         elif filename.endswith(".md"):
             return CodeChunker._chunk_markdown(content)
         else:
-            # Default to simple line based or paragraph based chunking?
-            # For now, just return whole file if small, or split by double newlines.
-            if len(content) < 2000:
-                return [content]
-            return [chunk for chunk in content.split("\n\n") if chunk.strip()]
+            return CodeChunker._chunk_text(content)
 
     @staticmethod
     def _chunk_python(content: str) -> list[str]:
@@ -56,6 +52,37 @@ class CodeChunker:
             chunks.append("\n".join(current_chunk))
 
         return [c.strip() for c in chunks if c.strip()]
+
+    @staticmethod
+    def _chunk_text(content: str) -> list[str]:
+        """Chunk generic text by paragraphs or length."""
+        if len(content) < 2000:
+            return [content]
+
+        chunks = []
+        # Split by double newlines (paragraphs)
+        paragraphs = content.split("\n\n")
+        current_chunk: list[str] = []
+        current_length = 0
+
+        for para in paragraphs:
+            para = para.strip()
+            if not para:
+                continue
+
+            if current_length + len(para) > 2000:
+                if current_chunk:
+                    chunks.append("\n\n".join(current_chunk))
+                    current_chunk = []
+                    current_length = 0
+
+            current_chunk.append(para)
+            current_length += len(para)
+
+        if current_chunk:
+            chunks.append("\n\n".join(current_chunk))
+
+        return chunks
 
     @staticmethod
     def _chunk_markdown(content: str) -> list[str]:

@@ -210,3 +210,29 @@ export OLLAMA_MODEL=mistral
 ### Audit Status: ✅ Fully implemented
 - **Implementation**: `src/agent_pump/backends/ollama.py`, `src/agent_pump/models/ollama_config.py`, `src/agent_pump/config.py`
 - **Tests**: `tests/backends/test_ollama.py`
+
+## 📚 Knowledge Base Integration
+
+Index project documentation and external resources for enhanced RAG context.
+
+### Features
+- **Documentation Indexing**: Automatically indexes markdown files in `docs/` directory.
+- **External Resources**: Fetches and indexes external documentation URLs specified in config.
+- **HTML Parsing**: Uses BeautifulSoup to extract clean text from external HTML pages.
+- **Smart Retrieval**: Distinguishes between code, docs, and external resources in retrieved context.
+
+### Configuration
+Configure in Project Settings (workspace.json):
+
+```json
+"knowledge_base": {
+  "enabled": true,
+  "docs_dirs": ["docs"],
+  "external_resources": ["https://fastapi.tiangolo.com/"],
+  "file_extensions": [".md", ".rst", ".txt"]
+}
+```
+
+### Audit Status: ✅ Fully implemented
+- **Implementation**: `src/agent_pump/services/context_service.py`, `src/agent_pump/models/workspace.py`
+- **Tests**: `tests/services/test_context_service_kb.py`, `tests/models/test_workspace_kb.py`
