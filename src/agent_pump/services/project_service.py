@@ -69,6 +69,62 @@ class ProjectService(BaseService):
 
             # Get workspace-level config overrides
             project_config = self.workspace.get_project_config(path)
+
+            # Sync backend settings from config.yml if present
+            if config.backends:
+                from agent_pump.models.workspace import BackendFallback, BackendInstance
+
+                # Ensure project_config exists
+                if not project_config:
+                    self.workspace.add_project(
+                        path,
+                        config=None,  # Will create default
+                    )
+                    project_config = self.workspace.get_project_config(path)
+
+                # Check for default backend in 'backends'
+                default_backend_name = config.backends.get("default")
+                if isinstance(default_backend_name, str):
+                    # Update the simple default backend name
+                    project.backend = default_backend_name
+
+                # Construct backend instance from config
+                target_backend = project.backend
+                backend_config = config.backends.get(target_backend)
+
+                if isinstance(backend_config, dict) and project_config:
+                    # Convert dict config (model, temp) to args list
+                    args = []
+                    for k, v in backend_config.items():
+                        if v is not None:
+                            args.append(f"--{k}")
+                            args.append(str(v))
+
+                    instance = BackendInstance(name=target_backend, args=args)
+                    fallback = BackendFallback(backends=[instance])
+
+                    # Apply to default chain
+                    project_config.default_chain = fallback
+
+                    # MIGRATION: Clear stale defaults from phases so default_chain works
+                    def is_stale_default(fb: BackendFallback) -> bool:
+                        # Old default was [BackendInstance(name='gemini', args=[])]
+                        if len(fb.backends) != 1:
+                            return False
+                        b = fb.backends[0]
+                        return b.name == "gemini" and not b.args and not b.timeout
+
+                    phases = project_config.phase_backends
+                    # Iterate over fields in PhaseBackends (defaults, planning, etc.)
+                    for phase_name in phases.model_fields:
+                        fb = getattr(phases, phase_name)
+                        if isinstance(fb, BackendFallback) and is_stale_default(fb):
+                            # Reset to empty fallback so ProjectWorkflow uses default_chain
+                            setattr(phases, phase_name, BackendFallback(backends=[]))
+
+                    # Save workspace with new config
+                    self.workspace.save()
+
             phase_backends = project_config.phase_backends if project_config else None
             prompt_customization = project_config.prompt_customization if project_config else None
 

@@ -17,6 +17,14 @@ DEFAULT_CONFIG_TEMPLATE = """# Agent Pump Host Configuration
 # The AI backend to use (e.g., "gemini", "openai:gpt-4", "ollama")
 backend: gemini
 
+# Backend Configuration (optional)
+# backends:
+#   gemini:
+#     model: gemini-2.5-pro
+#     temperature: 0.7
+#   claude:
+#     model: claude-3-opus-20240229
+
 # Ollama Configuration (optional)
 # ollama:
 #   endpoint: http://localhost:11434
@@ -77,6 +85,9 @@ class Config(BaseModel):
     """Agent-pump configuration."""
 
     backend: str = Field(default="gemini", description="AI agent backend to use")
+    backends: dict[str, Any] = Field(
+        default_factory=dict, description="Detailed backend configuration (model, temp, etc.)"
+    )
     workflow: WorkflowConfig = Field(default_factory=WorkflowConfig)
     verification: VerificationConfig = Field(
         default_factory=VerificationConfig, description="Verification command configuration"
