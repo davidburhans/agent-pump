@@ -131,6 +131,63 @@ def test_github_webhook_success(mock_app_state):
     mock_app_state.project_service.add_project.assert_called_with(Path("/tmp/proj"))
     mock_workflow.run.assert_called_once()
 
+
+def test_custom_webhook_missing_signature(mock_app_state):
+    """Test custom webhook missing signature when secret key is set."""
+    # secret_key is set in fixture
+    response = client.post("/api/trigger/custom", json={"foo": "bar"})
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Missing X-Signature header"
+
+
+def test_custom_webhook_invalid_signature(mock_app_state):
+    """Test custom webhook invalid signature."""
+    headers = {"X-Signature": "invalid"}
+    response = client.post("/api/trigger/custom", json={"foo": "bar"}, headers=headers)
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid signature"
+
+
+def test_slack_webhook_expired_timestamp(mock_app_state):
+    """Test Slack webhook with expired timestamp."""
+    import time
+
+    timestamp = str(int(time.time()) - 600)  # 10 minutes ago
+    body = b"command=/agent-pump"
+    # Signature generated with expired timestamp (technically valid signature, but invalid time)
+    signature = generate_slack_signature("secret", timestamp, body)
+
+    headers = {
+        "X-Slack-Signature": signature,
+        "X-Slack-Request-Timestamp": timestamp,
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+
+    response = client.post("/api/trigger/slack", content=body, headers=headers)
+    assert response.status_code == 401
+    # Note: detail is "Invalid Slack signature" because validation returns False for timestamp too
+    assert response.json()["detail"] == "Invalid Slack signature"
+
+
+def test_slack_webhook_future_timestamp(mock_app_state):
+    """Test Slack webhook with future timestamp."""
+    import time
+
+    timestamp = str(int(time.time()) + 600)  # 10 minutes in future
+    body = b"command=/agent-pump"
+    signature = generate_slack_signature("secret", timestamp, body)
+
+    headers = {
+        "X-Slack-Signature": signature,
+        "X-Slack-Request-Timestamp": timestamp,
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+
+    response = client.post("/api/trigger/slack", content=body, headers=headers)
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid Slack signature"
+
+
 def test_slack_webhook_success(mock_app_state):
     """Test Slack webhook success."""
     # Setup project config
@@ -144,7 +201,8 @@ def test_slack_webhook_success(mock_app_state):
     from urllib.parse import urlencode
     body = urlencode(form_data).encode()
 
-    timestamp = "1234567890"
+    import time
+    timestamp = str(int(time.time()))
     signature = generate_slack_signature("secret", timestamp, body)
 
     headers = {

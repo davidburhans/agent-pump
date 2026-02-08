@@ -31,8 +31,24 @@ def validate_github_signature(body: bytes, signature: str, secret: str) -> bool:
 def validate_slack_signature(
     body: bytes, signature: str, timestamp: str, secret: str
 ) -> bool:
-    """Validate Slack webhook signature."""
+    """Validate Slack webhook signature and timestamp."""
     if not signature or not timestamp:
+        return False
+
+    # Check timestamp freshness (replay attack prevention)
+    try:
+        import time
+
+        req_timestamp = int(timestamp)
+        now = int(time.time())
+
+        # Slack suggests checking if timestamp is older than 5 minutes
+        if abs(now - req_timestamp) > 300:
+            logger.warning(f"Slack request timestamp expired or too far in future: {req_timestamp} vs {now}")
+            return False
+
+    except (ValueError, TypeError):
+        logger.warning(f"Invalid Slack timestamp: {timestamp}")
         return False
 
     # Slack signature format: v0=HMAC_SHA256(secret, "v0:timestamp:body")
@@ -249,14 +265,18 @@ async def webhook_trigger(
             ):
                 raise HTTPException(status_code=401, detail="Invalid Slack signature")
 
-        # For custom/other sources, maybe define a standard header?
-        # For now, skip generic validation if source specific logic applies.
-        # If generic source, maybe use X-Signature with generic HMAC logic.
-        elif x_signature:
-             # Generic validation
-             expected = hmac.new(config.secret_key.encode(), body, hashlib.sha256).hexdigest()
-             if not hmac.compare_digest(f"sha256={expected}", x_signature) and \
-                not hmac.compare_digest(expected, x_signature):
+        else:
+            # For custom/other sources, strictly require X-Signature
+            if not x_signature:
+                raise HTTPException(status_code=401, detail="Missing X-Signature header")
+
+            # Generic validation
+            expected = hmac.new(config.secret_key.encode(), body, hashlib.sha256).hexdigest()
+            # Allow "sha256=<hash>" or just "<hash>"
+            valid_prefixed = hmac.compare_digest(f"sha256={expected}", x_signature)
+            valid_raw = hmac.compare_digest(expected, x_signature)
+
+            if not valid_prefixed and not valid_raw:
                  raise HTTPException(status_code=401, detail="Invalid signature")
 
     # Process Payload
