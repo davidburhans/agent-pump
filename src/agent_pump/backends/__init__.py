@@ -10,6 +10,7 @@ from agent_pump.backends.base import AgentBackend, AgentResult, BackendError
 from agent_pump.backends.claude import ClaudeBackend
 from agent_pump.backends.fallback import FallbackBackendRunner
 from agent_pump.backends.gemini import GeminiBackend
+from agent_pump.backends.ollama import OllamaBackend
 from agent_pump.backends.opencode import OpenCodeBackend
 from agent_pump.backends.opencode_api import OpenCodeAPIBackend
 from agent_pump.backends.qwen import QwenBackend
@@ -18,6 +19,7 @@ from agent_pump.backends.qwen import QwenBackend
 BACKEND_REGISTRY: dict[str, type[AgentBackend]] = {
     "gemini": GeminiBackend,
     "claude": ClaudeBackend,
+    "ollama": OllamaBackend,
     "opencode": OpenCodeBackend,
     "opencode-api": OpenCodeAPIBackend,
     "qwen": QwenBackend,
@@ -80,6 +82,7 @@ __all__ = [
     "ClaudeBackend",
     "FallbackBackendRunner",
     "GeminiBackend",
+    "OllamaBackend",
     "OpenCodeBackend",
     "OpenCodeAPIBackend",
     "QwenBackend",

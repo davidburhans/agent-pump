@@ -178,3 +178,35 @@ mcp_servers:
 ### Audit Status: ✅ Fully implemented
 - **Implementation**: `src/agent_pump/communication/mcp_client.py`, `src/agent_pump/models/mcp_config.py`, `src/agent_pump/communication/mcp_server.py`
 - **Tests**: `tests/communication/test_mcp_client.py`, `tests/models/test_mcp_config.py`
+
+## 🦙 Ollama Backend Support
+
+Run Agent Pump with local LLMs using Ollama.
+
+### Features
+- **Local Execution**: Use open-source models like Llama 3, Mistral, and Gemma locally.
+- **Privacy First**: No data leaves your machine.
+- **Streaming Support**: Real-time response streaming for interactive feedback.
+- **Model Discovery**: Automatically lists available models from your Ollama instance.
+- **Configuration**: Set endpoint and model via config file or environment variables.
+
+### Configuration
+Configure in `config.yml` or use environment variables:
+
+```yaml
+backend: ollama
+ollama:
+  endpoint: http://localhost:11434
+  model: llama3
+```
+
+Or via environment:
+```bash
+export AGENT_PUMP_BACKEND=ollama
+export OLLAMA_HOST=http://localhost:11434
+export OLLAMA_MODEL=mistral
+```
+
+### Audit Status: ✅ Fully implemented
+- **Implementation**: `src/agent_pump/backends/ollama.py`, `src/agent_pump/models/ollama_config.py`, `src/agent_pump/config.py`
+- **Tests**: `tests/backends/test_ollama.py`
