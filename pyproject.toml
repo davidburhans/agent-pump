@@ -25,6 +25,7 @@ dependencies = [
     "pygithub>=2.8.1",
     "mcp>=1.26.0",
     "apscheduler>=4.0.0a6",
+    "watchfiles>=0.21.0",
 ]
 
 [project.optional-dependencies]

@@ -46,3 +46,30 @@ Enabled automatically when GitHub Webhooks are configured with `check_run` event
 ### Audit Status: ✅ Fully implemented
 - **Implementation**: `src/agent_pump/integrations/ci_watcher.py`, `src/agent_pump/integrations/failure_parser.py`, `src/agent_pump/integrations/auto_fix.py`
 - **Tests**: `tests/integrations/test_ci_watcher.py`, `tests/integrations/test_failure_parser.py`, `tests/integrations/test_auto_fix.py`
+
+## 👀 File Watcher Trigger
+
+Trigger workflows automatically when files change.
+
+### Features
+- **Real-time Monitoring**: Uses `watchfiles` to efficiently monitor project directories.
+- **Debouncing**: Waits for changes to settle before triggering (configurable).
+- **Pattern Filtering**: Supports glob patterns for inclusion and exclusion.
+- **Flexible Actions**: Can trigger verification (tests) or full agent workflow.
+
+### Configuration
+Configure in workspace settings or via API:
+
+```json
+"file_watcher": {
+  "enabled": true,
+  "patterns": ["*.py", "*.js"],
+  "ignore_patterns": [".git", "__pycache__", "node_modules"],
+  "debounce_seconds": 2.0,
+  "action": "verification"
+}
+```
+
+### Audit Status: ✅ Fully implemented
+- **Implementation**: `src/agent_pump/services/file_watcher_service.py`
+- **Tests**: `tests/unit/test_file_watcher_service.py`
