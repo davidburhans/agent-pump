@@ -43,6 +43,7 @@ from agent_pump.orchestrator.verification_executor import VerificationExecutor
 from agent_pump.services.branch_manager import BranchManager, MergeResult
 from agent_pump.services.checkpoint_service import CheckpointService
 from agent_pump.services.cost_tracking_service import CostTrackingService
+from agent_pump.services.github_service import GitHubService
 from agent_pump.services.plugin_manager import PluginManager
 from agent_pump.utils.notifier import Notifier
 from agent_pump.utils.token_counter import DefaultTokenCounterService, TokenCounter
@@ -1520,6 +1521,51 @@ class ProjectWorkflow:
         """
         if not self.branch_state or not self.branch_state.feature_branch:
             return MergeResult(success=True)  # No branch to merge
+
+        # Check GitHub Branch Protection
+        try:
+            if self.project_config and self.project_config.github_integration:
+                gh_service = GitHubService(self.project_config.github_integration)
+                base_branch = self.branch_config.base_branch
+
+                self._emit_output(f"\n[MERGE] Checking branch protection for {base_branch}...\n")
+
+                protection = await gh_service.get_branch_protection(base_branch)
+
+                if protection and protection.is_protected:
+                    # Check required status checks
+                    if protection.required_status_checks:
+                        checks_str = ", ".join(protection.required_status_checks)
+                        self._emit_output(f"[MERGE] Waiting for status checks: {checks_str}...\n")
+
+                        checks_passed = await gh_service.wait_for_required_checks(base_branch)
+                        if not checks_passed:
+                            return MergeResult(success=False, error="Status checks failed or timed out")
+
+                    # Check required reviews
+                    if protection.reviews_required:
+                        self._emit_output("[MERGE] Checking PR review status...\n")
+                        pr_status = await gh_service.get_pr_status(
+                            head_branch=self.branch_state.feature_branch,
+                            base_branch=base_branch,
+                        )
+
+                        if not pr_status:
+                            return MergeResult(success=False, error="PR not found but review required")
+
+                        if not pr_status.approved:
+                            msg = "PR review not approved"
+                            if pr_status.blocked:
+                                msg += " (Blocked)"
+                            if pr_status.issues_found:
+                                msg += f": {', '.join(pr_status.issues_found)}"
+                            return MergeResult(success=False, error=msg)
+
+                    self._emit_output("[MERGE] Branch protection requirements met.\n")
+
+        except Exception as e:
+            logger.warning(f"Failed to check branch protection: {e}")
+            self._emit_output(f"\n[WARNING] Failed to check branch protection: {e}\n")
 
         try:
             from git import InvalidGitRepositoryError

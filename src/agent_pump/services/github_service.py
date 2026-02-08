@@ -37,6 +37,7 @@ from agent_pump.models.github_integration import (
     GitHubIntegrationConfig,
     IssueInfo,
     PRInfo,
+    PRReviewResult,
 )
 
 
@@ -225,69 +226,87 @@ class GitHubService:
                 return None
 
             # Check if protected
-            protection = branch.protection
-            if protection is None:
+            # PyGithub: branch.protected is boolean, branch.get_protection() returns protection object
+            # But sometimes branch.protection is used. Let's try standard way.
+            is_protected = branch.protected
+
+            if not is_protected:
                 return BranchProtectionInfo(
                     branch_name=branch_name,
                     is_protected=False,
                 )
 
+            # Get protection details
+            # Note: PyGithub structure for protection can be complex
+            try:
+                protection = branch.get_protection()
+            except (GithubException, UnknownObjectException):
+                # Fallback if get_protection fails but protected is True
+                return BranchProtectionInfo(
+                    branch_name=branch_name,
+                    is_protected=True,
+                )
+
             # Extract protection settings
             required_status_checks: list[str] | None = None
-            if hasattr(protection, "required_status_checks"):
-                checks = getattr(protection, "required_status_checks", [])
-                if checks:
-                    required_status_checks = [check.context for check in checks]
+            try:
+                status_checks = protection.required_status_checks
+                if status_checks:
+                    required_status_checks = status_checks.contexts
+            except (GithubException, AttributeError):
+                pass
 
+            reviews_required = False
             dismiss_stale_reviews = True
-            if hasattr(protection, "dismiss_stale_reviews"):
-                dismiss_stale_reviews = getattr(protection, "dismiss_stale_reviews", True)
-
             require_code_owner_reviews = False
-            if hasattr(protection, "require_code_owner_reviews"):
-                require_code_owner_reviews = getattr(
-                    protection, "require_code_owner_reviews", False
-                )
-
             required_approving_review_count = 1
-            if hasattr(protection, "required_approving_review_count"):
-                required_approving_review_count = getattr(
-                    protection, "required_approving_review_count", 1
-                )
+
+            try:
+                reviews = protection.required_pull_request_reviews
+                if reviews:
+                    reviews_required = True
+                    dismiss_stale_reviews = reviews.dismiss_stale_reviews
+                    require_code_owner_reviews = reviews.require_code_owner_reviews
+                    required_approving_review_count = reviews.required_approving_review_count
+            except (GithubException, AttributeError):
+                pass
 
             enforce_admins = False
-            if hasattr(protection, "enforce_admins"):
-                enforce_admins = getattr(protection, "enforce_admins", False)
+            try:
+                enforce_admins = protection.enforce_admins
+                if hasattr(enforce_admins, "enabled"):
+                     enforce_admins = enforce_admins.enabled
+            except (GithubException, AttributeError):
+                pass
 
             allow_force_pushes = False
-            if hasattr(protection, "allow_force_pushes"):
-                allow_force_pushes = getattr(protection, "allow_force_pushes", False)
+            try:
+                allow_force_pushes = protection.allow_force_pushes
+                if hasattr(allow_force_pushes, "enabled"):
+                    allow_force_pushes = allow_force_pushes.enabled
+            except (GithubException, AttributeError):
+                pass
 
             allow_deletions = False
-            if hasattr(protection, "allow_deletions"):
-                allow_deletions = getattr(protection, "allow_deletions", False)
-
-            # Get dismissal restrictions (reviewers)
-            required_pull_request_reviews: list[str] | None = None
-            if hasattr(protection, "dismissal_restrictions") and hasattr(
-                protection, "required_pull_request_reviews"
-            ):
-                if getattr(protection, "required_pull_request_reviews"):
-                    dismissal = getattr(protection, "dismissal_restrictions", None)
-                    if dismissal and hasattr(dismissal, "users"):
-                        required_pull_request_reviews = [user.login for user in dismissal.users]
+            try:
+                allow_deletions = protection.allow_deletions
+                if hasattr(allow_deletions, "enabled"):
+                    allow_deletions = allow_deletions.enabled
+            except (GithubException, AttributeError):
+                pass
 
             return BranchProtectionInfo(
                 branch_name=branch_name,
                 is_protected=True,
-                required_status_checks=required_status_checks or None,
-                enforce_admins=enforce_admins,
-                required_pull_request_reviews=required_pull_request_reviews or None,
+                required_status_checks=required_status_checks,
+                enforce_admins=bool(enforce_admins),
+                reviews_required=reviews_required,
+                required_pull_request_reviews=None, # List of users not easily accessible via standard protection object without extra calls
                 dismiss_stale_reviews=dismiss_stale_reviews,
                 require_code_owner_reviews=require_code_owner_reviews,
                 required_approving_review_count=required_approving_review_count,
-                allow_force_pushes=allow_force_pushes,
-                allow_deletions=allow_deletions,
+                allow_force_pushes=bool(allow_force_pushes),
+                allow_deletions=bool(allow_deletions),
             )
 
         except (GithubException, RateLimitExceededException) as e:
@@ -320,19 +339,15 @@ class GitHubService:
         missing_requirements: list[str] = []
 
         # Check required status checks
-        if required_config.required_status_checks and not current.required_status_checks:
-            missing_requirements.append("required_status_checks")
+        if required_config.required_status_checks:
+            current_checks = current.required_status_checks or []
+            for check in required_config.required_status_checks:
+                if check not in current_checks:
+                    missing_requirements.append(f"required_status_check:{check}")
 
         # Check enforce admins
         if required_config.enforce_admins and not current.enforce_admins:
             missing_requirements.append("enforce_admins")
-
-        # Check required reviewers
-        if (
-            required_config.required_pull_request_reviews
-            and not current.required_pull_request_reviews
-        ):
-            missing_requirements.append("required_pull_request_reviews")
 
         return BranchProtectionResult(
             success=len(missing_requirements) == 0,
@@ -359,36 +374,123 @@ class GitHubService:
 
         logger = logging.getLogger(__name__)
 
+        # Use asyncio.sleep if loop is running, else time.sleep?
+        # Since this is async method, assume event loop.
+
         start_time = asyncio.get_event_loop().time()
+        # Reduce poll interval for tests/quicker feedback, but 10s is good for real usage
         poll_interval = 10
 
         try:
             repo = self.get_repo()
+            # Need to get branch object to get latest commit SHA
             branch = repo.get_branch(branch_name)
 
             while True:
-                elapsed = asyncio.get_event_loop().time() - start_time
-
-                if elapsed >= timeout:
+                # Check timeout
+                current_time = asyncio.get_event_loop().time()
+                if current_time - start_time >= timeout:
                     logger.warning(f"Timeout waiting for status checks on {branch_name}")
                     return False
 
                 # Get commit status
+                # We refresh branch object or just get commit directly
+                # It's safer to get the specific commit sha we started with, or HEAD?
+                # Usually we want HEAD.
+                branch = repo.get_branch(branch_name)
                 head_sha = branch.commit.sha
-                combined_status = repo.get_commit(head_sha).get_combined_status()
+                commit = repo.get_commit(head_sha)
 
-                # Check if all required contexts passed
-                if combined_status.state == "success":
+                # combined_status returns the aggregate state
+                combined_status = commit.get_combined_status()
+
+                state = combined_status.state
+                # states: failure, pending, success
+
+                if state == "success":
                     logger.info(f"All status checks passed for {branch_name}")
                     return True
 
-                if combined_status.state in ("error", "failure"):
-                    logger.error(f"Status checks failed for {branch_name}: {combined_status.state}")
+                if state in ("failure", "error"):
+                    logger.error(f"Status checks failed for {branch_name}: {state}")
                     return False
 
-                # Wait before polling again
+                # If pending, wait
                 await asyncio.sleep(poll_interval)
 
         except (GithubException, RateLimitExceededException) as e:
             logger.error(f"Error checking status on {branch_name}: {e}")
             return False
+
+    async def get_pr_status(self, head_branch: str, base_branch: str = "main") -> PRReviewResult | None:
+        """Get the status of the Pull Request for the given branch.
+
+        Args:
+            head_branch: The feature branch name
+            base_branch: The target branch name
+
+        Returns:
+            PRReviewResult with approval status, or None if no PR found
+        """
+        try:
+            repo = self.get_repo()
+
+            # Find open PRs from head_branch
+            # PyGithub filters are tricky. usually `head=user:branch`
+            # Assuming same repo for now
+            owner = self.config.owner
+            head_query = f"{owner}:{head_branch}"
+
+            pulls = repo.get_pulls(state="open", head=head_query, base=base_branch)
+
+            if pulls.totalCount == 0:
+                # Try without owner prefix if it fails?
+                pulls = repo.get_pulls(state="open", head=head_branch, base=base_branch)
+                if pulls.totalCount == 0:
+                    return None
+
+            pr = pulls[0]
+
+            # Check reviews
+            reviews = pr.get_reviews()
+
+            # Logic to determine approval:
+            # - At least one APPROVED
+            # - No CHANGES_REQUESTED from recent reviews
+            # - Dismissed reviews handling is complex, let's keep it simple
+
+            approvals = 0
+            changes_requested = False
+
+            # Get latest review per user
+            latest_reviews = {}
+            for review in reviews:
+                user = review.user.login
+                latest_reviews[user] = review.state
+
+            for state in latest_reviews.values():
+                if state == "APPROVED":
+                    approvals += 1
+                elif state == "CHANGES_REQUESTED":
+                    changes_requested = True
+
+            issues_found = []
+            if changes_requested:
+                issues_found.append("Changes requested by reviewers")
+
+            # We assume 1 approval needed if not specified,
+            # but ideally we check protection rules.
+            # For now, let's report approval if > 0 and no changes requested.
+
+            is_approved = (approvals > 0) and (not changes_requested)
+
+            return PRReviewResult(
+                pr_number=pr.number,
+                approved=is_approved,
+                issues_found=issues_found,
+                suggestions=[],
+                blocked=changes_requested
+            )
+
+        except (GithubException, RateLimitExceededException):
+            return None

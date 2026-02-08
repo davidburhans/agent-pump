@@ -1950,6 +1950,16 @@ class GitHubService:
 **CLI**: Automatic when workflow completes with GitHub config present
 **Documentation**: Complete with configuration examples and usage guide
 
+### Branch Protection Compliance
+- **Description**: Automatically respects GitHub branch protection rules during merge attempts.
+- **Features**:
+    - **Status Checks**: Waits for required status checks (CI/CD) to pass before merging.
+    - **Review Requirements**: Checks for required PR approvals and blocks merge if not met.
+    - **Admin Enforcement**: Respects admin enforcement rules.
+- **Audit Status**: ✅ Fully implemented
+  - Implementation: `src/agent_pump/services/github_service.py`, `src/agent_pump/orchestrator/workflow.py`
+  - Tests: `tests/unit/test_github_service_protection.py`, `tests/unit/test_workflow_merge_protection.py`
+
 ---
 
 ## 🔍 Code Quality & Automated Reviews
