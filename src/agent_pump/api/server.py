@@ -84,6 +84,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict[str, Any], None]:
         # Initialize MCP Server
         try:
             mcp_server = AgentPumpMCPServer(app.state)
+            app.state.mcp_server = mcp_server
             # Mount SSE app
             app.mount("/mcp", mcp_server.sse_app)
             logger.info("MCP Server initialized and mounted at /mcp")
@@ -98,6 +99,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict[str, Any], None]:
     yield {"startup_time": app.state.startup_time}
 
     # Shutdown
+    if hasattr(app.state, "mcp_server"):
+        try:
+            await app.state.mcp_server.shutdown()
+        except Exception as e:
+            logger.error(f"Error shutting down MCP Server: {e}")
+
     logger.info("=" * 60)
     logger.info("Agent Pump HTTP Server Shutting Down")
     logger.info(f"Shutdown time: {datetime.now().isoformat()}")

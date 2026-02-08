@@ -11,17 +11,6 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Current Sprint
 
-### 🔴 Remote MCP Server Support
-**Priority: Low**
-
-Connect to external MCP servers to extend capabilities beyond local tools.
-
-#### Implementation Overview
-
-- **Client Integration**: Add MCP client capabilities to Agent Pump.
-- **Configuration**: Define remote servers in `config.yml`.
-- **Proxying**: Expose remote tools to the internal agent loop.
-
 ### 🔴 Ollama Backend Support
 **Priority: Medium**
 
@@ -79,6 +68,17 @@ Visualize the retrieved context chunks in the TUI to debug the RAG system.
 - **UI Panel**: Add a new tab or panel in the TUI to show `retrieved_context`.
 - **Search Interface**: Allow users to manually query the vector store to test retrieval.
 - **Debugging**: Show similarity scores and file sources.
+
+### 🔴 External Documentation Crawler
+**Priority: Low**
+
+Allow agent to crawl external documentation URLs and add them to context.
+
+#### Implementation Overview
+- **MCP Tool**: Create a built-in MCP tool `crawl_documentation(url)`.
+- **Scraper**: Use `beautifulsoup4` or similar to extract text from documentation pages.
+- **Context Injection**: Add crawled content to vector store or transient context.
+- **Caching**: Cache crawled pages to prevent redundant requests.
 
 ---
 

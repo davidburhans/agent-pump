@@ -6,6 +6,7 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, Field
 
+from agent_pump.models.mcp_config import MCPServerConfig
 from agent_pump.models.tool_config import ToolConfig
 from agent_pump.models.verification_config import VerificationConfig
 
@@ -75,6 +76,9 @@ class Config(BaseModel):
         default_factory=VerificationConfig, description="Verification command configuration"
     )
     tools: list[ToolConfig] = Field(default_factory=list, description="Custom tool configurations")
+    mcp_servers: list[MCPServerConfig] = Field(
+        default_factory=list, description="Remote MCP server configurations"
+    )
 
     @classmethod
     def load(cls, project_path: Path) -> "Config":
