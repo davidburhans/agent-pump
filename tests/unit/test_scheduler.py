@@ -31,13 +31,12 @@ def scheduler(mock_project_service, temp_schedule_file):
         MockScheduler.return_value = mock_instance
 
         # AsyncScheduler 4.0 usage mock
-        # Mock start_in_background to return an async context manager
-        cm = MagicMock()
-        cm.__aenter__ = AsyncMock(return_value=mock_instance)
-        cm.__aexit__ = AsyncMock(return_value=None)
+        # Mock context manager methods on the scheduler instance itself
+        mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
+        mock_instance.__aexit__ = AsyncMock(return_value=None)
 
-        # start_in_background is likely synchronous returning an async CM
-        mock_instance.start_in_background = MagicMock(return_value=cm)
+        # start_in_background is async method returning None
+        mock_instance.start_in_background = AsyncMock(return_value=None)
 
         # Create scheduler
         scheduler = WorkflowScheduler(mock_project_service)
