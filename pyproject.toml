@@ -26,6 +26,9 @@ dependencies = [
     "mcp>=1.26.0",
     "apscheduler>=4.0.0a6",
     "watchfiles>=0.21.0",
+    "sentence-transformers>=2.2.0",
+    "numpy>=1.26.0",
+    "scikit-learn>=1.3.0",
 ]
 
 [project.optional-dependencies]

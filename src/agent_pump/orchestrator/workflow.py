@@ -46,6 +46,7 @@ from agent_pump.orchestrator.interfaces import (
 from agent_pump.orchestrator.verification_executor import VerificationExecutor
 from agent_pump.services.branch_manager import BranchManager, MergeResult
 from agent_pump.services.checkpoint_service import CheckpointService
+from agent_pump.services.context_service import ContextService
 from agent_pump.services.cost_tracking_service import CostTrackingService
 from agent_pump.services.github_service import GitHubService
 from agent_pump.services.plugin_manager import PluginManager
@@ -257,6 +258,9 @@ class ProjectWorkflow:
                 repo_path=project.path,
             )
 
+        # Initialize context service
+        self.context_service = ContextService(project.path)
+
         # Initialize plugin manager (can be None if plugins not enabled)
         self.plugin_manager = plugin_manager
 
@@ -306,9 +310,24 @@ class ProjectWorkflow:
         """Get the context content for prompts."""
         # We only pass branch by default now.
         # File content is accessed via {{ read_file(...) }} in Jinja Templates.
-        return {
+        context = {
             "branch": self.project.branch or "main",
         }
+
+        # Add retrieved context if we have a task
+        if self.project.current_feature and not self._dry_run:
+            try:
+                retrieved = await self.context_service.get_relevant_context(
+                    self.project.current_feature
+                )
+                context["retrieved_context"] = "\n\n".join(retrieved)
+            except Exception as e:
+                logger.warning(f"Failed to retrieve context: {e}")
+                context["retrieved_context"] = ""
+        else:
+            context["retrieved_context"] = ""
+
+        return context
 
     def _after_state_change(self, *args: Any, **kwargs: Any) -> None:
         """Called after each state change."""
@@ -782,6 +801,18 @@ class ProjectWorkflow:
                 loaded_count = len(self.plugin_manager.loaded_plugins)
                 if loaded_count > 0:
                     self._emit_output(f"\n[PLUGINS] Loaded {loaded_count} plugin(s)\n")
+
+            # Initialize context service (index project)
+            if not self._dry_run:
+                self._emit_output("\n[CONTEXT] Indexing project codebase...\n")
+                try:
+                    # Run indexing in background or await it?
+                    # Awaiting ensures context is fresh
+                    await self.context_service.index_project()
+                    self._emit_output("[CONTEXT] Indexing complete.\n")
+                except Exception as e:
+                    self._emit_output(f"[CONTEXT] Indexing failed: {e}\n")
+                    logger.warning(f"Failed to index project: {e}")
 
             iteration = 0
             while iteration < max_iterations and not self._cancelled:

@@ -11,24 +11,6 @@ This document tracks upcoming feature development for Agent Pump. For completed 
 
 ## Current Sprint
 
-### 🔴 Context Awareness Improvements
-**Priority: Medium**
-
-Improve the context provided to agents by intelligently selecting relevant files.
-
-#### Implementation Overview
-- **Embeddings Service**: Implement a service to chunk and embed codebase using a local model (e.g. `sentence-transformers`).
-- **Vector Store**: Use a lightweight local vector store (e.g. `chromadb` or simple numpy index) to store embeddings.
-- **Retrieval Strategy**:
-    - Query expansion: Reword agent prompts to find relevant code.
-    - Re-ranking: Re-rank results based on recency or dependency graph.
-- **Tree-sitter Integration**: Use `tree-sitter` to identify function/class definitions for better chunking.
-- **Dynamic Context Injection**: Replace full file dumps with relevant snippets in the prompt context.
-
----
-
-## Future Sprints
-
 ### 🔴 Remote MCP Server Support
 **Priority: Low**
 
@@ -51,6 +33,10 @@ Add native support for Ollama to run local models easily.
 - **Configuration**: Endpoint URL (default http://localhost:11434), model name.
 - **Integration**: Add to `BackendFactory`.
 - **Streaming**: Support streaming responses for real-time feedback.
+
+---
+
+## Future Sprints
 
 ### 🔴 Knowledge Base Integration
 **Priority: Low**
@@ -83,6 +69,16 @@ Enable interactive chat session when a workflow fails to help diagnose issues.
 - **Chat Interface**: Enable a chat input in the TUI associated with the error context.
 - **Context Injection**: Provide error logs and stack traces to the chat agent.
 - **Resume/Retry**: Allow user to ask agent to "try again" or "apply fix" from chat.
+
+### 🔴 Code Context Visualizer
+**Priority: Low**
+
+Visualize the retrieved context chunks in the TUI to debug the RAG system.
+
+#### Implementation Overview
+- **UI Panel**: Add a new tab or panel in the TUI to show `retrieved_context`.
+- **Search Interface**: Allow users to manually query the vector store to test retrieval.
+- **Debugging**: Show similarity scores and file sources.
 
 ---
 

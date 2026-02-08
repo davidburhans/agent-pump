@@ -22,6 +22,8 @@ BASE_PROMPTS = {
 Context:
 - Current ROADMAP.md: {{ read_file("ROADMAP.md") }}
 - Current ENGINEERING_PLAN.md: {{ read_file("ENGINEERING_PLAN.md") }}
+- Relevant Code Context:
+{{ retrieved_context }}
 
 Feature Request:
 {{ read_file("TASK_NAME") }}
@@ -51,6 +53,8 @@ Context:
 - Current ROADMAP.md: {{ read_file("ROADMAP.md") }}
 - Current ENGINEERING_PLAN.md: {{ read_file("ENGINEERING_PLAN.md") }}
 - Current TASK_NAME: {{ read_file("TASK_NAME") }}
+- Relevant Code Context:
+{{ retrieved_context }}
 
 Requirements:
 1. Follow the task list exactly
