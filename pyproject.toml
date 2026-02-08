@@ -24,6 +24,7 @@ dependencies = [
     "opencode-ai>=0.1.0a36",
     "pygithub>=2.8.1",
     "mcp>=1.26.0",
+    "apscheduler>=4.0.0a6",
 ]
 
 [project.optional-dependencies]

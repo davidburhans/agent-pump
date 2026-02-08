@@ -560,6 +560,26 @@ You can "pair program" with the agent by feeding it ideas while it works.
   - TUI: Chat screen with history and streaming
   - CLI: `ask` command
 
+### Scheduled Workflow Runs ⏰
+- **Description**: Schedule automated workflow runs using Cron or Interval triggers.
+- **Features**:
+    - **Cron Schedules**: Run at specific times (e.g., daily at 2 AM).
+    - **Interval Schedules**: Run every N minutes.
+    - **Working Hours**: Constrain execution to working hours (9 AM - 5 PM).
+    - **Persistence**: Schedules persist across restarts.
+- **Usage**:
+    - **TUI**: Press `H` to open the schedule modal for a project.
+    - **CLI**:
+        ```bash
+        uv run agent-pump schedule add ./my-project --cron "0 2 * * *"
+        uv run agent-pump schedule list
+        ```
+- **Audit Status**: ✅ Fully implemented
+  - Implementation: `src/agent_pump/scheduling/scheduler.py`
+  - Tests: `tests/unit/test_scheduler.py`, `tests/unit/test_schedule_model.py`
+  - TUI: Schedule modal integrated (`H` keybinding)
+  - CLI: Full schedule command group
+
 ### Interactive Diff Viewer
 - **Description**: A visual diff viewer within the TUI to review changes from git (staged/unstaged), checkpoints, or dry runs.
 - **Features**:

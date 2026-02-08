@@ -37,6 +37,7 @@ from agent_pump.orchestrator.workflow_definition import (
     get_workflow,
 )
 from agent_pump.services.idea_service import IdeaService
+from agent_pump.scheduling.scheduler import WorkflowScheduler
 from agent_pump.services.log_service import LogService
 from agent_pump.services.metrics_service import MetricsService
 from agent_pump.services.project_service import ProjectService
@@ -118,6 +119,7 @@ class AgentPumpApp(App):
         self.idea_service = IdeaService(self.event_bus, self.workspace)
         self.log_service = LogService(self.event_bus)
         self.metrics_service = MetricsService(self.event_bus, self.workspace.name)
+        self.scheduler = WorkflowScheduler(self.project_service)
 
         self.log_panel: LogPanel | None = None
         self.workflow_panel: WorkflowPanel | None = None
@@ -193,6 +195,7 @@ class AgentPumpApp(App):
         # Start services
         await self.log_service.start()
         await self.metrics_service.start()
+        await self.scheduler.start()
 
         # Start event loop
         _ = self.run_worker(self._handle_events())
@@ -612,6 +615,31 @@ class AgentPumpApp(App):
             PromptConfigModal(project_config, self.workspace, initial_phase=initial_phase),
             handle_result,
         )
+
+    def action_schedule_workflow(self) -> None:
+        """Handle schedule workflow action."""
+        if not self.selected_project:
+            self._log("No project selected.")
+            return
+
+        project_id = str(self.selected_project)
+        schedule = None
+        # Find existing schedule for this project
+        for s in self.scheduler.list_schedules():
+            if s.project_id == project_id:
+                schedule = s
+                break
+
+        from agent_pump.models.schedule import Schedule
+        from agent_pump.tui.screens.schedule_modal import ScheduleModal
+
+        def handle_schedule(result: Schedule | None) -> None:
+            if result:
+                self._log(f"Schedule updated for {self.selected_project}")
+            else:
+                self._log("Schedule dialog closed")
+
+        self.push_screen(ScheduleModal(project_id, self.scheduler, schedule), handle_schedule)
 
     def action_edit_workflow(self) -> None:
         """Open the workflow editor for the selected project."""
@@ -1164,6 +1192,9 @@ class AgentPumpApp(App):
         import warnings
 
         from agent_pump.utils.subprocess_manager import subprocess_manager
+
+        # Stop scheduler
+        await self.scheduler.stop()
 
         # Stop all workflows via service (fire and forget cancellation)
         await self.workflow_service.stop_all()
