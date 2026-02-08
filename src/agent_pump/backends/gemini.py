@@ -113,6 +113,10 @@ class GeminiBackend(AgentBackend):
         env = os.environ.copy()
         env["PWD"] = str(project_path)  # Help some tools detect the correct cwd
 
+        # Inject communication config
+        extra_env = self.get_communication_env(str(project_path))
+        env.update(extra_env)
+
         # Strip IDE-related variables to prevent "Directory mismatch" errors
         # This effectively forces Gemini CLI into "standalone" mode for external projects
         keys_to_remove = [k for k in env if k.startswith(("GEMINI_CLI_", "VSCODE_"))]

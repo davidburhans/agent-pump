@@ -132,6 +132,16 @@ class ReviewRequestedEvent(Event):
     report: ReviewReportModel
 
 
+class InputRequestedEvent(Event):
+    """Emitted when the backend requests user input."""
+
+    project_path: Path
+    question: str
+    options: list[str] | None = None
+    default: str | None = None
+    timeout_seconds: float = 300.0
+
+
 class ProjectQueuedEvent(Event):
     """Emitted when a project is added to the execution queue."""
 

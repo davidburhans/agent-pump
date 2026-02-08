@@ -17,6 +17,7 @@ from agent_pump.backends.base import AgentBackend
 from agent_pump.backends.gemini import GeminiBackend
 from agent_pump.events.bus import EventBus
 from agent_pump.events.models import (
+    InputRequestedEvent,
     LogEntryEvent,
     ReviewRequestedEvent,
     VerificationResultEvent,
@@ -177,6 +178,7 @@ class ProjectWorkflow:
         self._cancelled = False
         self._pending_publish_tasks: list[asyncio.Task] = []
         self._pending_review_future: asyncio.Future | None = None
+        self._pending_input_future: asyncio.Future | None = None
 
         # Initialize verification executor with project's verification config
         if verification_executor:
@@ -954,6 +956,62 @@ class ProjectWorkflow:
         """Resolve a pending review request with user decisions."""
         if self._pending_review_future and not self._pending_review_future.done():
             self._pending_review_future.set_result(decisions)
+
+    def resolve_input(self, response: str) -> None:
+        """Resolve a pending input request with user response."""
+        if self._pending_input_future and not self._pending_input_future.done():
+            self._pending_input_future.set_result(response)
+
+    async def request_input(
+        self, question: str, options: list[str] | None = None, timeout: float = 300.0
+    ) -> str:
+        """
+        Request human input and wait for the response.
+
+        Args:
+            question: The question to ask.
+            options: Optional list of valid options.
+            timeout: Timeout in seconds.
+
+        Returns:
+            The user's response string.
+
+        Raises:
+            asyncio.TimeoutError: If the user doesn't respond in time.
+        """
+        self._emit_output(f"\n[INPUT REQUEST] {question}\n")
+
+        self._pending_input_future = asyncio.Future()
+
+        event = InputRequestedEvent(
+            project_path=self.project.path,
+            question=question,
+            options=options,
+            default=None,
+            timeout_seconds=timeout,
+        )
+
+        if self.event_bus:
+            try:
+                task = asyncio.create_task(self.event_bus.publish(event))
+                self._pending_publish_tasks.append(task)
+                # Clean up completed tasks
+                self._pending_publish_tasks = [
+                    t for t in self._pending_publish_tasks if not t.done()
+                ]
+            except RuntimeError:
+                pass
+
+        try:
+            # Wait for response
+            response = await asyncio.wait_for(self._pending_input_future, timeout=timeout)
+            self._emit_output(f"[INPUT RECEIVED] {response}\n")
+            return response
+        except asyncio.TimeoutError:
+            self._emit_output("\n[INPUT TIMEOUT] No response received.\n")
+            raise
+        finally:
+            self._pending_input_future = None
 
     def pause_workflow(self) -> None:
         """

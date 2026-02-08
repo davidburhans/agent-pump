@@ -14,6 +14,7 @@ from agent_pump.events.models import (
     ConfigUpdatedEvent,
     IdeaAddedEvent,
     IdeasClearedEvent,
+    InputRequestedEvent,
     LogEntryEvent,
     ProjectAddedEvent,
     ProjectRemovedEvent,
@@ -51,6 +52,7 @@ from agent_pump.tui.screens import (
     DiffViewerScreen,
     GlobalPromptModal,
     IdeaInputModal,
+    InputRequestModal,
     MetricsModal,
     ProjectConfigModal,
     ReviewModal,
@@ -232,6 +234,23 @@ class AgentPumpApp(App):
                 self._log(f"Workspace switched from {event.old_workspace} to {event.new_workspace}")
             elif isinstance(event, ReviewRequestedEvent):
                 self._on_review_requested(event)
+            elif isinstance(event, InputRequestedEvent):
+                self._on_input_requested(event)
+
+    def _on_input_requested(self, event: InputRequestedEvent) -> None:
+        """Handle input request event."""
+
+        def handle_result(result: str | None) -> None:
+            workflow = self.workflows.get(event.project_path)
+            if workflow:
+                if result is not None:
+                    workflow.resolve_input(result)
+                else:
+                    workflow.resolve_input("[CANCELLED]")
+            else:
+                self._log(f"Workflow not found for {event.project_path}")
+
+        self.push_screen(InputRequestModal(event.question, event.options), handle_result)
 
     def _on_review_requested(self, event: ReviewRequestedEvent) -> None:
         """Handle review request event."""

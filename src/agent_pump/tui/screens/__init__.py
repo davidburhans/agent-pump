@@ -9,6 +9,7 @@ from .confirm_modal import ConfirmModal as ConfirmModal
 from .diff_viewer import DiffViewerScreen as DiffViewerScreen
 from .global_prompt_modal import GlobalPromptModal as GlobalPromptModal
 from .idea_input_modal import IdeaInputModal as IdeaInputModal
+from .input_request_modal import InputRequestModal as InputRequestModal
 from .log_filter_modal import LogFilterModal as LogFilterModal
 from .metrics_modal import MetricsModal as MetricsModal
 from .project_config_modal import ProjectConfigModal as ProjectConfigModal

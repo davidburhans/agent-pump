@@ -211,3 +211,22 @@ Ensure you are on this branch before making any changes.
             logger.info(f"Full command logged to {log_path}")
         except Exception as e:
             logger.error(f"Failed to log command: {e}")
+
+    def get_communication_env(
+        self,
+        project_id: str,
+        callback_url: str = "http://localhost:8000/api/callback",
+        mcp_port: int = 8000,
+    ) -> dict[str, str]:
+        """
+        Get environment variables for backend communication.
+        """
+        from agent_pump.communication.injection import inject_communication_config
+
+        # Note: MCP port defaults to 8000 (main server) because we mounted it there
+        return inject_communication_config(
+            project_id=project_id,
+            backend_type=self.command,
+            callback_url=callback_url,
+            mcp_port=mcp_port,
+        )

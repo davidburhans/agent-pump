@@ -2021,3 +2021,35 @@ Automate code reviews and ensure quality standards before merging changes.
 2. Documentation is comprehensive and accurate
 3. The one partially implemented feature (TUI integrations for templates/bootstrap) is documented as CLI-only and doesn't impact core functionality
 4. GitHub Integration is production-ready with full test coverage
+
+---
+
+## 📡 Backend Communication Protocol
+
+Rich bidirectional communication between backends and Agent Pump for complex workflow decisions beyond simple pass/fail.
+
+### Features
+
+- **Backend Signals**: Backends can send structured signals (decisions, requests for input, progress updates) to Agent Pump.
+- **Human-in-the-Loop**: Backends can request user input via the TUI, pausing execution until the user responds.
+- **MCP Server**: Implements the Model Context Protocol (MCP) to expose tools and resources to LLM backends.
+- **Config Injection**: Automatically injects communication configuration (callback URLs, MCP ports) into backend processes.
+
+### Usage
+
+The system automatically configures supported backends (Gemini, Claude) to use the MCP server or callback API.
+
+**For Backend Developers:**
+
+Backends receive environment variables:
+- `AGENT_PUMP_CALLBACK_URL`: URL to send HTTP signals to.
+- `AGENT_PUMP_MCP_PORT`: Port where the MCP server is running (SSE transport).
+
+**Supported Signals:**
+- `request_input`: Pause and ask the user a question.
+- `decision`: Report a decision (not yet visualized in TUI).
+
+### Audit Status: ✅ Fully implemented
+- **Implementation**: `src/agent_pump/communication/`
+- **Tests**: `tests/unit/test_communication.py`
+- **TUI**: `InputRequestModal` for user interaction.

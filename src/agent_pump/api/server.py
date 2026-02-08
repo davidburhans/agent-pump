@@ -19,6 +19,8 @@ from agent_pump.api.routes.health import router as health_router
 from agent_pump.api.routes.metrics import router as metrics_router
 from agent_pump.api.routes.projects import router as projects_router
 from agent_pump.api.routes.websocket import router as websocket_router
+from agent_pump.communication.callback_server import router as callback_router
+from agent_pump.communication.mcp_server import AgentPumpMCPServer
 from agent_pump.events.bus import EventBus
 from agent_pump.models.app_state import AppState
 
@@ -64,6 +66,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict[str, Any], None]:
                 await app.state.project_service.add_project(Path(path_str))
 
         app.state.startup_time = datetime.now()
+
+        # Initialize MCP Server
+        try:
+            mcp_server = AgentPumpMCPServer(app.state)
+            # Mount SSE app
+            app.mount("/mcp", mcp_server.sse_app)
+            logger.info("MCP Server initialized and mounted at /mcp")
+        except Exception as e:
+            logger.error(f"Failed to initialize MCP Server: {e}")
+
         logger.info("Services initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize services: {e}")
@@ -130,6 +142,7 @@ def create_server(
     app.include_router(projects_router, prefix="/api")
     app.include_router(metrics_router, prefix="/api")
     app.include_router(websocket_router)
+    app.include_router(callback_router, prefix="/api")
 
     # Static files (SPA)
     # Determine static path relative to this file

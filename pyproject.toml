@@ -23,6 +23,7 @@ dependencies = [
     "gitpython>=3.1.40",
     "opencode-ai>=0.1.0a36",
     "pygithub>=2.8.1",
+    "mcp>=1.26.0",
 ]
 
 [project.optional-dependencies]
