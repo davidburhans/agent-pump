@@ -216,7 +216,7 @@ class QwenBackend(AgentBackend):
                 if elapsed > timeout:
                     logger.warning(f"Process timeout after {timeout}s, terminating")
                     await subprocess_manager.record_timeout(process.pid)
-                    await subprocess_manager.terminate_process(process.pid)
+                    await subprocess_manager.terminate_process(process.pid, process=process)
                     yield f"\n[TIMEOUT] Process terminated after {timeout} seconds\n"
                     break
 
@@ -258,13 +258,16 @@ class QwenBackend(AgentBackend):
         except asyncio.CancelledError:
             logger.info("Backend run cancelled, terminating process")
             await subprocess_manager.record_cancellation(process.pid)
-            await subprocess_manager.terminate_process(process.pid)
+            await subprocess_manager.terminate_process(process.pid, process=process)
             raise
         finally:
             try:
                 if process.returncode is None:
                     logger.debug("Terminating process in finally block")
-                    await subprocess_manager.terminate_process(process.pid)
+                    await subprocess_manager.terminate_process(process.pid, process=process)
+
+                # Always wait to ensure pipes/transports are closed
+                # (terminate_process already waited, but this is a cheap sanity check)
                 await process.wait()
 
                 # Untrack from manager

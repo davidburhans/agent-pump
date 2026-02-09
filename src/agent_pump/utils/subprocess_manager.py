@@ -90,27 +90,37 @@ class SubprocessManager:
             active_processes=dict(self.metrics.active_processes),
         )
 
-    async def terminate_process(self, pid: int) -> None:
+    async def terminate_process(
+        self, pid: int, timeout: float = 2.0, process: asyncio.subprocess.Process | None = None
+    ) -> None:
         """
         Terminate a subprocess robustly.
 
         On Windows, this kills the entire process tree to handle shell wrappers.
-        On other platforms, it sends SIGTERM.
+        On other platforms, it sends SIGTERM, waits, and then SIGKILL if needed.
         """
         # Only hold lock for retrieval
         async with self._lock:
             info = self.metrics.active_processes.get(pid)
 
-        if not info or not info.process:
+        # Determine which process object to use
+        target_process = None
+        if info and info.process:
+            target_process = info.process
+        elif process:
+            target_process = process
+
+        if not target_process:
             return
 
-        if info.process.returncode is not None:
+        if target_process.returncode is not None:
             # Already exited
             return
 
         logger.debug(f"Terminating subprocess PID={pid} (Platform: {sys.platform})")
 
         try:
+            # 1. Attempt termination (SIGTERM)
             if sys.platform == "win32":
                 # On Windows, terminate() only kills the shell wrapper.
                 # force kill the process tree to get the actual agent process.
@@ -125,11 +135,32 @@ class SubprocessManager:
                 except Exception as e:
                     logger.warning(f"Failed to run taskkill for PID {pid}: {e}")
                     # Fallback to standard terminate
-                    info.process.terminate()
+                    target_process.terminate()
             else:
-                info.process.terminate()
+                target_process.terminate()
 
-            # We don't wait here, we let the cleanup loop or the specific backend handler wait
+            # 2. Wait for exit with timeout
+            try:
+                await asyncio.wait_for(target_process.wait(), timeout=timeout)
+                return
+            except (asyncio.TimeoutError, TimeoutError):
+                logger.warning(
+                    f"Process {pid} did not exit after {timeout}s (SIGTERM), forcing kill (SIGKILL)..."
+                )
+
+            # 3. Force Kill (SIGKILL) if still running
+            try:
+                target_process.kill()
+                # Give it a moment to die
+                await asyncio.wait_for(target_process.wait(), timeout=timeout)
+            except (asyncio.TimeoutError, TimeoutError):
+                logger.error(f"Process {pid} failed to die even after SIGKILL!")
+            except ProcessLookupError:
+                # Process already gone
+                pass
+            except Exception as e:
+                logger.error(f"Error killing process {pid}: {e}")
+
         except Exception as e:
             logger.error(f"Error terminating process {pid}: {e}")
 
