@@ -1,8 +1,10 @@
 """Unit tests for subprocess manager."""
 
 import asyncio
+import sys
 import time
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -176,6 +178,86 @@ class TestSubprocessManager:
         assert manager.metrics.total_spawned == 100
         assert manager.metrics.total_completed == 100
         assert manager.get_active_count() == 0
+
+    @pytest.mark.asyncio
+    async def test_terminate_process_windows_nonblocking(self, manager: SubprocessManager) -> None:
+        """Verify that terminate_process uses asyncio.create_subprocess_shell on Windows."""
+        pid = 12345
+
+        # Track a dummy process so terminate_process proceeds
+        mock_process = MagicMock()
+        mock_process.returncode = None
+        info = SubprocessInfo(
+            pid=pid,
+            command="test",
+            project_path=None,
+            start_time=time.time(),
+            timeout=100,
+            process=mock_process,
+        )
+        await manager.track_process(pid, info)
+
+        # Mock asyncio.create_subprocess_shell
+        mock_proc = AsyncMock()
+        mock_proc.wait = AsyncMock()
+
+        with patch("sys.platform", "win32"), patch("subprocess.run") as mock_run, patch(
+            "asyncio.create_subprocess_shell", return_value=mock_proc
+        ) as mock_create_shell:
+            await manager.terminate_process(pid)
+
+            # This confirms the FIX: blocking subprocess.run is NOT called
+            mock_run.assert_not_called()
+
+            # This confirms the FIX: asyncio.create_subprocess_shell IS called
+            mock_create_shell.assert_called_once()
+            args, kwargs = mock_create_shell.call_args
+            assert f"taskkill /F /T /PID {pid}" in args[0]
+            assert kwargs.get("stdout") == asyncio.subprocess.DEVNULL
+            assert kwargs.get("stderr") == asyncio.subprocess.DEVNULL
+
+    @pytest.mark.asyncio
+    async def test_cleanup_parallel(self, manager: SubprocessManager) -> None:
+        """Verify that cleanup executes terminate_process sequentially (concurrently awaited)."""
+        pids = [1001, 1002, 1003]
+
+        # Track dummy processes
+        for pid in pids:
+            mock_process = MagicMock()
+            mock_process.returncode = None
+
+            # Define async side effect to avoid RuntimeWarning about unawaited coroutine
+            async def sleep_wait():
+                await asyncio.sleep(0.1)
+
+            mock_process.wait = AsyncMock(side_effect=sleep_wait)
+
+            info = SubprocessInfo(
+                pid=pid,
+                command=f"test{pid}",
+                project_path=None,
+                start_time=time.time(),
+                timeout=100,
+                process=mock_process,
+            )
+            await manager.track_process(pid, info)
+
+        # Patch terminate_process to simulate slow operation
+        original_terminate = manager.terminate_process
+
+        async def slow_terminate(pid):
+            await asyncio.sleep(0.1)  # Simulate delay
+            await original_terminate(pid)
+
+        # Patch on the instance
+        with patch.object(manager, "terminate_process", side_effect=slow_terminate):
+            start_time = time.time()
+            await manager.cleanup()
+            duration = time.time() - start_time
+
+            print(f"Cleanup took {duration:.2f}s")
+            assert duration < 0.35, f"Cleanup took {duration:.2f}s, expected < 0.35s (parallel)"
+            assert duration > 0.09, "Cleanup too fast, did it really sleep?"
 
 
 class TestSubprocessMetrics:

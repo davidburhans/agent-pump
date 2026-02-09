@@ -4,6 +4,7 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass, field
+import sys
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -96,87 +97,92 @@ class SubprocessManager:
         On Windows, this kills the entire process tree to handle shell wrappers.
         On other platforms, it sends SIGTERM.
         """
-        import subprocess
-        import sys
-
+        # Only hold lock for retrieval
         async with self._lock:
             info = self.metrics.active_processes.get(pid)
-            if not info or not info.process:
-                return
 
-            if info.process.returncode is not None:
-                # Already exited
-                return
+        if not info or not info.process:
+            return
 
-            logger.debug(f"Terminating subprocess PID={pid} (Platform: {sys.platform})")
+        if info.process.returncode is not None:
+            # Already exited
+            return
 
-            try:
-                if sys.platform == "win32":
-                    # On Windows, terminate() only kills the shell wrapper.
-                    # force kill the process tree to get the actual agent process.
-                    try:
-                        subprocess.run(
-                            f"taskkill /F /T /PID {pid}",
-                            shell=True,
-                            stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL,
-                        )
-                    except Exception as e:
-                        logger.warning(f"Failed to run taskkill for PID {pid}: {e}")
-                        # Fallback to standard terminate
-                        info.process.terminate()
-                else:
+        logger.debug(f"Terminating subprocess PID={pid} (Platform: {sys.platform})")
+
+        try:
+            if sys.platform == "win32":
+                # On Windows, terminate() only kills the shell wrapper.
+                # force kill the process tree to get the actual agent process.
+                try:
+                    # Use asyncio.create_subprocess_shell for non-blocking execution
+                    proc = await asyncio.create_subprocess_shell(
+                        f"taskkill /F /T /PID {pid}",
+                        stdout=asyncio.subprocess.DEVNULL,
+                        stderr=asyncio.subprocess.DEVNULL,
+                    )
+                    await proc.wait()
+                except Exception as e:
+                    logger.warning(f"Failed to run taskkill for PID {pid}: {e}")
+                    # Fallback to standard terminate
                     info.process.terminate()
+            else:
+                info.process.terminate()
 
-                # We don't wait here, we let the cleanup loop or the specific backend handler wait
-            except Exception as e:
-                logger.error(f"Error terminating process {pid}: {e}")
+            # We don't wait here, we let the cleanup loop or the specific backend handler wait
+        except Exception as e:
+            logger.error(f"Error terminating process {pid}: {e}")
 
     async def cleanup(self) -> None:
         """Terminate and wait for all active subprocesses."""
-        # Use a copy of keys to avoid modification during iteration
-        pids = list(self.metrics.active_processes.keys())
+        async with self._lock:
+            # Use a copy of keys to avoid modification during iteration
+            pids = list(self.metrics.active_processes.keys())
 
         if not pids:
             return
 
         logger.info(f"Cleaning up {len(pids)} active subprocesses...")
 
-        # Request termination for all
-        for pid in pids:
-            await self.terminate_process(pid)
+        # Request termination for all in parallel
+        if pids:
+            await asyncio.gather(
+                *(self.terminate_process(pid) for pid in pids), return_exceptions=True
+            )
 
-        # Wait for all processes to exit
-        # We need to re-acquire info because terminate_process releases lock
-        for pid in pids:
-            # Check if still active/tracked
-            # We access metrics.active_processes directly but we should probably take a lock
-            # However, during shutdown/cleanup we might be less strict or we can just try-except
-            pass
-
+        # Capture processes to wait on
+        processes_to_wait = []
         async with self._lock:
-            # Now wait for them all to actually die
-            remaining_pids = list(self.metrics.active_processes.keys())
-            for pid in remaining_pids:
+            for pid in pids:
                 info = self.metrics.active_processes.get(pid)
-                if not info or not info.process:
-                    continue
+                if info and info.process and info.process.returncode is None:
+                    processes_to_wait.append((pid, info.process))
 
+        if not processes_to_wait:
+            return
+
+        async def wait_and_kill(pid, proc):
+            try:
+                await asyncio.wait_for(proc.wait(), timeout=2.0)
+            except (TimeoutError, asyncio.TimeoutError, ProcessLookupError, AttributeError):
                 try:
-                    await asyncio.wait_for(info.process.wait(), timeout=2.0)
-                except (TimeoutError, ProcessLookupError, AttributeError):
-                    try:
-                        if info.process and info.process.returncode is None:
-                            logger.debug(f"Killing subprocess PID={pid} (timeout)")
-                            info.process.kill()
-                            await info.process.wait()
-                    except (ProcessLookupError, AttributeError):
-                        pass
+                    if proc.returncode is None:
+                        logger.debug(f"Killing subprocess PID={pid} (timeout)")
+                        proc.kill()
+                        await proc.wait()
+                except Exception:
+                    pass
 
-                # Remove from tracking
-                self.metrics.active_processes.pop(pid, None)
+            # Untrack explicitly
+            await self.untrack_process(pid, proc.returncode)
 
-            logger.info("Subprocess cleanup complete")
+        # Execute waits in parallel
+        await asyncio.gather(
+            *(wait_and_kill(pid, proc) for pid, proc in processes_to_wait),
+            return_exceptions=True,
+        )
+
+        logger.info("Subprocess cleanup complete")
 
 
 # Global instance
