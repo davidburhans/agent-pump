@@ -276,37 +276,43 @@ class TestGetPeriodCosts:
 
     def test_get_weekly_period_costs(self, cost_service):
         """Test getting costs for the current week."""
-        now = datetime.now()
+        # Use a fixed Wednesday to avoid issues when running on Monday
+        # (where yesterday would be in the previous week)
+        fixed_now = datetime(2024, 2, 14, 12, 0, 0)  # Wednesday
 
-        # Add records from this week and last week
-        cost_service._cost_records = [
-            CostRecord(
-                project_path=Path("/test/project"),
-                phase="planning",
-                backend_name="gemini",
-                input_tokens=1000,
-                output_tokens=500,
-                cost_usd=0.0005,
-            ),
-            CostRecord(
-                project_path=Path("/test/project"),
-                phase="implementing",
-                backend_name="gemini",
-                input_tokens=2000,
-                output_tokens=1000,
-                cost_usd=0.001,
-            ),
-        ]
+        with patch("agent_pump.services.cost_tracking_service.datetime") as mock_datetime:
+            mock_datetime.now.return_value = fixed_now
 
-        # Set both to today
-        cost_service._cost_records[0].timestamp = now
-        cost_service._cost_records[1].timestamp = now - timedelta(days=1)
+            # Add records from this week and last week
+            cost_service._cost_records = [
+                CostRecord(
+                    project_path=Path("/test/project"),
+                    phase="planning",
+                    backend_name="gemini",
+                    input_tokens=1000,
+                    output_tokens=500,
+                    cost_usd=0.0005,
+                ),
+                CostRecord(
+                    project_path=Path("/test/project"),
+                    phase="implementing",
+                    backend_name="gemini",
+                    input_tokens=2000,
+                    output_tokens=1000,
+                    cost_usd=0.001,
+                ),
+            ]
 
-        period_costs = cost_service.get_period_costs(BudgetPeriod.WEEKLY)
+            # Set timestamps relative to fixed_now
+            # Both will be in the same week (Mon Feb 12 - Sun Feb 18)
+            cost_service._cost_records[0].timestamp = fixed_now
+            cost_service._cost_records[1].timestamp = fixed_now - timedelta(days=1)
 
-        assert period_costs.period == BudgetPeriod.WEEKLY
-        assert period_costs.total_cost == 0.0015
-        assert period_costs.record_count == 2
+            period_costs = cost_service.get_period_costs(BudgetPeriod.WEEKLY)
+
+            assert period_costs.period == BudgetPeriod.WEEKLY
+            assert period_costs.total_cost == 0.0015
+            assert period_costs.record_count == 2
 
     def test_get_monthly_period_costs_filters_by_month(self, cost_service):
         """Test that monthly costs filter by current month."""
