@@ -94,6 +94,15 @@ async def test_get_project_tools_implicit(server, mock_project_service, mock_wor
     mock_project_service.workflows = {project_path_resolved: mock_workflow}
     mock_workflow.config.tools = [] # No explicit tools
 
+    # Enable implicit discovery
+    if not mock_workflow.project_config:
+        mock_workflow.project_config = MagicMock()
+
+    mock_workflow.project_config.tool_security = MagicMock()
+    mock_workflow.project_config.tool_security.enabled = True
+    mock_workflow.project_config.tool_security.allow_implicit_discovery = True
+    mock_workflow.project_config.tool_security.allowed_interpreters = ["python", "bash", "sh"]
+
     # Test
     tools = server._get_project_tools(str(project_path_resolved))
     assert len(tools) == 1
