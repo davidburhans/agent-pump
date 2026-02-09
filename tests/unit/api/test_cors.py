@@ -75,3 +75,14 @@ class TestCORSMiddleware:
 
         allow_credentials = response.headers.get("access-control-allow-credentials", "")
         assert allow_credentials.lower() == "true"
+
+    def test_cors_headers_present_on_401_response(self, client: TestClient) -> None:
+        """Test that CORS headers are present on 401 Unauthorized responses."""
+        # Make a request to a protected endpoint without the API key
+        response = client.get(
+            "/api/projects",
+            headers={"Origin": "http://localhost:3000"}
+        )
+
+        assert response.status_code == 401
+        assert "access-control-allow-origin" in response.headers

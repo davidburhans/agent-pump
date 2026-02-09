@@ -195,12 +195,7 @@ def create_server(
     # Store API key in app state for use by endpoints (e.g. WebSocket)
     app.state.api_key = api_key
 
-    # Add CORS middleware
-    logger.info("Authentication middleware enabled - using secure CORS")
-    cors_config = get_cors_config_secure(api_key=api_key, origins=cors_origins)
-    app.add_middleware(CORSMiddleware, **cors_config)
-
-    # Add authentication middleware
+    # Add authentication middleware first (inner layer)
     logger.info("Authentication middleware enabled")
     app.add_middleware(
         AuthMiddleware,
@@ -208,6 +203,12 @@ def create_server(
         protected_prefixes=["/api", "/mcp"],
         bypass_prefixes=["/api/trigger"],
     )
+
+    # Add CORS middleware last (outer layer)
+    # This ensures CORS headers are added even if auth fails
+    logger.info("Authentication middleware enabled - using secure CORS")
+    cors_config = get_cors_config_secure(api_key=api_key, origins=cors_origins)
+    app.add_middleware(CORSMiddleware, **cors_config)
 
     # Include routers
     app.include_router(health_router)
