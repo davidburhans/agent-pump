@@ -2,6 +2,10 @@
 
 import os
 
+# Set dummy API key for tests to allow server module import during collection
+if "AGENT_PUMP_API_KEY" not in os.environ:
+    os.environ["AGENT_PUMP_API_KEY"] = "test-dummy-key"
+
 import pytest
 
 

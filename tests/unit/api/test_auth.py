@@ -87,3 +87,19 @@ class TestAuthMiddleware:
 
         # In debug mode, should be accessible (may return HTML or 404)
         assert response.status_code in [200, 404]
+
+    def test_webhook_trigger_bypasses_auth(self, client_with_auth: TestClient) -> None:
+        """Test that webhook trigger endpoints bypass auth."""
+        # /api/trigger/github is a valid webhook endpoint
+        # We expect 403 or 503 (Webhooks disabled) or 200, but NOT 401.
+        # Since we use client_with_auth (mock app), we don't know the state of webhook config.
+        # But we just want to ensure it's NOT 401.
+        response = client_with_auth.post("/api/trigger/github", json={})
+        assert response.status_code != 401
+
+    def test_trigger_root_is_protected(self, client_with_auth: TestClient) -> None:
+        """Test that /api/trigger root is protected (strict bypass matching)."""
+        # /api/trigger should NOT be bypassed because bypass is /api/trigger/
+        # So it should return 401.
+        response = client_with_auth.post("/api/trigger", json={})
+        assert response.status_code == 401

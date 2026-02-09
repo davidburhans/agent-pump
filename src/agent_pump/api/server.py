@@ -199,7 +199,7 @@ def create_server(
         AuthMiddleware,
         api_key=api_key,
         protected_prefixes=["/api", "/mcp"],
-        bypass_prefixes=["/api/trigger"],
+        bypass_prefixes=["/api/trigger/"],
     )
 
     # Add CORS middleware last (outer layer)
@@ -252,15 +252,4 @@ def create_server(
 
 
 # Default app instance for direct import
-try:
-    app = create_server()
-except ValueError:
-    # If no API key is configured (e.g., running via uvicorn directly),
-    # generate a temporary one and LOG IT so the user can access the server.
-    import secrets
-
-    generated_key = secrets.token_urlsafe(32)
-    logger.warning(
-        f"No AGENT_PUMP_API_KEY found. Generated temporary key for this session: {generated_key}"
-    )
-    app = create_server(api_key=generated_key)
+app = create_server()
