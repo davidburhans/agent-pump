@@ -12,7 +12,7 @@ class TestServerStartup:
     @pytest.fixture
     def client(self) -> TestClient:
         """Create a test client with debug mode."""
-        app = create_server(debug=True)
+        app = create_server(debug=True, api_key="test-key")
         with TestClient(app) as c:
             yield c
 
@@ -26,12 +26,24 @@ class TestServerStartup:
     def test_server_respects_port_configuration(self) -> None:
         """Test that server can be configured with different settings."""
         # This is more of a configuration test - we create different app instances
-        app1 = create_server(debug=False, api_key=None)
-        app2 = create_server(debug=True, api_key="test-key")
+        app1 = create_server(debug=False, api_key="key1")
+        app2 = create_server(debug=True, api_key="key2")
 
         # Both should create successfully
         assert app1 is not None
         assert app2 is not None
+
+    def test_create_server_requires_api_key(self) -> None:
+        """Test that create_server raises ValueError if API key is missing."""
+        import os
+        from unittest.mock import patch
+
+        # Ensure no env var
+        with patch.dict(os.environ, {}, clear=True):
+            import pytest
+
+            with pytest.raises(ValueError, match="API Key is required"):
+                create_server(api_key=None)
 
     def test_openapi_docs_available_in_debug_mode(self, client: TestClient) -> None:
         """Test that OpenAPI docs are available in debug mode."""
