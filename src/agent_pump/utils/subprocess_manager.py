@@ -2,9 +2,9 @@
 
 import asyncio
 import logging
+import sys
 import time
 from dataclasses import dataclass, field
-import sys
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -20,6 +20,7 @@ class SubprocessInfo:
     start_time: float
     timeout: int
     process: asyncio.subprocess.Process | None = None
+    cleanup_cmd: list[str] | None = None
 
 
 @dataclass
@@ -119,6 +120,19 @@ class SubprocessManager:
 
         logger.debug(f"Terminating subprocess PID={pid} (Platform: {sys.platform})")
 
+        # Execute cleanup command if present
+        if info and info.cleanup_cmd:
+            try:
+                logger.debug(f"Executing cleanup command for PID={pid}: {info.cleanup_cmd}")
+                cleanup_proc = await asyncio.create_subprocess_exec(
+                    *info.cleanup_cmd,
+                    stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.DEVNULL,
+                )
+                await asyncio.wait_for(cleanup_proc.wait(), timeout=5.0)
+            except Exception as e:
+                logger.warning(f"Failed to execute cleanup command for PID={pid}: {e}")
+
         try:
             # 1. Attempt termination (SIGTERM)
             if sys.platform == "win32":
@@ -143,9 +157,10 @@ class SubprocessManager:
             try:
                 await asyncio.wait_for(target_process.wait(), timeout=timeout)
                 return
-            except (asyncio.TimeoutError, TimeoutError):
+            except TimeoutError:
                 logger.warning(
-                    f"Process {pid} did not exit after {timeout}s (SIGTERM), forcing kill (SIGKILL)..."
+                    f"Process {pid} did not exit after {timeout}s (SIGTERM), "
+                    "forcing kill (SIGKILL)..."
                 )
 
             # 3. Force Kill (SIGKILL) if still running
@@ -153,7 +168,7 @@ class SubprocessManager:
                 target_process.kill()
                 # Give it a moment to die
                 await asyncio.wait_for(target_process.wait(), timeout=timeout)
-            except (asyncio.TimeoutError, TimeoutError):
+            except TimeoutError:
                 logger.error(f"Process {pid} failed to die even after SIGKILL!")
             except ProcessLookupError:
                 # Process already gone
@@ -195,7 +210,7 @@ class SubprocessManager:
         async def wait_and_kill(pid, proc):
             try:
                 await asyncio.wait_for(proc.wait(), timeout=2.0)
-            except (TimeoutError, asyncio.TimeoutError, ProcessLookupError, AttributeError):
+            except (TimeoutError, ProcessLookupError, AttributeError):
                 try:
                     if proc.returncode is None:
                         logger.debug(f"Killing subprocess PID={pid} (timeout)")
