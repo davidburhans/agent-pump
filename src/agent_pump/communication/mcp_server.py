@@ -15,6 +15,7 @@ from starlette.applications import Starlette
 from agent_pump.communication.mcp_client import MCPClientManager
 from agent_pump.models.mcp_config import MCPServerConfig
 from agent_pump.models.tool_config import ToolConfig
+from agent_pump.models.tool_security import ToolSecurityConfig
 from agent_pump.utils.subprocess_manager import SubprocessInfo, subprocess_manager
 
 logger = logging.getLogger(__name__)
@@ -76,7 +77,9 @@ class AgentPumpMCPServer:
 
         # Apply security policy
         tool_security = (
-            workflow.project_config.tool_security if workflow.project_config else None
+            workflow.project_config.tool_security
+            if workflow.project_config
+            else ToolSecurityConfig()
         )
 
         # If security is enabled (default) and unsandboxed tools are not allowed (default)
@@ -110,7 +113,11 @@ class AgentPumpMCPServer:
 
         workflow = project_service.workflows[project_path]
         # Get tool security config
-        tool_security = workflow.project_config.tool_security if workflow.project_config else None
+        tool_security = (
+            workflow.project_config.tool_security
+            if workflow.project_config
+            else ToolSecurityConfig()
+        )
 
         # 1. Tools from config.yml
         tools: list[ToolConfig] = []
@@ -241,7 +248,11 @@ class AgentPumpMCPServer:
         # Get security config
         project_service = self.project_service
         workflow = project_service.workflows[project_path] if project_service else None
-        tool_security = workflow.project_config.tool_security if workflow and workflow.project_config else None
+        tool_security = (
+            workflow.project_config.tool_security
+            if workflow and workflow.project_config
+            else ToolSecurityConfig()
+        )
 
         # Validate arguments
         if tool_security and tool_security.enabled:
