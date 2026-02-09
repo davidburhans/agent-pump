@@ -40,7 +40,7 @@ class TestServerStartup:
 
         # Ensure no env var
         with patch.dict(os.environ, {}, clear=True):
-            app = create_server(api_key=None)
+            app = create_server(api_key=None, debug=True)
             assert app is not None
             # Check if key is set in state
             assert hasattr(app.state, "api_key")
