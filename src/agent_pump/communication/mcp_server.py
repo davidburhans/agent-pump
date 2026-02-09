@@ -93,6 +93,15 @@ class AgentPumpMCPServer:
         if workflow.config and hasattr(workflow.config, "tools"):
             tools.extend(workflow.config.tools)
 
+        # Apply security policy for explicit tools
+        if tool_security and tool_security.enabled and not tool_security.allow_unsandboxed_tools:
+            for tool in tools:
+                if not tool.sandbox:
+                    logger.warning(
+                        f"Forcing sandbox for tool {tool.name} due to security policy."
+                    )
+                    tool.sandbox = True
+
         # 2. Implicit tools from .agent-pump/tools/
         # Only allow if explicitly enabled in tool security config
         allow_implicit = tool_security and tool_security.allow_implicit_discovery
