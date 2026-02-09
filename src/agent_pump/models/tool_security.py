@@ -21,3 +21,7 @@ class ToolSecurityConfig(BaseModel):
         default=False,
         description="Whether to automatically discover and execute tools from .agent-pump/tools/",
     )
+    allow_unsandboxed_tools: bool = Field(
+        default=False,
+        description="Whether to allow tools to run without sandbox (Docker).",
+    )
