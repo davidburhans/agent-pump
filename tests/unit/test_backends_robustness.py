@@ -122,6 +122,6 @@ async def test_gemini_run_track_failure(gemini_backend, sample_project_path):
         except Exception:
             pass
 
-        # Verify that process.terminate() is called directly as fallback
-        # because manager.terminate_process() would fail (untracked)
-        assert mock_process.terminate.called, "Process should be terminated even if tracking failed"
+        # Verify that terminate_process is called with the process object
+        # so that it can be terminated even if tracking failed
+        mock_manager.terminate_process.assert_called_with(mock_process.pid, process=mock_process)

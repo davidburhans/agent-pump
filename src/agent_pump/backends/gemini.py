@@ -174,7 +174,7 @@ class GeminiBackend(AgentBackend):
                 if elapsed > timeout:
                     logger.warning(f"Process timeout after {timeout}s, terminating")
                     await subprocess_manager.record_timeout(process.pid)
-                    await subprocess_manager.terminate_process(process.pid)
+                    await subprocess_manager.terminate_process(process.pid, process=process)
                     yield f"\n[TIMEOUT] Process terminated after {timeout} seconds\n"
                     break
 
@@ -231,7 +231,7 @@ class GeminiBackend(AgentBackend):
             if process:
                 logger.info("Backend run cancelled, terminating process")
                 await subprocess_manager.record_cancellation(process.pid)
-                await subprocess_manager.terminate_process(process.pid)
+                await subprocess_manager.terminate_process(process.pid, process=process)
             raise
         finally:
             # Ensure process is terminated and resources released
@@ -239,16 +239,10 @@ class GeminiBackend(AgentBackend):
                 try:
                     if process.returncode is None:
                         logger.debug("Terminating process in finally block")
-                        await subprocess_manager.terminate_process(process.pid)
-
-                        # Fallback: manually terminate if manager didn't (e.g. if tracking failed)
-                        if process.returncode is None:
-                            try:
-                                process.terminate()
-                            except OSError:
-                                pass
+                        await subprocess_manager.terminate_process(process.pid, process=process)
 
                     # Always wait to ensure pipes/transports are closed
+                    # (terminate_process already waited, but this is a cheap sanity check)
                     await process.wait()
 
                     # Untrack from manager

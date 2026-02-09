@@ -33,17 +33,19 @@ class TestServerStartup:
         assert app1 is not None
         assert app2 is not None
 
-    def test_create_server_requires_api_key(self) -> None:
-        """Test that create_server raises ValueError if API key is missing."""
+    def test_create_server_generates_key_if_missing(self) -> None:
+        """Test that create_server generates a key if API key is missing."""
         import os
         from unittest.mock import patch
 
         # Ensure no env var
         with patch.dict(os.environ, {}, clear=True):
-            import pytest
-
-            with pytest.raises(ValueError, match="API Key is required"):
-                create_server(api_key=None)
+            app = create_server(api_key=None)
+            assert app is not None
+            # Check if key is set in state
+            assert hasattr(app.state, "api_key")
+            assert app.state.api_key is not None
+            assert len(app.state.api_key) > 0
 
     def test_openapi_docs_available_in_debug_mode(self, client: TestClient) -> None:
         """Test that OpenAPI docs are available in debug mode."""
