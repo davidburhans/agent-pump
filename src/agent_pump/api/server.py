@@ -25,6 +25,7 @@ from agent_pump.communication.mcp_server import AgentPumpMCPServer
 from agent_pump.events.bus import EventBus
 from agent_pump.models.app_state import AppState
 import os
+import secrets
 
 if TYPE_CHECKING:
     pass
@@ -184,11 +185,11 @@ def create_server(
     if api_key is None:
         api_key = os.environ.get("AGENT_PUMP_API_KEY")
 
-    # Ensure API key is present
+    # If still no API key, generate one automatically
     if not api_key:
-        raise ValueError(
-            "API Key is required. Set AGENT_PUMP_API_KEY environment variable or pass api_key argument."
-        )
+        api_key = secrets.token_urlsafe(32)
+        logger.warning("No API key provided. Generated secure temporary key: %s", api_key)
+        logger.warning("Set AGENT_PUMP_API_KEY environment variable to use a fixed key.")
 
     # Store API key in app state for use by endpoints (e.g. WebSocket)
     app.state.api_key = api_key
