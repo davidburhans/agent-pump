@@ -75,7 +75,7 @@ class VerificationExecutor:
                 cwd=self.project_path,
                 timeout=timeout,
                 sandbox=sandbox,
-                sandbox_image=None,  # Use default
+                sandbox_image=self.config.sandbox_image,
             )
 
             logger.info(
