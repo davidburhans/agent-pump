@@ -150,6 +150,7 @@ class AgentPumpMCPServer:
                                 description=f"Execute {item.name}",
                                 command=command,
                                 working_dir=".",  # relative to project root
+                                sandbox=True,
                             )
                         )
         return tools
