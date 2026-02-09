@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import sys
+import time
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -14,6 +15,7 @@ from starlette.applications import Starlette
 from agent_pump.communication.mcp_client import MCPClientManager
 from agent_pump.models.mcp_config import MCPServerConfig
 from agent_pump.models.tool_config import ToolConfig
+from agent_pump.utils.subprocess_manager import SubprocessInfo, subprocess_manager
 
 logger = logging.getLogger(__name__)
 
@@ -316,9 +318,27 @@ class AgentPumpMCPServer:
             except Exception as e:
                 return f"Error executing tool: {e}"
 
-        # Handle Output (Shared)
+        # Handle Output (Shared) and Tracking
         try:
-            stdout, stderr = await process.communicate()
+            # Track process
+            await subprocess_manager.track_process(
+                process.pid,
+                SubprocessInfo(
+                    pid=process.pid,
+                    command=" ".join(command_args),
+                    project_path=project_path,
+                    start_time=time.time(),
+                    timeout=tool_config.timeout,
+                    process=process,
+                ),
+            )
+
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(), timeout=tool_config.timeout
+            )
+
+            # Untrack
+            await subprocess_manager.untrack_process(process.pid, process.returncode)
 
             output = []
             if stdout:
@@ -330,7 +350,53 @@ class AgentPumpMCPServer:
                 output.append(f"Process exited with code {process.returncode}")
 
             return "\n".join(output)
+
+        except asyncio.TimeoutError:
+            # Terminate first while still tracked (for Windows magic)
+            await subprocess_manager.terminate_process(process.pid)
+
+            # Ensure process is dead
+            try:
+                await asyncio.wait_for(process.wait(), timeout=5.0)
+            except Exception:
+                try:
+                    process.kill()
+                    await process.wait()
+                except Exception:
+                    pass
+
+            # Record timeout (removes from tracking)
+            await subprocess_manager.record_timeout(process.pid)
+            return f"Error: Tool execution timed out after {tool_config.timeout} seconds."
+
+        except asyncio.CancelledError:
+            await subprocess_manager.terminate_process(process.pid)
+            try:
+                await asyncio.wait_for(process.wait(), timeout=5.0)
+            except Exception:
+                try:
+                    process.kill()
+                    await process.wait()
+                except Exception:
+                    pass
+
+            # Record cancellation (removes from tracking)
+            await subprocess_manager.record_cancellation(process.pid)
+            raise
+
         except Exception as e:
+            # Ensure cleanup on other errors
+            if process.returncode is None:
+                await subprocess_manager.terminate_process(process.pid)
+                try:
+                    await asyncio.wait_for(process.wait(), timeout=5.0)
+                except Exception:
+                    try:
+                        process.kill()
+                        await process.wait()
+                    except Exception:
+                        pass
+                await subprocess_manager.untrack_process(process.pid)
             return f"Error reading output: {e}"
 
     def _register_tools(self):
