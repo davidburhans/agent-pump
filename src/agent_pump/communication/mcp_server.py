@@ -278,10 +278,17 @@ class AgentPumpMCPServer:
 
                 # Check all arguments for path traversal patterns regardless of type definition
                 for i, arg_val in enumerate(args):
+                    # Check for flag arguments (e.g. --file=/path/to/file)
+                    check_val = arg_val
+                    if arg_val.startswith("-") and "=" in arg_val:
+                        parts = arg_val.split("=", 1)
+                        if len(parts) == 2:
+                            check_val = parts[1]
+
                     try:
                         # Attempt to resolve the argument as a path relative to the project
                         # resolve() handles symlinks and normalizes ".."
-                        resolved_path = (abs_project_path / arg_val).resolve()
+                        resolved_path = (abs_project_path / check_val).resolve()
 
                         # Check if the resolved path is within the project root
                         if os.path.commonpath([resolved_path, abs_project_path]) != str(abs_project_path):
@@ -294,7 +301,7 @@ class AgentPumpMCPServer:
                     except Exception as e:
                         logger.warning(f"Unexpected error validating argument {i}: {e}")
                         # Fail safe for unexpected errors, but only if it looks like a path
-                        if ".." in arg_val or os.path.isabs(arg_val):
+                        if ".." in check_val or os.path.isabs(check_val):
                             return f"Security Error: Argument {i} could not be validated and looks suspicious."
 
         command_args = tool_config.get_command_args(args)
