@@ -1,5 +1,6 @@
 """Configuration models for custom tools."""
 
+import shlex
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -56,7 +57,7 @@ class ToolConfig(BaseModel):
         If the user provides a list of strings, we append them.
         If the user provides a dict, we try to map them to flags like --key value.
         """
-        cmd_parts = self.command.split()
+        cmd_parts = shlex.split(self.command)
 
         if isinstance(input_args, list):
             cmd_parts.extend([str(a) for a in input_args])
