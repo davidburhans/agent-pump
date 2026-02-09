@@ -184,13 +184,11 @@ def create_server(
     if api_key is None:
         api_key = os.environ.get("AGENT_PUMP_API_KEY")
 
-    # If still not provided, generate a secure random key
+    # Ensure API key is present
     if not api_key:
-        import secrets
-
-        api_key = secrets.token_urlsafe(32)
-        # Note: We do NOT log the key here for security reasons.
-        # It should be printed by the CLI or retrieved from app.state.api_key if needed.
+        raise ValueError(
+            "API Key is required. Set AGENT_PUMP_API_KEY environment variable or pass api_key argument."
+        )
 
     # Store API key in app state for use by endpoints (e.g. WebSocket)
     app.state.api_key = api_key
@@ -254,4 +252,15 @@ def create_server(
 
 
 # Default app instance for direct import
-app = create_server()
+try:
+    app = create_server()
+except ValueError:
+    # If no API key is configured (e.g., running via uvicorn directly),
+    # generate a temporary one and LOG IT so the user can access the server.
+    import secrets
+
+    generated_key = secrets.token_urlsafe(32)
+    logger.warning(
+        f"No AGENT_PUMP_API_KEY found. Generated temporary key for this session: {generated_key}"
+    )
+    app = create_server(api_key=generated_key)
