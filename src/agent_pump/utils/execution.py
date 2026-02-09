@@ -189,7 +189,7 @@ class SecureExecutor:
         except asyncio.TimeoutError:
             if process:
                 # Terminate first while still tracked
-                await subprocess_manager.terminate_process(process.pid)
+                await subprocess_manager.terminate_process(process.pid, process=process)
                 # Record timeout
                 await subprocess_manager.record_timeout(process.pid)
 
@@ -198,13 +198,13 @@ class SecureExecutor:
 
         except asyncio.CancelledError:
             if process:
-                await subprocess_manager.terminate_process(process.pid)
+                await subprocess_manager.terminate_process(process.pid, process=process)
                 await subprocess_manager.record_cancellation(process.pid)
             raise
 
         except Exception as e:
             if process and process.returncode is None:
-                await subprocess_manager.terminate_process(process.pid)
+                await subprocess_manager.terminate_process(process.pid, process=process)
                 await subprocess_manager.untrack_process(process.pid)
 
             duration = time.time() - start_time
