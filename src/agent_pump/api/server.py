@@ -26,6 +26,7 @@ from agent_pump.events.bus import EventBus
 from agent_pump.models.app_state import AppState
 import os
 import secrets
+import hashlib
 
 if TYPE_CHECKING:
     pass
@@ -194,11 +195,15 @@ def create_server(
 
         api_key = secrets.token_urlsafe(32)
 
-        # Write to file instead of logging
+        # Write to secure user directory instead of project directory
         try:
-            token_dir = Path(".agent-pump")
+            # Use ~/.agent-pump/tokens/ for storing tokens
+            token_dir = Path.home() / ".agent-pump" / "tokens"
             token_dir.mkdir(parents=True, exist_ok=True)
-            token_file = token_dir / "token"
+
+            # Use hash of current working directory to distinguish projects
+            cwd_hash = hashlib.sha256(str(Path.cwd().resolve()).encode()).hexdigest()[:12]
+            token_file = token_dir / f"token-{cwd_hash}"
 
             # Remove existing file to ensure we create a new one with correct permissions
             if token_file.exists():
