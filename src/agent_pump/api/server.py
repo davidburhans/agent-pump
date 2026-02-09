@@ -19,7 +19,7 @@ from agent_pump.api.routes.health import router as health_router
 from agent_pump.api.routes.metrics import router as metrics_router
 from agent_pump.api.routes.projects import router as projects_router
 from agent_pump.api.routes.webhooks import router as webhooks_router
-from agent_pump.api.routes.websocket import router as websocket_router
+from agent_pump.api.routes.websocket import router as websocket_router, manager as websocket_manager
 from agent_pump.communication.callback_server import router as callback_router
 from agent_pump.communication.mcp_server import AgentPumpMCPServer
 from agent_pump.events.bus import EventBus
@@ -79,6 +79,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict[str, Any], None]:
         await app.state.notification_service.start()
         logger.info("Notification service initialized")
 
+        # Initialize Collaboration and Activity Services
+        from agent_pump.services.activity_service import ActivityService
+        from agent_pump.services.collaboration_service import CollaborationService
+
+        app.state.activity_service = ActivityService(app.state.event_bus)
+        app.state.collaboration_service = CollaborationService(app.state.event_bus)
+
+        # Inject services into WebSocket manager
+        websocket_manager.set_services(
+            app.state.collaboration_service,
+            app.state.activity_service,
+        )
+
+        await app.state.collaboration_service.start()
+        logger.info("Collaboration services initialized")
+
         # Initialize metrics service
         app.state.metrics_service = MetricsService(app.state.event_bus, workspace.name)
         await app.state.metrics_service.start()
@@ -114,6 +130,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict[str, Any], None]:
             await app.state.notification_service.stop()
         except Exception as e:
             logger.error(f"Error shutting down Notification Service: {e}")
+
+    if hasattr(app.state, "collaboration_service"):
+        try:
+            await app.state.collaboration_service.stop()
+        except Exception as e:
+            logger.error(f"Error shutting down Collaboration Service: {e}")
 
     if hasattr(app.state, "mcp_server"):
         try:
