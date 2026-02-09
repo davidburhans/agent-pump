@@ -253,8 +253,45 @@ class AgentPumpMCPServer:
             except Exception as e:
                 return f"Security Error: Invalid working_dir '{tool_config.working_dir}': {e}"
 
+        # Define allowed environment variables (whitelist)
+        # We start with a minimal set to ensure basic functionality
+        # while stripping potential secrets.
+        ALLOWED_ENV_VARS = {
+            # Common
+            "PATH",
+            "LANG",
+            "LC_ALL",
+            "TZ",
+            "HOME",
+            # Windows
+            "SYSTEMROOT",
+            "COMSPEC",
+            "PATHEXT",
+            "WINDIR",
+            "APPDATA",
+            "LOCALAPPDATA",
+            "PROGRAMDATA",
+            "PROGRAMFILES",
+            "PROGRAMFILES(X86)",
+            "PSMODULEPATH",
+            "USERPROFILE",
+            "TEMP",
+            "TMP",
+            # Linux/Mac
+            "USER",
+            "SHELL",
+            "TERM",
+            "TMPDIR",
+            "XDG_CACHE_HOME",
+            "XDG_CONFIG_HOME",
+            "XDG_DATA_HOME",
+        }
+
         env = tool_config.env.copy()
-        full_env = os.environ.copy()
+        # Only copy whitelisted variables from host environment
+        # Use case-insensitive matching for Windows compatibility
+        full_env = {k: v for k, v in os.environ.items() if k.upper() in ALLOWED_ENV_VARS}
+        # Apply tool-specific environment variables (these take precedence)
         full_env.update(env)
 
         # Sandbox Check
