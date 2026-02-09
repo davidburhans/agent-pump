@@ -213,40 +213,40 @@ class OpenCodeBackend(AgentBackend):
             creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
         )
 
-        # Track process for lifecycle management
-        await subprocess_manager.track_process(
-            process.pid,
-            SubprocessInfo(
-                pid=process.pid,
-                command=" ".join(cmd),
-                project_path=project_path,
-                start_time=start_time,
-                timeout=timeout,
-                process=process,
-            ),
-        )
-
         logger.debug(f"Process started with PID: {process.pid}")
 
-        # Write prompt to stdin
-        if process.stdin:
-            try:
-                logger.debug("Writing prompt to stdin...")
-                process.stdin.write(prompt.encode("utf-8"))
-                await asyncio.wait_for(process.stdin.drain(), timeout=30.0)
-                process.stdin.close()
-                await process.stdin.wait_closed()
-                logger.debug("Prompt written and stdin closed")
-            except Exception as e:
-                logger.error(f"Failed to write to stdin: {e}")
-
         try:
+            # Track process for lifecycle management
+            await subprocess_manager.track_process(
+                process.pid,
+                SubprocessInfo(
+                    pid=process.pid,
+                    command=" ".join(cmd),
+                    project_path=project_path,
+                    start_time=start_time,
+                    timeout=timeout,
+                    process=process,
+                ),
+            )
+
+            # Write prompt to stdin
+            if process.stdin:
+                try:
+                    logger.debug("Writing prompt to stdin...")
+                    process.stdin.write(prompt.encode("utf-8"))
+                    await asyncio.wait_for(process.stdin.drain(), timeout=30.0)
+                    process.stdin.close()
+                    await process.stdin.wait_closed()
+                    logger.debug("Prompt written and stdin closed")
+                except Exception as e:
+                    logger.error(f"Failed to write to stdin: {e}")
+
             while True:
                 elapsed = time.time() - start_time
                 if elapsed > timeout:
                     logger.warning(f"Process timeout after {timeout}s, terminating")
                     await subprocess_manager.record_timeout(process.pid)
-                    await subprocess_manager.terminate_process(process.pid)
+                    await subprocess_manager.terminate_process(process.pid, process=process)
                     yield f"\n[TIMEOUT] Process terminated after {timeout} seconds\n"
                     break
 
@@ -288,13 +288,13 @@ class OpenCodeBackend(AgentBackend):
         except asyncio.CancelledError:
             logger.info("Backend run cancelled, terminating process")
             await subprocess_manager.record_cancellation(process.pid)
-            await subprocess_manager.terminate_process(process.pid)
+            await subprocess_manager.terminate_process(process.pid, process=process)
             raise
         finally:
             try:
                 if process.returncode is None:
                     logger.debug("Terminating process in finally block")
-                    await subprocess_manager.terminate_process(process.pid)
+                    await subprocess_manager.terminate_process(process.pid, process=process)
 
                 await process.wait()
 

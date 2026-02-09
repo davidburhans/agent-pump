@@ -466,7 +466,7 @@ class AgentPumpMCPServer:
 
         except asyncio.TimeoutError:
             # Terminate first while still tracked (for Windows magic)
-            await subprocess_manager.terminate_process(process.pid)
+            await subprocess_manager.terminate_process(process.pid, process=process)
 
             # Ensure process is dead
             try:
@@ -483,7 +483,7 @@ class AgentPumpMCPServer:
             return f"Error: Tool execution timed out after {tool_config.timeout} seconds."
 
         except asyncio.CancelledError:
-            await subprocess_manager.terminate_process(process.pid)
+            await subprocess_manager.terminate_process(process.pid, process=process)
             try:
                 await asyncio.wait_for(process.wait(), timeout=5.0)
             except Exception:
@@ -500,7 +500,7 @@ class AgentPumpMCPServer:
         except Exception as e:
             # Ensure cleanup on other errors
             if process.returncode is None:
-                await subprocess_manager.terminate_process(process.pid)
+                await subprocess_manager.terminate_process(process.pid, process=process)
                 try:
                     await asyncio.wait_for(process.wait(), timeout=5.0)
                 except Exception:

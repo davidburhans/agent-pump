@@ -4,6 +4,7 @@ import sys
 
 import pytest
 
+from agent_pump.models.tool_security import ToolSecurityConfig
 from agent_pump.models.verification_config import VerificationConfig
 from agent_pump.orchestrator.verification_executor import VerificationExecutor
 
@@ -57,7 +58,9 @@ class TestVerificationExecutor:
     @pytest.mark.asyncio
     async def test_run_command_success(self, tmp_path):
         """Test running a successful command."""
-        executor = VerificationExecutor(tmp_path)
+        # Allow unsandboxed execution for tests
+        security_config = ToolSecurityConfig(allow_unsandboxed_tools=True)
+        executor = VerificationExecutor(tmp_path, tool_security_config=security_config)
 
         # Use cross-platform Python command
         cmd = echo_cmd("hello")
@@ -73,7 +76,9 @@ class TestVerificationExecutor:
     @pytest.mark.asyncio
     async def test_run_command_failure(self, tmp_path):
         """Test running a command that fails."""
-        executor = VerificationExecutor(tmp_path)
+        # Allow unsandboxed execution for tests
+        security_config = ToolSecurityConfig(allow_unsandboxed_tools=True)
+        executor = VerificationExecutor(tmp_path, tool_security_config=security_config)
 
         # Use cross-platform fail command
         cmd = fail_cmd()
@@ -87,7 +92,9 @@ class TestVerificationExecutor:
     @pytest.mark.asyncio
     async def test_run_command_timeout(self, tmp_path):
         """Test running a command that times out."""
-        executor = VerificationExecutor(tmp_path)
+        # Allow unsandboxed execution for tests
+        security_config = ToolSecurityConfig(allow_unsandboxed_tools=True)
+        executor = VerificationExecutor(tmp_path, tool_security_config=security_config)
 
         # Use cross-platform sleep command that takes longer than timeout
         cmd = sleep_cmd(5)
@@ -102,7 +109,9 @@ class TestVerificationExecutor:
     @pytest.mark.asyncio
     async def test_run_command_not_found(self, tmp_path):
         """Test running a command that doesn't exist."""
-        executor = VerificationExecutor(tmp_path)
+        # Allow unsandboxed execution for tests
+        security_config = ToolSecurityConfig(allow_unsandboxed_tools=True)
+        executor = VerificationExecutor(tmp_path, tool_security_config=security_config)
 
         # Use a command that doesn't exist
         result = await executor.run_command("nonexistentcommand12345", timeout=10)
@@ -115,7 +124,9 @@ class TestVerificationExecutor:
     @pytest.mark.asyncio
     async def test_run_empty_command(self, tmp_path):
         """Test running an empty command."""
-        executor = VerificationExecutor(tmp_path)
+        # Allow unsandboxed execution for tests
+        security_config = ToolSecurityConfig(allow_unsandboxed_tools=True)
+        executor = VerificationExecutor(tmp_path, tool_security_config=security_config)
 
         result = await executor.run_command("", timeout=10)
 
@@ -130,7 +141,9 @@ class TestVerificationExecutor:
     async def test_run_build_method(self, tmp_path):
         """Test the run_build method."""
         config = VerificationConfig(build_cmd=echo_cmd("building"))
-        executor = VerificationExecutor(tmp_path, config)
+        # Allow unsandboxed execution for tests
+        security_config = ToolSecurityConfig(allow_unsandboxed_tools=True)
+        executor = VerificationExecutor(tmp_path, config, tool_security_config=security_config)
 
         result = await executor.run_build(timeout=10)
 
@@ -142,7 +155,9 @@ class TestVerificationExecutor:
     async def test_run_build_method_no_command(self, tmp_path):
         """Test the run_build method when no command is set."""
         config = VerificationConfig(build_cmd=None)
-        executor = VerificationExecutor(tmp_path, config)
+        # Allow unsandboxed execution for tests
+        security_config = ToolSecurityConfig(allow_unsandboxed_tools=True)
+        executor = VerificationExecutor(tmp_path, config, tool_security_config=security_config)
 
         result = await executor.run_build(timeout=10)
 
@@ -154,7 +169,9 @@ class TestVerificationExecutor:
     async def test_run_lint_method(self, tmp_path):
         """Test the run_lint method."""
         config = VerificationConfig(lint_cmd=echo_cmd("linting"))
-        executor = VerificationExecutor(tmp_path, config)
+        # Allow unsandboxed execution for tests
+        security_config = ToolSecurityConfig(allow_unsandboxed_tools=True)
+        executor = VerificationExecutor(tmp_path, config, tool_security_config=security_config)
 
         result = await executor.run_lint(timeout=10)
 
@@ -166,7 +183,9 @@ class TestVerificationExecutor:
     async def test_run_test_method(self, tmp_path):
         """Test the run_test method."""
         config = VerificationConfig(test_cmd=echo_cmd("testing"))
-        executor = VerificationExecutor(tmp_path, config)
+        # Allow unsandboxed execution for tests
+        security_config = ToolSecurityConfig(allow_unsandboxed_tools=True)
+        executor = VerificationExecutor(tmp_path, config, tool_security_config=security_config)
 
         result = await executor.run_test(timeout=10)
 
@@ -178,7 +197,9 @@ class TestVerificationExecutor:
     async def test_run_coverage_method(self, tmp_path):
         """Test the run_coverage method."""
         config = VerificationConfig(coverage_cmd=echo_cmd("coverage"))
-        executor = VerificationExecutor(tmp_path, config)
+        # Allow unsandboxed execution for tests
+        security_config = ToolSecurityConfig(allow_unsandboxed_tools=True)
+        executor = VerificationExecutor(tmp_path, config, tool_security_config=security_config)
 
         result = await executor.run_coverage(timeout=10)
 
@@ -190,7 +211,9 @@ class TestVerificationExecutor:
     async def test_run_all_methods_skip_verification(self, tmp_path):
         """Test the run_all method when skip_verification is True."""
         config = VerificationConfig(skip_verification=True)
-        executor = VerificationExecutor(tmp_path, config)
+        # Allow unsandboxed execution for tests
+        security_config = ToolSecurityConfig(allow_unsandboxed_tools=True)
+        executor = VerificationExecutor(tmp_path, config, tool_security_config=security_config)
 
         results = await executor.run_all(timeout_per_command=10)
 
@@ -208,7 +231,9 @@ class TestVerificationExecutor:
             test_cmd=echo_cmd("test_success"),
             coverage_cmd=echo_cmd("coverage_success"),
         )
-        executor = VerificationExecutor(tmp_path, config)
+        # Allow unsandboxed execution for tests
+        security_config = ToolSecurityConfig(allow_unsandboxed_tools=True)
+        executor = VerificationExecutor(tmp_path, config, tool_security_config=security_config)
 
         results = await executor.run_all(timeout_per_command=10)
 
@@ -229,7 +254,9 @@ class TestVerificationExecutor:
             test_cmd=echo_cmd("test_should_not_run"),
             coverage_cmd=echo_cmd("coverage_should_not_run"),
         )
-        executor = VerificationExecutor(tmp_path, config)
+        # Allow unsandboxed execution for tests
+        security_config = ToolSecurityConfig(allow_unsandboxed_tools=True)
+        executor = VerificationExecutor(tmp_path, config, tool_security_config=security_config)
 
         results = await executor.run_all(timeout_per_command=10)
 
