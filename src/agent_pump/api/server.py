@@ -188,7 +188,31 @@ def create_server(
     # If still no API key, generate one automatically
     if not api_key:
         api_key = secrets.token_urlsafe(32)
-        logger.warning("No API key provided. Generated secure temporary key: %s", api_key)
+
+        # Write to file instead of logging
+        try:
+            token_dir = Path(".agent-pump")
+            token_dir.mkdir(parents=True, exist_ok=True)
+            token_file = token_dir / "token"
+
+            # Remove existing file to ensure we create a new one with correct permissions
+            if token_file.exists():
+                token_file.unlink()
+
+            # Securely write the file with restricted permissions (0600)
+            # Use open() with a custom opener to set permissions atomically
+            def opener(path, flags):
+                return os.open(path, flags | os.O_CREAT | os.O_TRUNC | os.O_WRONLY, 0o600)
+
+            with open(token_file, "w", opener=opener, encoding="utf-8") as f:
+                f.write(api_key)
+
+            logger.warning("No API key provided. Generated secure temporary key.")
+            logger.warning(f"Key saved to: {token_file.absolute()}")
+        except Exception as e:
+            logger.warning("No API key provided. Generated secure temporary key.")
+            logger.warning(f"Failed to save key to file: {e}")
+
         logger.warning("Set AGENT_PUMP_API_KEY environment variable to use a fixed key.")
 
     # Store API key in app state for use by endpoints (e.g. WebSocket)
