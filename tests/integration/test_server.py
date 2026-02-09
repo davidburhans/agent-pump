@@ -13,7 +13,8 @@ class TestServerStartup:
     def client(self) -> TestClient:
         """Create a test client with debug mode."""
         app = create_server(debug=True)
-        return TestClient(app)
+        with TestClient(app) as c:
+            yield c
 
     def test_server_starts_and_responds_to_health(self, client: TestClient) -> None:
         """Test that server starts and responds to health check."""
@@ -57,7 +58,12 @@ class TestServerStartup:
     def test_graceful_error_handling(self, client: TestClient) -> None:
         """Test that unhandled exceptions are caught gracefully."""
         # API routes that don't exist should return 404
-        response = client.get("/api/non-existent-route")
+        # Note: We must authenticate to reach routing
+        api_key = client.app.state.api_key
+        response = client.get(
+            "/api/non-existent-route",
+            headers={"X-API-Key": api_key},
+        )
 
         # Should return 404, not 500
         assert response.status_code == 404

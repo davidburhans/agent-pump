@@ -76,8 +76,8 @@ def test_api_bypass(client):
     assert response.json()["status"] == "ok"
 
     # Check /api/projects
+    # Since auth is enabled by default, this should return 401
+    # This confirms it is NOT serving the SPA HTML (which would be 200 OK)
     response = client.get("/api/projects")
-    # Should be JSON, even if empty list
-    assert response.status_code == 200
-    assert "application/json" in response.headers["content-type"]
-    assert isinstance(response.json(), list)
+    assert response.status_code == 401
+    assert response.json()["error"] == "Unauthorized"
