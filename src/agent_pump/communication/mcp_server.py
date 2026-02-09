@@ -70,9 +70,33 @@ class AgentPumpMCPServer:
         if not workflow or not workflow.config:
             return []
 
+        configs = []
         if hasattr(workflow.config, "mcp_servers"):
-            return workflow.config.mcp_servers
-        return []
+            configs = workflow.config.mcp_servers
+
+        # Apply security policy
+        tool_security = (
+            workflow.project_config.tool_security if workflow.project_config else None
+        )
+
+        # If security is enabled (default) and unsandboxed tools are not allowed (default)
+        if (
+            tool_security
+            and tool_security.enabled
+            and not tool_security.allow_unsandboxed_tools
+        ):
+            safe_configs = []
+            for config in configs:
+                if config.type == "stdio":
+                    logger.warning(
+                        f"Skipping MCP server '{config.name}' (type=stdio) due to security policy. "
+                        "Unsandboxed tools are disabled."
+                    )
+                    continue
+                safe_configs.append(config)
+            return safe_configs
+
+        return configs
 
     def _get_project_tools(self, project_id: str) -> list[ToolConfig]:
         """Get available tools for a project."""
