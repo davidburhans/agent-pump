@@ -191,7 +191,11 @@ class ProjectWorkflow:
             self.verification_executor = verification_executor
         else:
             self.verification_executor = VerificationExecutor(
-                project_path=project.path, config=project.config
+                project_path=project.path,
+                config=project.config,
+                tool_security_config=(
+                    self.project_config.tool_security if self.project_config else None
+                ),
             )
 
         # Load or create workflow state
