@@ -185,8 +185,13 @@ def create_server(
     if api_key is None:
         api_key = os.environ.get("AGENT_PUMP_API_KEY")
 
-    # If still no API key, generate one automatically
+    # If still no API key, handle based on mode
     if not api_key:
+        if not debug:
+            raise RuntimeError(
+                "AGENT_PUMP_API_KEY environment variable must be set in production mode."
+            )
+
         api_key = secrets.token_urlsafe(32)
 
         # Write to file instead of logging
