@@ -162,24 +162,30 @@ def create_server(
     if api_key is None:
         api_key = os.environ.get("AGENT_PUMP_API_KEY")
 
+    # If still not provided, generate a secure random key
+    if not api_key:
+        import secrets
+
+        api_key = secrets.token_urlsafe(32)
+        # Note: We do NOT log the key here for security reasons.
+        # It should be printed by the CLI or retrieved from app.state.api_key if needed.
+
     # Store API key in app state for use by endpoints (e.g. WebSocket)
     app.state.api_key = api_key
 
     # Add CORS middleware
-    if api_key:
-        logger.info("Authentication middleware enabled - using secure CORS")
-        cors_config = get_cors_config_secure(api_key=api_key, origins=cors_origins)
-    else:
-        logger.info("Authentication middleware disabled - using default CORS")
-        cors_config = get_cors_config(origins=cors_origins)
+    logger.info("Authentication middleware enabled - using secure CORS")
+    cors_config = get_cors_config_secure(api_key=api_key, origins=cors_origins)
     app.add_middleware(CORSMiddleware, **cors_config)
 
-    # Add authentication middleware if API key is configured
-    if api_key:
-        logger.info("Authentication middleware enabled")
-        app.add_middleware(AuthMiddleware, api_key=api_key)
-    else:
-        logger.info("Authentication middleware disabled (no API key configured)")
+    # Add authentication middleware
+    logger.info("Authentication middleware enabled")
+    app.add_middleware(
+        AuthMiddleware,
+        api_key=api_key,
+        protected_prefixes=["/api", "/mcp"],
+        bypass_prefixes=["/api/trigger"],
+    )
 
     # Include routers
     app.include_router(health_router)

@@ -501,7 +501,6 @@ async def _run_headless(
 async def _run_web_server(port: int) -> None:
     """Run the HTTP server with uvicorn."""
     import os
-    import secrets
     import signal
     import sys
 
@@ -517,20 +516,18 @@ async def _run_web_server(port: int) -> None:
         console.print("  uv pip install -e .")
         return
 
-    # Check for API key in env
-    api_key = os.environ.get("AGENT_PUMP_API_KEY")
+    # Create server instance
+    # Note: create_server handles API key generation if not provided or in env
+    server_app = create_server(debug=True, api_key=None)
 
-    if not api_key:
-        # Generate a random API key
-        api_key = secrets.token_urlsafe(32)
+    # If no API key was configured in env, show the generated one
+    if not os.environ.get("AGENT_PUMP_API_KEY"):
+        api_key = server_app.state.api_key
         console.print("[bold red]WARNING: No API key provided. Generated temporary key:[/bold red]")
         console.print(f"[bold green]API Key: {api_key}[/bold green]")
         console.print(
             "[dim]Set AGENT_PUMP_API_KEY environment variable to use a custom key.[/dim]\n"
         )
-
-    # Create server instance
-    server_app = create_server(debug=True, api_key=api_key)
 
     # Configure uvicorn
     config = uvicorn.Config(

@@ -18,13 +18,15 @@ class TestWebSocketEndpoint:
 
     def test_websocket_connection_established(self, client: TestClient) -> None:
         """Test that WebSocket connection can be established."""
-        with client.websocket_connect("/ws"):
+        api_key = client.app.state.api_key
+        with client.websocket_connect(f"/ws?api_key={api_key}"):
             # Connection should be established
             pass  # Connection context manager handles this
 
     def test_websocket_receives_connected_message(self, client: TestClient) -> None:
         """Test that client receives connection confirmation."""
-        with client.websocket_connect("/ws") as websocket:
+        api_key = client.app.state.api_key
+        with client.websocket_connect(f"/ws?api_key={api_key}") as websocket:
             data = websocket.receive_json()
 
             assert data["type"] == "connected"
@@ -32,7 +34,8 @@ class TestWebSocketEndpoint:
 
     def test_websocket_echoes_messages(self, client: TestClient) -> None:
         """Test that server echoes messages back."""
-        with client.websocket_connect("/ws") as websocket:
+        api_key = client.app.state.api_key
+        with client.websocket_connect(f"/ws?api_key={api_key}") as websocket:
             # Receive initial connection message
             websocket.receive_json()
 
@@ -48,7 +51,8 @@ class TestWebSocketEndpoint:
 
     def test_websocket_handles_multiple_messages(self, client: TestClient) -> None:
         """Test that server can handle multiple messages in one session."""
-        with client.websocket_connect("/ws") as websocket:
+        api_key = client.app.state.api_key
+        with client.websocket_connect(f"/ws?api_key={api_key}") as websocket:
             # Receive initial connection message
             websocket.receive_json()
 
@@ -63,7 +67,8 @@ class TestWebSocketEndpoint:
 
     def test_websocket_disconnect_cleanup(self, client: TestClient) -> None:
         """Test that disconnect is handled cleanly."""
-        with client.websocket_connect("/ws") as websocket:
+        api_key = client.app.state.api_key
+        with client.websocket_connect(f"/ws?api_key={api_key}") as websocket:
             # Receive initial connection message
             websocket.receive_json()
 

@@ -22,19 +22,24 @@ class AuthMiddleware(BaseHTTPMiddleware):
         self,
         app: Any,
         api_key: str,
-        bypass_paths: list[str] | None = None,
+        protected_prefixes: list[str] | None = None,
+        bypass_prefixes: list[str] | None = None,
     ) -> None:
         """Initialize the auth middleware.
 
         Args:
             app: The ASGI application.
             api_key: The expected API key for authentication.
-            bypass_paths: List of paths that bypass authentication.
+            protected_prefixes: List of path prefixes that require authentication.
+            bypass_prefixes: List of path prefixes that bypass authentication even if matched by protected_prefixes.
         """
         super().__init__(app)
         self.api_key = api_key
-        self.bypass_paths = set(bypass_paths or ["/health", "/docs", "/openapi.json", "/redoc"])
-        logger.info(f"Auth middleware initialized with {len(self.bypass_paths)} bypass paths")
+        self.protected_prefixes = tuple(protected_prefixes or ["/api", "/mcp"])
+        self.bypass_prefixes = tuple(bypass_prefixes or [])
+        logger.info(
+            f"Auth middleware initialized with protected={self.protected_prefixes}, bypass={self.bypass_prefixes}"
+        )
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         """Process the request and enforce authentication.
@@ -46,13 +51,24 @@ class AuthMiddleware(BaseHTTPMiddleware):
         Returns:
             The response, or 401 if authentication fails.
         """
-        # Check if path should bypass auth
-        if request.url.path in self.bypass_paths:
-            return await call_next(request)
+        path = request.url.path
 
         # Check for WebSocket upgrade - handled separately
-        if request.url.path == "/ws":
+        if path == "/ws":
             # WebSocket auth will be handled in the endpoint itself
+            return await call_next(request)
+
+        # Allow OPTIONS requests for CORS preflight checks
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
+        # Check if path needs protection
+        is_protected = path.startswith(self.protected_prefixes)
+        if not is_protected:
+            return await call_next(request)
+
+        # Check if path is explicitly bypassed
+        if path.startswith(self.bypass_prefixes):
             return await call_next(request)
 
         # Validate API key

@@ -73,11 +73,8 @@ def get_cors_config_secure(api_key: str | None = None, origins: list[str] | None
 
     # If API key is configured, add stricter security
     if api_key:
-        config["allow_origins"] = allowed_origins[:1]  # Only allow localhost for production
         config["allow_methods"] = ["GET", "POST", "OPTIONS"]  # Limit methods
-        config["allow_headers"] = [
-            "Content-Type",
-            "Authorization",
-        ]  # Remove X-API-Key from allowed headers
+        # Note: We allow X-API-Key as it is required for authentication
+        # Note: We allow all configured origins to support development servers
 
     return config
