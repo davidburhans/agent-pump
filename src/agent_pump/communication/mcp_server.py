@@ -235,6 +235,39 @@ class AgentPumpMCPServer:
                     if not is_valid:
                         return f"Security Error: {error_msg}"
 
+            # If tool is unsandboxed, we MUST enforce stricter argument validation
+            # to prevent path traversal on the host filesystem.
+            if not tool_config.sandbox:
+                # Resolve project path to handle symlinks correctly
+                abs_project_path = project_path.resolve()
+
+                # Check all arguments for path traversal patterns regardless of type definition
+                for i, arg_val in enumerate(args):
+                    # Content Heuristic:
+                    # If argument contains newlines or is very long, assume it is content, not a filename.
+                    # Path traversal attacks usually involve short strings without newlines.
+                    if "\n" in arg_val or len(arg_val) > 1024:
+                        continue
+
+                    try:
+                        # Attempt to resolve the argument as a path relative to the project
+                        # resolve() handles symlinks and normalizes ".."
+                        resolved_path = (abs_project_path / arg_val).resolve()
+
+                        # Check if the resolved path is within the project root
+                        if os.path.commonpath([resolved_path, abs_project_path]) != str(abs_project_path):
+                            return f"Security Error: Argument {i} '{arg_val}' attempts to escape project root (path traversal)."
+                    except OSError:
+                        # If resolution fails (e.g. invalid characters, filename too long),
+                        # it is likely not a valid path that the tool can use to access files.
+                        # We assume it is safe content.
+                        pass
+                    except Exception as e:
+                        logger.warning(f"Unexpected error validating argument {i}: {e}")
+                        # Fail safe for unexpected errors, but only if it looks like a path
+                        if ".." in arg_val or os.path.isabs(arg_val):
+                            return f"Security Error: Argument {i} could not be validated and looks suspicious."
+
         command_args = tool_config.get_command_args(args)
 
         # Determine cwd
