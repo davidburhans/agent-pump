@@ -162,6 +162,9 @@ def create_server(
     if api_key is None:
         api_key = os.environ.get("AGENT_PUMP_API_KEY")
 
+    # Store API key in app state for use by endpoints (e.g. WebSocket)
+    app.state.api_key = api_key
+
     # Add CORS middleware
     if api_key:
         logger.info("Authentication middleware enabled - using secure CORS")

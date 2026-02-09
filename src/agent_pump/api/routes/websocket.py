@@ -3,10 +3,11 @@
 import asyncio
 import json
 import logging
+import secrets
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 from starlette.websockets import WebSocketState
 
 from agent_pump.models.activity import ActivityType
@@ -408,6 +409,22 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     user_name = query_params.get("name")
     role = query_params.get("role", "viewer")
     project_path = query_params.get("project")
+
+    # Enforce Authentication
+    # Check if API key is configured in app state (set in server.py)
+    configured_key = getattr(websocket.app.state, "api_key", None)
+    if configured_key:
+        # Check for key in headers or query params
+        # Note: Browsers generally don't support custom headers for WebSocket
+        request_key = websocket.headers.get("X-API-Key") or query_params.get("api_key")
+
+        if not request_key or not secrets.compare_digest(request_key, configured_key):
+            logger.warning(
+                f"Unauthorized WebSocket connection attempt. Session: {session_id}, User: {user_name}"
+            )
+            # Close with Policy Violation code (1008)
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
 
     # Connect and register
     user_info = await manager.connect(
