@@ -7,6 +7,7 @@ import shlex
 import shutil
 import sys
 import time
+import uuid
 from pathlib import Path
 
 from agent_pump.utils.subprocess_manager import SubprocessInfo, subprocess_manager
@@ -89,10 +90,16 @@ class SecureExecutor:
                 if sys.platform == "win32":
                     mount_path = mount_path.replace("\\", "/")
 
+                # Generate a unique container name for cleanup
+                container_name = f"agent-pump-{uuid.uuid4()}"
+                cleanup_cmd = ["docker", "rm", "-f", container_name]
+
                 docker_args = [
                     "docker",
                     "run",
                     "--rm",
+                    "--name",
+                    container_name,
                     "-v",
                     f"{mount_path}:/app",
                     "-w",
@@ -121,13 +128,15 @@ class SecureExecutor:
                 docker_args.extend(final_cmd_parts)
 
                 exec_cmd = docker_args
-                exec_cwd = None # docker command runs from where? usually fine from anywhere, but let's say cwd
-                exec_env = None # env vars passed via -e
+                # docker command runs from where? usually fine from anywhere, but let's say cwd
+                exec_cwd = None
+                exec_env = None  # env vars passed via -e
 
                 logger.info(f"Executing sandboxed command: {' '.join(docker_args)}")
 
             else:
                 # Host Execution
+                cleanup_cmd = None
                 exec_cmd = cmd_args
                 exec_cwd = project_path
                 exec_env = full_env
@@ -167,6 +176,7 @@ class SecureExecutor:
                     start_time=start_time,
                     timeout=timeout,
                     process=process,
+                    cleanup_cmd=cleanup_cmd,
                 ),
             )
 
@@ -186,7 +196,7 @@ class SecureExecutor:
 
             return success, stdout_str, stderr_str, exit_code, duration
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             if process:
                 # Terminate first while still tracked
                 await subprocess_manager.terminate_process(process.pid, process=process)
