@@ -882,9 +882,10 @@ def detect_project_type(project_path: Path) -> None:
     console.print(f"  Suggested build command: {result.build_cmd or '[none]'}")
     console.print(f"  Suggested lint command: {result.lint_cmd or '[none]'}")
     console.print(f"  Suggested test command: {result.test_cmd or '[none]'}")
+    console.print(f"  Suggested sandbox image: {result.sandbox_image or '[none]'}")
 
     # Ask if user wants to apply the suggestions
-    if result.build_cmd or result.lint_cmd or result.test_cmd:
+    if result.build_cmd or result.lint_cmd or result.test_cmd or result.sandbox_image:
         apply_suggestions = click.confirm("Apply these suggestions to the project configuration?")
         if apply_suggestions:
             config = load_verification_config(project_path)
@@ -894,6 +895,8 @@ def detect_project_type(project_path: Path) -> None:
                 config.lint_cmd = result.lint_cmd
             if result.test_cmd:
                 config.test_cmd = result.test_cmd
+            if result.sandbox_image:
+                config.sandbox_image = result.sandbox_image
             save_verification_config(project_path, config)
             console.print("[green]Applied suggested commands to project configuration.[/green]")
 
