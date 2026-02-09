@@ -240,7 +240,18 @@ class AgentPumpMCPServer:
         # Determine cwd
         cwd = project_path
         if tool_config.working_dir:
-            cwd = project_path / tool_config.working_dir
+            try:
+                # Resolve both paths to ensure we compare absolute paths
+                abs_project_path = project_path.resolve()
+                resolved_cwd = (project_path / tool_config.working_dir).resolve()
+
+                # Security check: Ensure working_dir is within project root
+                if os.path.commonpath([resolved_cwd, abs_project_path]) != str(abs_project_path):
+                    return f"Security Error: Tool working_dir '{tool_config.working_dir}' attempts to escape project root."
+
+                cwd = resolved_cwd
+            except Exception as e:
+                return f"Security Error: Invalid working_dir '{tool_config.working_dir}': {e}"
 
         env = tool_config.env.copy()
         full_env = os.environ.copy()
