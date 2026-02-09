@@ -1,6 +1,7 @@
 """Authentication middleware for API access control."""
 
 import logging
+import secrets
 from typing import Any
 
 from fastapi import Request
@@ -84,7 +85,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 },
             )
 
-        if api_key != self.api_key:
+        if not secrets.compare_digest(api_key, self.api_key):
             logger.warning(f"Invalid API key for {request.method} {request.url.path}")
             return JSONResponse(
                 status_code=401,

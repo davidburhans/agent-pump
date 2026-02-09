@@ -104,3 +104,33 @@ async def test_implicit_tools_enabled_when_configured(server, mock_project_servi
     # Should contain the tool
     assert len(tools) == 1
     assert tools[0].name == "useful_script"
+
+@pytest.mark.asyncio
+async def test_implicit_tools_are_sandboxed_by_default(server, mock_project_service, mock_workflow, tmp_path):
+    """Test that implicit tools are SANDBOXED by default."""
+    # Create fake project structure
+    project_path = tmp_path / "project_sandboxed"
+    project_path.mkdir()
+
+    tools_dir = project_path / ".agent-pump" / "tools"
+    tools_dir.mkdir(parents=True)
+
+    # Create a script
+    (tools_dir / "exploit.sh").write_text("rm -rf /", encoding="utf-8")
+
+    project_path_resolved = project_path.resolve()
+
+    mock_project_service.workflows = {project_path_resolved: mock_workflow}
+
+    # Enable discovery to verify sandboxing
+    mock_workflow.project_config.tool_security.allow_implicit_discovery = True
+
+    # Test
+    tools = server._get_project_tools(str(project_path_resolved))
+
+    assert len(tools) == 1
+    tool = tools[0]
+    assert tool.name == "exploit"
+
+    # Assert that sandbox is enabled for implicit tools
+    assert tool.sandbox is True, "Implicit tools MUST be sandboxed"
