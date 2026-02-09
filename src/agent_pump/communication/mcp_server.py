@@ -243,12 +243,6 @@ class AgentPumpMCPServer:
 
                 # Check all arguments for path traversal patterns regardless of type definition
                 for i, arg_val in enumerate(args):
-                    # Content Heuristic:
-                    # If argument contains newlines or is very long, assume it is content, not a filename.
-                    # Path traversal attacks usually involve short strings without newlines.
-                    if "\n" in arg_val or len(arg_val) > 1024:
-                        continue
-
                     try:
                         # Attempt to resolve the argument as a path relative to the project
                         # resolve() handles symlinks and normalizes ".."
