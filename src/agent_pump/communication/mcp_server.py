@@ -85,6 +85,7 @@ class AgentPumpMCPServer:
             return []
 
         workflow = project_service.workflows[project_path]
+        # Get tool security config
         tool_security = workflow.project_config.tool_security if workflow.project_config else None
 
         # 1. Tools from config.yml
@@ -93,8 +94,11 @@ class AgentPumpMCPServer:
             tools.extend(workflow.config.tools)
 
         # 2. Implicit tools from .agent-pump/tools/
+        # Only allow if explicitly enabled in tool security config
+        allow_implicit = tool_security and tool_security.allow_implicit_discovery
+
         tools_dir = project_path / ".agent-pump" / "tools"
-        if tools_dir.exists() and tools_dir.is_dir():
+        if allow_implicit and tools_dir.exists() and tools_dir.is_dir():
             for item in tools_dir.iterdir():
                 if item.is_file() and not item.name.startswith("."):
                     # Check if already defined

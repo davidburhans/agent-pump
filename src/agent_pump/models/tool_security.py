@@ -17,3 +17,7 @@ class ToolSecurityConfig(BaseModel):
     allow_network_access: bool = Field(
         default=True, description="Whether to allow network access in sandboxed environments"
     )
+    allow_implicit_discovery: bool = Field(
+        default=False,
+        description="Whether to automatically discover and execute tools from .agent-pump/tools/",
+    )
