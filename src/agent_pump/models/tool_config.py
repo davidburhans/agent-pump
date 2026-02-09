@@ -37,6 +37,7 @@ class ToolConfig(BaseModel):
     sandbox_image: str | None = Field(
         default=None, description="Docker image to use for sandboxing (e.g. 'python:3.11-slim')"
     )
+    timeout: int = Field(default=60, description="Timeout in seconds for tool execution")
 
     def get_command_args(self, input_args: dict[str, Any] | list[str]) -> list[str]:
         """
