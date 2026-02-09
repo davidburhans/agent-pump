@@ -19,6 +19,23 @@ class SecureExecutor:
     """Execute commands securely, either on host or in Docker sandbox."""
 
     @staticmethod
+    def _validate_image_name(image_name: str) -> None:
+        """Validate Docker image name to prevent flag injection."""
+        if not image_name:
+            raise ValueError("Image name cannot be empty")
+
+        if image_name.startswith("-"):
+            raise ValueError(f"Image name cannot start with '-': {image_name}")
+
+        if any(c.isspace() for c in image_name):
+            raise ValueError(f"Image name cannot contain whitespace: {image_name}")
+
+        # Basic sanity check for other dangerous characters
+        dangerous_chars = set(";&|><$`\\!\"'")
+        if any(c in dangerous_chars for c in image_name):
+            raise ValueError(f"Image name contains invalid characters: {image_name}")
+
+    @staticmethod
     async def execute_command(
         command: str | list[str],
         cwd: Path,
@@ -71,6 +88,9 @@ class SecureExecutor:
                 if not sandbox_image:
                     # Default fallback if not provided
                     sandbox_image = "python:3.11-slim"
+
+                # Validate image name
+                SecureExecutor._validate_image_name(sandbox_image)
 
                 docker_cmd = shutil.which("docker")
                 if not docker_cmd:
