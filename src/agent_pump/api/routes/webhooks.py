@@ -243,41 +243,44 @@ async def webhook_trigger(
     if not config.enabled:
         raise HTTPException(status_code=503, detail="Webhooks disabled")
 
+    if not config.secret_key:
+        logger.error("Webhooks enabled but no secret key configured. Rejecting request.")
+        raise HTTPException(status_code=500, detail="Webhooks configuration error: No secret key set")
+
     if source not in config.allowed_sources:
         raise HTTPException(status_code=403, detail="Source not allowed")
 
     body = await request.body()
 
     # Signature Validation
-    if config.secret_key:
-        if source == "github":
-            if not x_hub_signature_256 or not validate_github_signature(
-                body, x_hub_signature_256, config.secret_key
-            ):
-                raise HTTPException(status_code=401, detail="Invalid GitHub signature")
+    if source == "github":
+        if not x_hub_signature_256 or not validate_github_signature(
+            body, x_hub_signature_256, config.secret_key
+        ):
+            raise HTTPException(status_code=401, detail="Invalid GitHub signature")
 
-        elif source == "slack":
-            if not x_slack_signature or not x_slack_request_timestamp:
-                raise HTTPException(status_code=401, detail="Missing Slack headers")
+    elif source == "slack":
+        if not x_slack_signature or not x_slack_request_timestamp:
+            raise HTTPException(status_code=401, detail="Missing Slack headers")
 
-            if not validate_slack_signature(
-                body, x_slack_signature, x_slack_request_timestamp, config.secret_key
-            ):
-                raise HTTPException(status_code=401, detail="Invalid Slack signature")
+        if not validate_slack_signature(
+            body, x_slack_signature, x_slack_request_timestamp, config.secret_key
+        ):
+            raise HTTPException(status_code=401, detail="Invalid Slack signature")
 
-        else:
-            # For custom/other sources, strictly require X-Signature
-            if not x_signature:
-                raise HTTPException(status_code=401, detail="Missing X-Signature header")
+    else:
+        # For custom/other sources, strictly require X-Signature
+        if not x_signature:
+            raise HTTPException(status_code=401, detail="Missing X-Signature header")
 
-            # Generic validation
-            expected = hmac.new(config.secret_key.encode(), body, hashlib.sha256).hexdigest()
-            # Allow "sha256=<hash>" or just "<hash>"
-            valid_prefixed = hmac.compare_digest(f"sha256={expected}", x_signature)
-            valid_raw = hmac.compare_digest(expected, x_signature)
+        # Generic validation
+        expected = hmac.new(config.secret_key.encode(), body, hashlib.sha256).hexdigest()
+        # Allow "sha256=<hash>" or just "<hash>"
+        valid_prefixed = hmac.compare_digest(f"sha256={expected}", x_signature)
+        valid_raw = hmac.compare_digest(expected, x_signature)
 
-            if not valid_prefixed and not valid_raw:
-                 raise HTTPException(status_code=401, detail="Invalid signature")
+        if not valid_prefixed and not valid_raw:
+             raise HTTPException(status_code=401, detail="Invalid signature")
 
     # Process Payload
     try:
