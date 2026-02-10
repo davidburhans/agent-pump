@@ -92,7 +92,11 @@ class SubprocessManager:
         )
 
     async def terminate_process(
-        self, pid: int, timeout: float = 2.0, process: asyncio.subprocess.Process | None = None
+        self,
+        pid: int,
+        timeout: float = 2.0,
+        process: asyncio.subprocess.Process | None = None,
+        cleanup_cmd: list[str] | None = None,
     ) -> None:
         """
         Terminate a subprocess robustly.
@@ -121,11 +125,15 @@ class SubprocessManager:
         logger.debug(f"Terminating subprocess PID={pid} (Platform: {sys.platform})")
 
         # Execute cleanup command if present
-        if info and info.cleanup_cmd:
+        cmd_to_run = cleanup_cmd
+        if not cmd_to_run and info and info.cleanup_cmd:
+            cmd_to_run = info.cleanup_cmd
+
+        if cmd_to_run:
             try:
-                logger.debug(f"Executing cleanup command for PID={pid}: {info.cleanup_cmd}")
+                logger.debug(f"Executing cleanup command for PID={pid}: {cmd_to_run}")
                 cleanup_proc = await asyncio.create_subprocess_exec(
-                    *info.cleanup_cmd,
+                    *cmd_to_run,
                     stdout=asyncio.subprocess.DEVNULL,
                     stderr=asyncio.subprocess.DEVNULL,
                 )
