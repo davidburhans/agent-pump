@@ -6,6 +6,7 @@ from pathlib import Path
 
 from agent_pump.backends import get_backend
 from agent_pump.events.bus import EventBus
+from agent_pump.models.workspace import Workspace
 from agent_pump.services.base import BaseService
 from agent_pump.utils.context_manager import ContextManager
 
@@ -41,8 +42,24 @@ class ChatService(BaseService):
             Chunks of the response text.
         """
         # 1. Resolve Backend
-        # Current behavior: Falls back to 'gemini' if backend_name is None
-        # Future: Read default backend from project config if available
+        # If no backend name provided, try to fetch default from project config
+        if not backend_name:
+            try:
+                # Load workspace asynchronously
+                workspace = await Workspace.load_async()
+                project_config = workspace.get_project_config(project_path)
+
+                if (
+                    project_config
+                    and project_config.default_chain
+                    and project_config.default_chain.backends
+                ):
+                    # Use the first backend in the default chain
+                    backend_name = project_config.default_chain.backends[0].name
+            except Exception as e:
+                logger.warning(f"Failed to resolve default backend from project config: {e}")
+
+        # Fallback to 'gemini' if still not set
         backend_name = backend_name or "gemini"
         try:
             backend = get_backend(backend_name)
