@@ -16,7 +16,7 @@ from agent_pump.communication.mcp_client import MCPClientManager
 from agent_pump.models.mcp_config import MCPServerConfig
 from agent_pump.models.tool_config import ToolConfig
 from agent_pump.models.tool_security import ToolSecurityConfig
-from agent_pump.utils.subprocess_manager import SubprocessInfo, subprocess_manager
+from agent_pump.utils.execution import SecureExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -356,179 +356,68 @@ class AgentPumpMCPServer:
             "XDG_DATA_HOME",
         }
 
-        env = tool_config.env.copy()
+        # Prepare environment
         # Only copy whitelisted variables from host environment
-        # Use case-insensitive matching for Windows compatibility
         full_env = {k: v for k, v in os.environ.items() if k.upper() in ALLOWED_ENV_VARS}
         # Apply tool-specific environment variables (these take precedence)
-        full_env.update(env)
+        full_env.update(tool_config.env)
 
-        # Sandbox Check
+        # Prepare execution arguments for SecureExecutor
+        exec_cwd = cwd  # Default to resolved CWD (for unsandboxed)
+        exec_working_dir_rel = None
+        allow_network = True
+
+        if tool_security and not tool_security.allow_network_access:
+            allow_network = False
+
         if tool_config.sandbox:
-            # Check for docker
-            docker_cmd = shutil.which("docker")
-            if not docker_cmd:
-                return "Error: Tool requires sandbox but docker is not available."
+            # For sandbox, we must use project_path as cwd (mount source)
+            # and pass relative working directory separately
+            exec_cwd = project_path
+            exec_working_dir_rel = tool_config.working_dir
 
-            # Determine image
-            image = tool_config.sandbox_image
-            if not image:
-                cmd_lower = tool_config.command.lower()
-                if "python" in cmd_lower or cmd_lower.endswith(".py"):
-                    image = "python:3.11-slim"
-                elif "node" in cmd_lower or cmd_lower.endswith(".js") or cmd_lower.endswith(".ts"):
-                    image = "node:18-slim"
-                elif "bash" in cmd_lower or "sh " in cmd_lower or cmd_lower.endswith(".sh"):
-                    image = "debian:stable-slim"
-                elif "powershell" in cmd_lower or cmd_lower.endswith(".ps1"):
-                    image = "mcr.microsoft.com/powershell"
-                else:
-                    image = "python:3.11-slim"  # Default fallback
+        # Determine sandbox image with heuristics
+        sandbox_image = tool_config.sandbox_image
+        if tool_config.sandbox and not sandbox_image:
+            cmd_lower = tool_config.command.lower()
+            if "python" in cmd_lower or cmd_lower.endswith(".py"):
+                sandbox_image = "python:3.11-slim"
+            elif "node" in cmd_lower or cmd_lower.endswith(".js") or cmd_lower.endswith(".ts"):
+                sandbox_image = "node:18-slim"
+            elif "bash" in cmd_lower or "sh " in cmd_lower or cmd_lower.endswith(".sh"):
+                sandbox_image = "debian:stable-slim"
+            elif "powershell" in cmd_lower or cmd_lower.endswith(".ps1"):
+                sandbox_image = "mcr.microsoft.com/powershell"
+            else:
+                sandbox_image = "python:3.11-slim"  # Default fallback
 
-            # Construct docker command
-            # We mount project_path to /app
-            docker_args = [
-                "docker",
-                "run",
-                "--rm",
-                "-v",
-                f"{project_path}:/app",
-                "-w",
-                f"/app/{tool_config.working_dir}" if tool_config.working_dir else "/app",
-            ]
-
-            if tool_security and not tool_security.allow_network_access:
-                docker_args.append("--network=none")
-
-            # Pass environment variables defined in tool config
-            for k, v in tool_config.env.items():
-                docker_args.extend(["-e", f"{k}={v}"])
-
-            docker_args.append(image)
-
-            # Adjust command to run inside container
-            # Replace host python with container python if applicable
-            final_cmd_parts = []
-            for part in command_args:
-                if part == sys.executable:
-                    final_cmd_parts.append("python")
-                else:
-                    # If arg is a path relative to project, it should be fine.
-                    # If arg is an absolute path on host, it will break.
-                    # We assume relative paths for now.
-                    final_cmd_parts.append(part)
-
-            docker_args.extend(final_cmd_parts)
-
-            cmd_str = " ".join(docker_args)
-            logger.info(f"Executing sandboxed tool {tool_config.name}: {cmd_str}")
-
-            try:
-                process = await asyncio.create_subprocess_exec(
-                    *docker_args,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    # No cwd/env needed as docker handles it
-                )
-            except Exception as e:
-                return f"Error executing sandboxed tool: {e}"
-
-        else:
-            # Standard Execution
-            cmd_str = " ".join(command_args)
-            logger.info(f"Executing tool {tool_config.name}: {cmd_str} in {cwd}")
-
-            try:
-                process = await asyncio.create_subprocess_exec(
-                    *command_args,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    cwd=cwd,
-                    env=full_env,
-                )
-            except Exception as e:
-                return f"Error executing tool: {e}"
-
-        # Handle Output (Shared) and Tracking
         try:
-            # Track process
-            await subprocess_manager.track_process(
-                process.pid,
-                SubprocessInfo(
-                    pid=process.pid,
-                    command=" ".join(command_args),
-                    project_path=project_path,
-                    start_time=time.time(),
-                    timeout=tool_config.timeout,
-                    process=process,
-                ),
+            success, stdout, stderr, exit_code, duration = await SecureExecutor.execute_command(
+                command=command_args,
+                cwd=exec_cwd,
+                env=full_env,
+                timeout=tool_config.timeout,
+                sandbox=tool_config.sandbox,
+                sandbox_image=sandbox_image,
+                network_access=allow_network,
+                working_dir_rel=exec_working_dir_rel,
+                inherit_env=False,  # We manually construct full_env with whitelist
             )
-
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(), timeout=tool_config.timeout
-            )
-
-            # Untrack
-            await subprocess_manager.untrack_process(process.pid, process.returncode)
 
             output = []
             if stdout:
-                output.append(stdout.decode().strip())
+                output.append(stdout.strip())
             if stderr:
-                output.append(f"STDERR:\n{stderr.decode().strip()}")
+                output.append(f"STDERR:\n{stderr.strip()}")
 
-            if process.returncode != 0:
-                output.append(f"Process exited with code {process.returncode}")
+            # If exit code is None (e.g. terminated), SecureExecutor usually returns it as None
+            if exit_code is not None and exit_code != 0:
+                output.append(f"Process exited with code {exit_code}")
 
             return "\n".join(output)
 
-        except asyncio.TimeoutError:
-            # Terminate first while still tracked (for Windows magic)
-            await subprocess_manager.terminate_process(process.pid, process=process)
-
-            # Ensure process is dead
-            try:
-                await asyncio.wait_for(process.wait(), timeout=5.0)
-            except Exception:
-                try:
-                    process.kill()
-                    await process.wait()
-                except Exception:
-                    pass
-
-            # Record timeout (removes from tracking)
-            await subprocess_manager.record_timeout(process.pid)
-            return f"Error: Tool execution timed out after {tool_config.timeout} seconds."
-
-        except asyncio.CancelledError:
-            await subprocess_manager.terminate_process(process.pid, process=process)
-            try:
-                await asyncio.wait_for(process.wait(), timeout=5.0)
-            except Exception:
-                try:
-                    process.kill()
-                    await process.wait()
-                except Exception:
-                    pass
-
-            # Record cancellation (removes from tracking)
-            await subprocess_manager.record_cancellation(process.pid)
-            raise
-
         except Exception as e:
-            # Ensure cleanup on other errors
-            if process.returncode is None:
-                await subprocess_manager.terminate_process(process.pid, process=process)
-                try:
-                    await asyncio.wait_for(process.wait(), timeout=5.0)
-                except Exception:
-                    try:
-                        process.kill()
-                        await process.wait()
-                    except Exception:
-                        pass
-                await subprocess_manager.untrack_process(process.pid)
-            return f"Error reading output: {e}"
+            return f"Error executing tool: {e}"
 
     def _register_tools(self):
         @self.server.tool()

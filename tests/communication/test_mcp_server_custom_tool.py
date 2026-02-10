@@ -123,7 +123,8 @@ async def test_execute_tool_timeout_handling(server):
 
         result = await server._execute_tool(tool_config, [], project_path)
 
-        assert "Error: Tool execution timed out" in result
+        # SecureExecutor returns timeout message in stderr
+        assert "Command timed out" in result
 
         # Verify timeout recorded
         assert mock_rec_to.called
