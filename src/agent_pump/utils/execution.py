@@ -45,6 +45,7 @@ class SecureExecutor:
         sandbox_image: str | None = None,
         network_access: bool = True,
         working_dir_rel: str | None = None,
+        inherit_env: bool = True,
     ) -> tuple[bool, str, str, int | None, float]:
         """
         Execute a command and return (success, stdout, stderr, exit_code, duration).
@@ -58,6 +59,7 @@ class SecureExecutor:
             sandbox_image: Docker image to use (required if sandbox=True).
             network_access: Whether to allow network access in sandbox.
             working_dir_rel: Working directory relative to project root (for sandbox).
+            inherit_env: Whether to inherit host environment variables (default: True). Ignored if sandbox=True.
 
         Returns:
             Tuple of (success, stdout, stderr, exit_code, duration).
@@ -76,7 +78,7 @@ class SecureExecutor:
         project_path = cwd.resolve()
 
         # Prepare environment
-        full_env = os.environ.copy() if not sandbox else {}
+        full_env = os.environ.copy() if (not sandbox and inherit_env) else {}
         if env:
             full_env.update(env)
 
