@@ -14,65 +14,80 @@
 [Quick Start](#quick-start) • 
 [Features](#features) • 
 [How It Works](#how-it-works) • 
+[CLI Reference](#cli-reference) • 
 [Documentation](#documentation)
 
 </div>
 
 ---
 
-## Introduction
+## 🚀 Introduction
 
-**Agent Pump** is a terminal-based orchestration platform that turns your AI coding assistants into autonomous agents.
+**Agent Pump** is a terminal-based orchestration platform that transforms standard AI coding assistants into fully autonomous agents.
 
-Instead of treating AI as a chatbot where you copy-paste snippets back and forth, Agent Pump puts the AI in a **Workflow Loop**. You define the endpoint (the `ROADMAP.md`), and Agent Pump drives the AI through a rigorous 5-phase engineering process until the feature is built, tested, and committed.
+Instead of treating AI as a conversational chatbot where you endlessly copy and paste snippets, Agent Pump embeds the LLM into a rigorous **CI/CD-like Workflow Loop**. You define your end goals in a simple `ROADMAP.md`, and Agent Pump continuously drives the AI through a 5-phase engineering lifecycle until your feature is architected, implemented, automatically verified, and committed.
 
-It feels less like "chatting with a bot" and more like **pair programming with a senior engineer** who types really, really fast.
+It feels less like "chatting with a bot" and more like **pair programming with a senior engineer** who works alongside you at lightning speed.
 
 ---
 
-## Features
+## ✨ Features
 
-- 🚀 **Autonomous Workflow Loop** — Cycles through Plan → Implement → Verify → Brainstorm → Commit
-- 🖥️ **Beautiful TUI Dashboard** — Monitor multiple projects simultaneously with Textual
-- 🌐 **HTTP API & WebSocket** — Remote monitoring, API access, and real-time updates
-- 🧠 **Pluggable Backends** — Gemini, Claude Code, OpenCode, and Qwen with fallback chains
-- ✅ **Automated Verification** — Runs tests, linters, and builds; auto-fixes failures
-- 📝 **Living Roadmap** — The agent reads `ROADMAP.md` to decide what to work on next
-- 🌿 **Git Branch Strategy** — Automatic feature branches with optional auto-merge
-- 💰 **Cost Tracking** — Monitor API spending with budget limits and alerts
-- 🎭 **Dry Run Mode** — Preview changes without modifying files
-- 🔄 **Checkpoint Rollback** — Save and restore project states at any point
+- 🔄 **Autonomous Workflow Loop** — Cycles through **Plan → Implement → Verify → Brainstorm → Commit**.
+- 🖥️ **Beautiful TUI Dashboard** — Monitor multiple projects simultaneously with a rich terminal UI built on Textual.
+- 🔌 **Pluggable Backends** — Supports **Gemini, Claude Code, OpenCode**, and others. Define fallback chains to ensure high availability.
+- ✅ **Automated Verification** — Automatically runs tests, linters, and builds. The agent auto-fixes failures in a tight loop.
+- 📝 **Living Roadmap** — Development is driven entirely by a `ROADMAP.md`. The agent autonomously reads your "Current Sprint" to decide what to build next.
+- 🌿 **Git Integration** — Automatic feature branching, staging, and conventional commit generation.
+- 💰 **Cost Tracking & Budgets** — Track your API spend down to the penny. Set daily budgets and automatically pause the agent if limits are reached.
+- 🧠 **Idea Queue (Brainstorming)** — A persistent queue for features and ideas that the agent will explore and prioritize.
+- 🏗️ **Project Templates & Workspaces** — Share configurations and manage multiple project contexts effortlessly.
+- 📊 **Productivity Metrics** — Measure feature delivery duration, token usage, and overall success rates.
+- 🎭 **Dry Run Mode** — Preview what the agent *would* do without touching your file system.
+- 🌐 **HTTP API & Web Server** — Expose Agent Pump's state via FastAPI for remote monitoring and integrations.
 
 See [docs/features.md](docs/features.md) for the complete feature list with configuration examples.
 
 ---
 
-## Quick Start
+## ⚡ Quick Start
+
+**Prerequisites:** You must have **Python 3.12+** and **[uv](https://github.com/astral-sh/uv)** installed before proceeding.
 
 ```bash
-# Clone and install
+# Clone the repository
 git clone https://github.com/yourusername/agent-pump.git
 cd agent-pump
-uv sync
 
-# Launch the TUI
-uv run agent-pump
+# Install dependencies and sync environment
+uv sync
 ```
 
 ### Your First Project
 
-1. Ensure your project has a `ROADMAP.md` with a "Current Sprint" section:
-   ```markdown
-   ## Current Sprint
-   ### 🔴 Add Login Page
-   Create a login page with email and password fields.
+The easiest way to get started is by using the `init` command inside any project directory. This will automatically generate a sample `ROADMAP.md` and default configuration.
+
+```bash
+# Initialize a new project with example content
+mkdir my-new-project
+cd my-new-project
+uv run agent-pump init --example
+```
+
+1. **Set your API Key**: Backends require an API key to function. Set it as an environment variable:
+   ```bash
+   export GOOGLE_API_KEY="your_api_key"
+   # or
+   export ANTHROPIC_API_KEY="your_api_key"
    ```
+2. **Describe your feature**: Open the generated `ROADMAP.md` and define what you want to build under "Current Sprint".
+3. **Launch the TUI**: Run `uv run agent-pump` from your project directory.
+4. **Start the Engine**: 
+   - Press `a` in the TUI to add your project directory.
+   - Press `s` to start the workflow.
+5. **Sit back and review**: Watch as Agent Pump plans, implements, verifies, and commits your code autonomously.
 
-2. Press `a` in the TUI to add your project directory
-3. Press `s` to start the workflow
-4. Watch as Agent Pump plans, implements, verifies, and commits
-
-### Key Bindings
+### TUI Key Bindings
 
 | Key | Action |
 |-----|--------|
@@ -86,9 +101,9 @@ uv run agent-pump
 
 ---
 
-## How It Works
+## ⚙️ How It Works
 
-Agent Pump implements a state machine that models the software engineering lifecycle:
+Agent Pump implements a state machine that models the professional software engineering lifecycle:
 
 ```mermaid
 graph LR
@@ -101,35 +116,84 @@ graph LR
     F --> A
 ```
 
-1. **Plan** — Analyzes the codebase and creates an implementation plan
-2. **Implement** — Writes code following the plan
-3. **Verify** — Runs tests and linters; loops back on failure
-4. **Brainstorm** — Reviews work and updates the roadmap
-5. **Commit** — Stages and commits with a conventional commit message
+1. **Plan** — Analyzes the codebase and `ROADMAP.md` to create an implementation plan.
+2. **Implement** — Writes the code following the approved plan using the configured AI backend.
+3. **Verify** — Runs your configured build, lint, and test commands. If any fail, it feeds the errors back to the AI for auto-fixing.
+4. **Brainstorm** — Reviews completed work and updates the roadmap or idea queues.
+5. **Commit** — Stages and commits changes with a conventional commit message.
 
 ---
 
-## CLI Reference
+## 💻 CLI Reference
+
+Agent Pump features a robust CLI to manage every aspect of your agentic workflow.
+
+### Core Commands
 
 ```bash
-# Project management
-uv run agent-pump project add ./my-project
-uv run agent-pump project list
-uv run agent-pump project bootstrap ./my-project
+# Launch the rich terminal interface
+uv run agent-pump
 
-# Chat with your codebase
-uv run agent-pump ask "How does the event bus work?" ./my-project
+# Initialize a new project
+uv run agent-pump init ./my-project --example
 
-# Web server mode
-uv run agent-pump --web --web-port 8080
+# Headless mode (e.g., for CI/CD) and Dry-runs
+uv run agent-pump ./my-project --no-tui --dry-run
 
-# Headless mode (CI/CD)
-uv run agent-pump ./my-project --headless --dry-run
+# Run the web server (default port 8000)
+uv run agent-pump --web --web-port 8000
+
+# Chat directly with your codebase
+uv run agent-pump ask "How does the orchestrator work?" ./my-project
 ```
+
+### Management Subcommands
+
+**Projects & Workspaces**
+```bash
+uv run agent-pump project add ./my-project
+uv run agent-pump workspace create "personal-projects"
+uv run agent-pump workspace switch "personal-projects"
+```
+
+**Verification Setup**
+```bash
+uv run agent-pump verification detect ./my-project
+uv run agent-pump verification set-test ./my-project "uv run pytest"
+uv run agent-pump verification set-lint ./my-project "uv run ruff check ."
+```
+
+**Cost & Budgets**
+```bash
+uv run agent-pump cost show
+uv run agent-pump cost breakdown
+uv run agent-pump budget set --daily 10.00 --action pause
+```
+
+**Metrics & Health**
+```bash
+uv run agent-pump metrics show --period week
+uv run agent-pump health
+```
+
+**Idea Queues (Brainstorming)**
+```bash
+uv run agent-pump ideas add "Implement OAuth2 login" --priority 5
+uv run agent-pump ideas list
+```
+
+**Templates & Workflows**
+```bash
+uv run agent-pump template list
+uv run agent-pump template apply basic-python ./my-project
+uv run agent-pump workflow select ./my-project default
+```
+
+*For detailed help on any command, append `--help` (e.g., `uv run agent-pump workspace --help`).*
 
 ---
 
-## Development
+## 🛠️ Development
 
 ### Prerequisites
 
@@ -153,7 +217,7 @@ uv run pyright
 
 ---
 
-## Documentation
+## 📚 Documentation
 
 | Document | Description |
 |----------|-------------|
@@ -163,16 +227,14 @@ uv run pyright
 | [docs/config.md](docs/config.md) | Complete configuration reference |
 | [ROADMAP.md](ROADMAP.md) | Active development plan |
 | [docs/api.md](docs/api.md) | HTTP API documentation |
-| [CHANGELOG.md](CHANGELOG.md) | Version history and release notes |
-| [SECURITY.md](SECURITY.md) | Security policy and reporting |
 
 ---
 
-## Contributing
+## 🤝 Contributing
 
-We're building the future of agentic coding. Contributions welcome!
+We're building the future of agentic coding. Contributions are welcome!
 
-Please read [BEST_PRACTICES.md](BEST_PRACTICES.md) before submitting a PR.
+Please read [BEST_PRACTICES.md](BEST_PRACTICES.md) before submitting a PR to understand the system's architecture and coding standards.
 
 ---
 
