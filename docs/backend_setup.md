@@ -403,7 +403,7 @@ uv run agent-pump budget enable
 uv run agent-pump budget config --weekly 50 --monthly 200
 ```
 
-See [FEATURES.md](FEATURES.md#cost-tracking) for detailed cost tracking documentation.
+See [features.md](features.md#cost-tracking) for detailed cost tracking documentation.
 
 ## Next Steps
 

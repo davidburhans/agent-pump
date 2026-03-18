@@ -43,7 +43,7 @@ It feels less like "chatting with a bot" and more like **pair programming with a
 - 🎭 **Dry Run Mode** — Preview changes without modifying files
 - 🔄 **Checkpoint Rollback** — Save and restore project states at any point
 
-See [FEATURES.md](FEATURES.md) for the complete feature list with configuration examples.
+See [docs/features.md](docs/features.md) for the complete feature list with configuration examples.
 
 ---
 
@@ -157,10 +157,10 @@ uv run pyright
 
 | Document | Description |
 |----------|-------------|
-| [FEATURES.md](FEATURES.md) | Complete feature list with configuration examples |
+| [docs/features.md](docs/features.md) | Complete feature list with configuration examples |
 | [BEST_PRACTICES.md](BEST_PRACTICES.md) | Engineering philosophy and coding standards |
-| [BACKEND_SETUP.md](BACKEND_SETUP.md) | Backend configuration and setup guide |
-| [CONFIG.md](CONFIG.md) | Complete configuration reference |
+| [docs/backend_setup.md](docs/backend_setup.md) | Backend configuration and setup guide |
+| [docs/config.md](docs/config.md) | Complete configuration reference |
 | [ROADMAP.md](ROADMAP.md) | Active development plan |
 | [docs/api.md](docs/api.md) | HTTP API documentation |
 | [CHANGELOG.md](CHANGELOG.md) | Version history and release notes |

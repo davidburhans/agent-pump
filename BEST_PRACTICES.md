@@ -601,7 +601,7 @@ Before committing:
 - **Breaking Long Lines**: When fixing `E501` (line too long), ensure that split lines remain syntactically valid. For `patch.object` calls, use parentheses to wrap arguments across multiple lines.
 
 ### Documentation Synchronization
-- **Code vs Docs**: Always ensure `ROADMAP.md` and `FEATURES.md` are updated immediately after feature implementation. Code existing without documentation updates leads to confusion for future agents/developers.
+- **Code vs Docs**: Always ensure `ROADMAP.md` and `docs/features.md` are updated immediately after feature implementation. Code existing without documentation updates leads to confusion for future agents/developers.
 - **Audit Consistency**: When auditing features, check both the main feature description and any "Minor Issues" or summary sections to ensure they are consistent.
 
 ### Windows Subprocess & CLI Compatibility

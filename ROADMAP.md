@@ -1,6 +1,6 @@
 # Agent Pump - Roadmap
 
-This document tracks upcoming feature development for Agent Pump. For completed features, see [FEATURES.md](FEATURES.md).
+This document tracks upcoming feature development for Agent Pump. For completed features, see [docs/features.md](docs/features.md).
 
 ## Status Legend
 - 🔴 **Not Started** - Queued for development
@@ -1018,8 +1018,8 @@ Team collaboration features:
 When processing this roadmap:
 1. Select the first 🔴 **Not Started** item under "Current Sprint"
 2. Create `ENGINEERING_PLAN.md` with detailed implementation steps
-3. After implementation, update status to 🟡 then document in `FEATURES.md`
-4. Remove completed items from this file (they live in FEATURES.md)
+3. After implementation, update status to 🟡 then document in `docs/features.md`
+4. Remove completed items from this file (they live in docs/features.md)
 5. During brainstorm phase, add new valuable features
    - When adding a new feature, add it to the roadmap with a 🔴 status
    - When current sprint is empty, select the first 🔴 item and move it to current sprint and expand upon it with more details.

@@ -9,8 +9,8 @@ Agent Pump is a comprehensive orchestration platform designed to turn AI coding 
 The heart of Agent Pump is its recursive 5-phase workflow loop.
 
 ### 1. Planning Phase 📋
-- **Description**: The agent reads your `ROADMAP.md` and generates a detailed `ENGINEERING_PLAN.md`. It breaks down high-level feature requests into actionable coding tasks.
-- **Usage**: Automatically starts when a project is run. Ensure your `ROADMAP.md` has a clear "Current Sprint" section.
+- **Description**: The agent reads your `../ROADMAP.md` and generates a detailed `../ENGINEERING_PLAN.md`. It breaks down high-level feature requests into actionable coding tasks.
+- **Usage**: Automatically starts when a project is run. Ensure your `../ROADMAP.md` has a clear "Current Sprint" section.
 - **Implementation Status**: ✅ Fully implemented
   - Code: `src/agent_pump/orchestrator/workflow.py` (lines 1171+)
   - Tests: `tests/unit/test_workflow.py`
@@ -18,7 +18,7 @@ The heart of Agent Pump is its recursive 5-phase workflow loop.
   - CLI: Automatic via workflow execution
 
 ### 2. Implementation Phase 🔨
-- **Description**: The agent executes the plan, writing code, creating files, and refactoring existing logic. It uses the `ENGINEERING_PLAN.md` as its guide.
+- **Description**: The agent executes the plan, writing code, creating files, and refactoring existing logic. It uses the `../ENGINEERING_PLAN.md` as its guide.
 - **Usage**: Follows the Planning phase automatically.
 - **Implementation Status**: ✅ Fully implemented
   - Code: `src/agent_pump/orchestrator/workflow.py` (run_phase method)
@@ -28,7 +28,7 @@ The heart of Agent Pump is its recursive 5-phase workflow loop.
 
 ### 3. Verification Phase ✅
 - **Description**: A two-stage verification process:
-    1. **AI Verification**: The agent reviews its own code against `BEST_PRACTICES.md`.
+    1. **AI Verification**: The agent reviews its own code against `../BEST_PRACTICES.md`.
     2. **System Verification**: Runs your configured build, lint, and test commands.
 - **Usage**: Configure commands via CLI or `.agent-pump/config.yml`.
     ```bash
@@ -41,7 +41,7 @@ The heart of Agent Pump is its recursive 5-phase workflow loop.
   - TUI: Verification config modal accessible
 
 ### 4. Brainstorming Phase 💡
-- **Description**: The agent reflects on the completed work and updates `ROADMAP.md` with new ideas, refactoring needs, or future tasks. You can also inject your own ideas into this phase.
+- **Description**: The agent reflects on the completed work and updates `../ROADMAP.md` with new ideas, refactoring needs, or future tasks. You can also inject your own ideas into this phase.
 - **Usage**: 
     - **Inject Idea**: Press `i` in the TUI to add an idea that the agent will consider during the next brainstorming phase.
 - **Implementation Status**: ✅ Fully implemented
@@ -540,7 +540,7 @@ Configure exactly how the agent verifies your code.
 ### "Idea Queue" Injection
 You can "pair program" with the agent by feeding it ideas while it works.
 - **Feature**: Queue an idea (e.g., "Make sure to handle edge case X") via the TUI.
-- **Result**: When the agent reaches the **Brainstorming** phase, it will read your queued ideas and incorporate them into the `ROADMAP.md` or next steps.
+- **Result**: When the agent reaches the **Brainstorming** phase, it will read your queued ideas and incorporate them into the `../ROADMAP.md` or next steps.
 
 ### Audit Status: ✅ Fully implemented
 - **Implementation**: `src/agent_pump/services/idea_service.py`, `src/agent_pump/tui/screens/idea_input_modal.py`
@@ -1093,7 +1093,7 @@ Templates are stored in `~/.config/agent-pump/templates/` as JSON files. User te
 
 ## 🚀 Project Bootstrap
 
-Quickly bootstrap existing projects with AI-generated `ROADMAP.md` and `BEST_PRACTICES.md` files, allowing you to start using Agent Pump on any project immediately.
+Quickly bootstrap existing projects with AI-generated `../ROADMAP.md` and `../BEST_PRACTICES.md` files, allowing you to start using Agent Pump on any project immediately.
 
 ### Features
 - **Automatic Project Analysis**: Detects project type (Python, Node.js, Rust, Go, Java), framework, and structure
@@ -1970,7 +1970,7 @@ Automate code reviews and ensure quality standards before merging changes.
 - **Description**: Automatically reviews code changes for quality issues, best practice violations, and potential bugs before merging.
 - **Features**:
     - **Code Quality Analysis**: Runs configured linters (ruff, flake8, mypy) to detect issues.
-    - **Best Practices Check**: Verifies changes against requirements in `BEST_PRACTICES.md`.
+    - **Best Practices Check**: Verifies changes against requirements in `../BEST_PRACTICES.md`.
     - **AI Assistance**: Uses AI to analyze code logic and suggest refactoring or improvements.
     - **Workflow Integration**: Runs automatically in the **Reviewing** phase.
     - **Merge Blocking**: Defer auto-merge until review passes (if enabled).

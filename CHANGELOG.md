@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 - **README.md** - Quick start guide and feature overview
-- **FEATURES.md** - Complete feature list with configuration examples
+- **docs/features.md** - Complete feature list with configuration examples
 - **BEST_PRACTICES.md** - Engineering philosophy and coding standards
 - **docs/api.md** - HTTP API and WebSocket documentation
 - **docs/verification_commands.md** - Verification commands reference

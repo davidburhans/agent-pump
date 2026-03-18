@@ -132,7 +132,7 @@ backends:
     max_retries: 3
 ```
 
-See [Backend Setup Guide](BACKEND_SETUP.md) for detailed setup instructions.
+See [backend_setup.md](backend_setup.md) for detailed setup instructions.
 
 ## Workflow Configuration
 
@@ -481,7 +481,7 @@ api:
 5. Run your first workflow!
 
 For more information:
-- [README.md](README.md)
-- [FEATURES.md](FEATURES.md)
-- [Backend Setup Guide](BACKEND_SETUP.md)
+- [README.md](../README.md)
+- [features.md](features.md)
+- [backend_setup.md](backend_setup.md)
 - [API Documentation](docs/api.md)
