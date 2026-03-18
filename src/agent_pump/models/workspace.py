@@ -14,10 +14,10 @@ from .cost_tracking import BudgetConfig
 from .execution_queue import ExecutionQueueConfig, ExecutionQueueItem, QueuePriority, QueueStatus
 from .file_watcher_config import FileWatcherConfig
 from .github_integration import GitHubIntegrationConfig
+from .notification_config import NotificationConfig
 from .tool_security import ToolSecurityConfig
 from .verification_config import VerificationConfig
 from .webhook_config import WebhookConfig
-from .notification_config import NotificationConfig
 
 logger = logging.getLogger(__name__)
 
@@ -307,9 +307,7 @@ class Workspace(BaseModel):
         default_factory=PhaseBackends,
         description="Default backend config for new projects",
     )
-    safety: SafetyConfig = Field(
-        default_factory=SafetyConfig, description="Global safety settings"
-    )
+    safety: SafetyConfig = Field(default_factory=SafetyConfig, description="Global safety settings")
     global_prompt_settings: GlobalPromptSettings = Field(
         default_factory=GlobalPromptSettings,
         description="Global prompt prefix/suffix per engine and model",

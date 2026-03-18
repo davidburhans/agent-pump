@@ -22,14 +22,11 @@ class FailureParser:
         # Python
         (r"(\w+Error): (.+)", "python_error"),
         (r"FAILED (.+\.py)::(\w+)", "pytest_failure"),
-
         # JavaScript
         (r"error TS(\d+): (.+)", "typescript_error"),
         (r"✕ (.+)", "jest_failure"),
-
         # Rust
         (r"error\[E(\d+)\]: (.+)", "rust_error"),
-
         # Generic
         (r"(?i)\berror: (.+)", "generic_error"),
     ]

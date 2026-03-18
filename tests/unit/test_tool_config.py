@@ -22,11 +22,7 @@ def test_tool_argument_validation():
 def test_tool_config_validation():
     """Test ToolConfig validation."""
     # Valid
-    config = ToolConfig(
-        name="my_tool",
-        description="A test tool",
-        command="./script.sh"
-    )
+    config = ToolConfig(name="my_tool", description="A test tool", command="./script.sh")
     assert config.name == "my_tool"
     assert config.command == "./script.sh"
     assert config.args == []
@@ -37,7 +33,7 @@ def test_tool_config_validation():
         name="my_tool",
         description="A test tool",
         command="./script.sh",
-        args=[ToolArgument(name="arg1")]
+        args=[ToolArgument(name="arg1")],
     )
     assert len(config.args) == 1
     assert config.args[0].name == "arg1"
@@ -45,11 +41,7 @@ def test_tool_config_validation():
 
 def test_get_command_args_list():
     """Test get_command_args with list input."""
-    config = ToolConfig(
-        name="my_tool",
-        description="test",
-        command="./script.sh"
-    )
+    config = ToolConfig(name="my_tool", description="test", command="./script.sh")
 
     cmd = config.get_command_args(["arg1", "arg2"])
     assert cmd == ["./script.sh", "arg1", "arg2"]
@@ -63,8 +55,8 @@ def test_get_command_args_dict():
         command="./script.sh",
         args=[
             ToolArgument(name="env", type="string"),
-            ToolArgument(name="verbose", type="boolean")
-        ]
+            ToolArgument(name="verbose", type="boolean"),
+        ],
     )
 
     # Matching args
@@ -84,12 +76,7 @@ def test_tool_argument_validation_regex():
 
 def test_tool_config_sandbox():
     """Test that sandbox field is correctly stored."""
-    config = ToolConfig(
-        name="test",
-        description="test",
-        command="echo",
-        sandbox=True
-    )
+    config = ToolConfig(name="test", description="test", command="echo", sandbox=True)
     assert config.sandbox is True
 
 

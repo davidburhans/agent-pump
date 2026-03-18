@@ -61,11 +61,7 @@ async def test_get_project_tools_from_config(server, mock_project_service, mock_
     mock_project_service.workflows = {project_path: mock_workflow}
 
     # Setup tools in config
-    tool_config = ToolConfig(
-        name="test_tool",
-        description="A test tool",
-        command="./test.sh"
-    )
+    tool_config = ToolConfig(name="test_tool", description="A test tool", command="./test.sh")
     mock_workflow.config.tools = [tool_config]
 
     # Test
@@ -92,7 +88,7 @@ async def test_get_project_tools_implicit(server, mock_project_service, mock_wor
     project_path_resolved = project_path.resolve()
 
     mock_project_service.workflows = {project_path_resolved: mock_workflow}
-    mock_workflow.config.tools = [] # No explicit tools
+    mock_workflow.config.tools = []  # No explicit tools
 
     # Enable implicit discovery
     if not mock_workflow.project_config:
@@ -109,6 +105,7 @@ async def test_get_project_tools_implicit(server, mock_project_service, mock_wor
     assert tools[0].name == "my_script"
 
     import sys
+
     assert tools[0].command == f"{sys.executable} .agent-pump/tools/my_script.py"
 
 
@@ -118,11 +115,7 @@ async def test_execute_tool_success(server, mock_project_service, mock_workflow)
     project_path = Path("/tmp/project")
     mock_project_service.workflows = {project_path: mock_workflow}
 
-    tool_config = ToolConfig(
-        name="test_tool",
-        description="test",
-        command="./test.sh"
-    )
+    tool_config = ToolConfig(name="test_tool", description="test", command="./test.sh")
 
     # Mock subprocess
     with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_exec:
@@ -148,11 +141,7 @@ async def test_execute_tool_failure(server, mock_project_service, mock_workflow)
     project_path = Path("/tmp/project")
     mock_project_service.workflows = {project_path: mock_workflow}
 
-    tool_config = ToolConfig(
-        name="test_tool",
-        description="test",
-        command="./test.sh"
-    )
+    tool_config = ToolConfig(name="test_tool", description="test", command="./test.sh")
 
     with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_exec:
         process = AsyncMock()

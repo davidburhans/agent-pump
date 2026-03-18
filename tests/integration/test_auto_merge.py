@@ -92,9 +92,7 @@ class TestAutoMergeWorkflow:
         github_config = GitHubIntegrationConfig(pr_review_config=review_config)
 
         project_config = ProjectConfig(
-            path=project_path,
-            branch_strategy=branch_config,
-            github_integration=github_config
+            path=project_path, branch_strategy=branch_config, github_integration=github_config
         )
 
         workflow = ProjectWorkflow(project=project, project_config=project_config)
@@ -162,9 +160,7 @@ class TestAutoMergeWorkflow:
         github_config = GitHubIntegrationConfig(pr_review_config=review_config)
 
         project_config = ProjectConfig(
-            path=project_path,
-            branch_strategy=branch_config,
-            github_integration=github_config
+            path=project_path, branch_strategy=branch_config, github_integration=github_config
         )
 
         workflow = ProjectWorkflow(project=project, project_config=project_config)

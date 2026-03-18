@@ -1936,11 +1936,19 @@ def disable_schedule(schedule_id: str) -> None:
 
 
 @schedule_group.command(name="add")
-@click.argument("project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path))
+@click.argument(
+    "project_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path)
+)
 @click.option("--cron", type=str, help="Cron expression (e.g. '0 2 * * *')")
 @click.option("--interval", type=int, help="Interval in minutes")
-@click.option("--working-hours/--no-working-hours", default=False, help="Run only during working hours (9am-5pm)")
-def add_schedule(project_path: Path, cron: str | None, interval: int | None, working_hours: bool) -> None:
+@click.option(
+    "--working-hours/--no-working-hours",
+    default=False,
+    help="Run only during working hours (9am-5pm)",
+)
+def add_schedule(
+    project_path: Path, cron: str | None, interval: int | None, working_hours: bool
+) -> None:
     """Add a schedule for a project."""
     import asyncio
 
@@ -1977,7 +1985,7 @@ def add_schedule(project_path: Path, cron: str | None, interval: int | None, wor
             schedule_type=schedule_type,
             cron_expression=cron,
             interval_minutes=interval,
-            working_hours_only=working_hours
+            working_hours_only=working_hours,
         )
 
         await scheduler.add_schedule(schedule)

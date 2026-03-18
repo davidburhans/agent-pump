@@ -1,4 +1,3 @@
-
 import asyncio
 import unittest
 from pathlib import Path
@@ -19,15 +18,13 @@ class TestBranchCreationFailure(unittest.TestCase):
             name="Test",
             path=self.project_path,
             status=ProjectStatus.IDLE,
-            current_feature="New Feature"
+            current_feature="New Feature",
         )
         self.config = ProjectConfig(
             path=self.project_path,
             branch_strategy=BranchStrategyConfig(
-                enabled=True,
-                auto_create_branch=True,
-                base_branch="main"
-            )
+                enabled=True, auto_create_branch=True, base_branch="main"
+            ),
         )
 
     @patch("agent_pump.orchestrator.workflow.BranchManager")
@@ -41,10 +38,7 @@ class TestBranchCreationFailure(unittest.TestCase):
         # Simulate exception during branch creation
         mock_manager.create_feature_branch.side_effect = Exception("Git error: conflict")
 
-        workflow = ProjectWorkflow(
-            project=self.project,
-            project_config=self.config
-        )
+        workflow = ProjectWorkflow(project=self.project, project_config=self.config)
 
         # Mock dependencies
         workflow._read_file_content = AsyncMock(return_value="New Feature")
@@ -80,6 +74,7 @@ class TestBranchCreationFailure(unittest.TestCase):
                 found_error = True
                 break
         self.assertTrue(found_error, "Error message 'Branch creation failed' not emitted")
+
 
 if __name__ == "__main__":
     unittest.main()

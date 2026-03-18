@@ -19,7 +19,7 @@ async def test_execute_command_cleanup_docker():
     mock_process.returncode = None
 
     async def async_communicate():
-        await asyncio.sleep(0.2) # Simulate work longer than timeout
+        await asyncio.sleep(0.2)  # Simulate work longer than timeout
         return (b"", b"")
 
     async def async_wait():
@@ -42,31 +42,26 @@ async def test_execute_command_cleanup_docker():
         if "run" in cmd:
             return mock_process
         elif "rm" in cmd:
-             return mock_cleanup_process
+            return mock_cleanup_process
         return mock_process
 
     # Patch create_subprocess_exec
     # Note: We patch it via asyncio directly as that's how it's accessed
     with patch(
         "agent_pump.utils.execution.asyncio.create_subprocess_exec",
-        side_effect=create_subprocess_exec
+        side_effect=create_subprocess_exec,
     ):
         # Patch shutil.which to simulate docker installed
         with patch("agent_pump.utils.execution.shutil.which", return_value="/usr/bin/docker"):
-             # Patch SubprocessManager.create_subprocess_exec used for cleanup
-             with patch(
-                 "agent_pump.utils.subprocess_manager.asyncio.create_subprocess_exec",
-                 side_effect=create_subprocess_exec
-             ) as mock_cleanup_exec:
-
+            # Patch SubprocessManager.create_subprocess_exec used for cleanup
+            with patch(
+                "agent_pump.utils.subprocess_manager.asyncio.create_subprocess_exec",
+                side_effect=create_subprocess_exec,
+            ) as mock_cleanup_exec:
                 # Execute command with short timeout to trigger termination
                 # timeout=0.1, communicate takes 0.2
                 success, _, stderr, _, _ = await SecureExecutor.execute_command(
-                    "echo hello",
-                    Path("."),
-                    sandbox=True,
-                    timeout=0.1,
-                    sandbox_image="alpine"
+                    "echo hello", Path("."), sandbox=True, timeout=0.1, sandbox_image="alpine"
                 )
 
                 assert success is False
@@ -82,7 +77,7 @@ async def test_execute_command_cleanup_docker():
                 assert len(run_calls) > 0, "Docker run command not found"
 
                 run_call = run_calls[0]
-                args = run_call[0] # Tuple of args
+                args = run_call[0]  # Tuple of args
                 # args is ('docker', 'run', ...)
                 assert "--name" in args, "Docker run should have --name argument"
 
@@ -97,6 +92,7 @@ async def test_execute_command_cleanup_docker():
                 assert len(rm_calls) > 0, "Cleanup command (docker rm) was not executed"
                 rm_args = rm_calls[0][0]
                 assert rm_args == ("docker", "rm", "-f", container_name)
+
 
 if __name__ == "__main__":
     pytest.main([__file__])

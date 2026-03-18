@@ -1,6 +1,9 @@
 """FastAPI server with lifespan management."""
 
+import hashlib
 import logging
+import os
+import secrets
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -14,19 +17,17 @@ from fastapi.staticfiles import StaticFiles
 
 from agent_pump import __version__
 from agent_pump.api.middleware.auth import AuthMiddleware
-from agent_pump.api.middleware.cors import get_cors_config, get_cors_config_secure
+from agent_pump.api.middleware.cors import get_cors_config_secure
 from agent_pump.api.routes.health import router as health_router
 from agent_pump.api.routes.metrics import router as metrics_router
 from agent_pump.api.routes.projects import router as projects_router
 from agent_pump.api.routes.webhooks import router as webhooks_router
-from agent_pump.api.routes.websocket import router as websocket_router, manager as websocket_manager
+from agent_pump.api.routes.websocket import manager as websocket_manager
+from agent_pump.api.routes.websocket import router as websocket_router
 from agent_pump.communication.callback_server import router as callback_router
 from agent_pump.communication.mcp_server import AgentPumpMCPServer
 from agent_pump.events.bus import EventBus
 from agent_pump.models.app_state import AppState
-import os
-import secrets
-import hashlib
 
 if TYPE_CHECKING:
     pass

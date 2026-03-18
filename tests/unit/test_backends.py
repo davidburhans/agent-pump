@@ -153,7 +153,9 @@ async def test_gemini_run_no_auto_approve(gemini_backend, sample_project_path):
         patch("agent_pump.backends.gemini.cached_which", return_value="/usr/bin/gemini"),
     ):
         lines = []
-        async for line in gemini_backend.run(sample_project_path, "Test prompt", auto_approve=False):
+        async for line in gemini_backend.run(
+            sample_project_path, "Test prompt", auto_approve=False
+        ):
             lines.append(line)
 
         # Should have warning

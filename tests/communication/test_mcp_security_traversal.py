@@ -1,13 +1,11 @@
-import asyncio
+import os
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-import os
 
 from agent_pump.communication.mcp_server import AgentPumpMCPServer
-from agent_pump.models.tool_config import ToolConfig, ToolArgument
-from agent_pump.models.workspace import ProjectConfig
+from agent_pump.models.tool_config import ToolArgument, ToolConfig
 from agent_pump.models.tool_security import ToolSecurityConfig
 
 
@@ -34,12 +32,10 @@ async def test_path_traversal_allowed_by_default_on_unsandboxed_tool(server, moc
     project_path = Path("/tmp/test_project")
 
     mock_workflow = MagicMock()
-    mock_config = MagicMock() # ProjectConfig
+    mock_config = MagicMock()  # ProjectConfig
 
     tool_security = ToolSecurityConfig(
-        enabled=True,
-        allow_unsandboxed_tools=True,
-        allowed_path_patterns=["**"]
+        enabled=True, allow_unsandboxed_tools=True, allowed_path_patterns=["**"]
     )
 
     mock_config.tool_security = tool_security
@@ -54,9 +50,7 @@ async def test_path_traversal_allowed_by_default_on_unsandboxed_tool(server, moc
         command="cat",
         working_dir=".",
         sandbox=False,
-        args=[
-            ToolArgument(name="file", type="string")
-        ]
+        args=[ToolArgument(name="file", type="string")],
     )
 
     # 3. Call with traversal payload
@@ -68,9 +62,10 @@ async def test_path_traversal_allowed_by_default_on_unsandboxed_tool(server, moc
         process_mock.returncode = 0
         process_mock.pid = 12345
 
-        with patch("agent_pump.utils.subprocess_manager.subprocess_manager.track_process"), \
-             patch("agent_pump.utils.subprocess_manager.subprocess_manager.untrack_process"):
-
+        with (
+            patch("agent_pump.utils.subprocess_manager.subprocess_manager.track_process"),
+            patch("agent_pump.utils.subprocess_manager.subprocess_manager.untrack_process"),
+        ):
             result = await server._execute_tool(tool_config, [traversal_arg], project_path)
 
             # 4. Assert that the command was BLOCKED
@@ -89,9 +84,7 @@ async def test_valid_content_with_dots_allowed(server, mock_app_state):
     mock_config = MagicMock()
 
     tool_security = ToolSecurityConfig(
-        enabled=True,
-        allow_unsandboxed_tools=True,
-        allowed_path_patterns=["**"]
+        enabled=True, allow_unsandboxed_tools=True, allowed_path_patterns=["**"]
     )
     mock_config.tool_security = tool_security
     mock_workflow.project_config = mock_config
@@ -103,7 +96,7 @@ async def test_valid_content_with_dots_allowed(server, mock_app_state):
         command="tee file.py",
         working_dir=".",
         sandbox=False,
-        args=[ToolArgument(name="content", type="string")]
+        args=[ToolArgument(name="content", type="string")],
     )
 
     # Content that looks like traversal if interpreted as path
@@ -115,9 +108,10 @@ async def test_valid_content_with_dots_allowed(server, mock_app_state):
         process_mock.returncode = 0
         process_mock.pid = 67890
 
-        with patch("agent_pump.utils.subprocess_manager.subprocess_manager.track_process"), \
-             patch("agent_pump.utils.subprocess_manager.subprocess_manager.untrack_process"):
-
+        with (
+            patch("agent_pump.utils.subprocess_manager.subprocess_manager.track_process"),
+            patch("agent_pump.utils.subprocess_manager.subprocess_manager.untrack_process"),
+        ):
             result = await server._execute_tool(tool_config, [content_arg], project_path)
 
             # 4. Assert that the command WAS executed (allowed)
@@ -132,7 +126,6 @@ async def test_symlink_project_path_support(server, mock_app_state):
     """
     # Create a temporary directory structure with symlinks
     import tempfile
-    import shutil
 
     with tempfile.TemporaryDirectory() as tmpdir:
         real_path = Path(tmpdir) / "real_project"
@@ -158,7 +151,11 @@ async def test_symlink_project_path_support(server, mock_app_state):
         mock_app_state.project_service.workflows = {project_path: mock_workflow}
 
         tool_config = ToolConfig(
-            name="ls", description="List directory", command="ls", sandbox=False, args=[ToolArgument(name="dir", type="string")]
+            name="ls",
+            description="List directory",
+            command="ls",
+            sandbox=False,
+            args=[ToolArgument(name="dir", type="string")],
         )
 
         # Argument is valid relative path
@@ -170,9 +167,10 @@ async def test_symlink_project_path_support(server, mock_app_state):
             process_mock.returncode = 0
             process_mock.pid = 11111
 
-            with patch("agent_pump.utils.subprocess_manager.subprocess_manager.track_process"), \
-                 patch("agent_pump.utils.subprocess_manager.subprocess_manager.untrack_process"):
-
+            with (
+                patch("agent_pump.utils.subprocess_manager.subprocess_manager.track_process"),
+                patch("agent_pump.utils.subprocess_manager.subprocess_manager.untrack_process"),
+            ):
                 result = await server._execute_tool(tool_config, [valid_arg], project_path)
 
                 # Should be allowed because "subdir" resolves to inside real_project

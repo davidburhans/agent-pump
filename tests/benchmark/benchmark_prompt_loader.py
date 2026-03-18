@@ -50,9 +50,7 @@ async def main():
         start = time.time()
 
         try:
-            await loader.build_prompt(
-                "planning", "gemini", "", context={"branch": "main"}
-            )
+            await loader.build_prompt("planning", "gemini", "", context={"branch": "main"})
 
         except Exception as e:
             print(f"Error: {e}")

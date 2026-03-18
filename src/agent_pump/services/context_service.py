@@ -6,7 +6,7 @@ from typing import Any
 import httpx
 from bs4 import BeautifulSoup
 
-from agent_pump.models.workspace import ProjectConfig, KnowledgeBaseConfig
+from agent_pump.models.workspace import KnowledgeBaseConfig, ProjectConfig
 from agent_pump.services.embeddings_service import EmbeddingsService
 from agent_pump.services.vector_store import VectorStore
 from agent_pump.utils.code_chunker import CodeChunker
@@ -38,13 +38,33 @@ class ContextService:
         logger.info("Indexing project...")
 
         # Determine files to index
-        ignore_dirs = {".git", ".agent-pump", "__pycache__", "node_modules", "venv", ".venv", "dist", "build"}
+        ignore_dirs = {
+            ".git",
+            ".agent-pump",
+            "__pycache__",
+            "node_modules",
+            "venv",
+            ".venv",
+            "dist",
+            "build",
+        }
         files_to_index: list[tuple[Path, str]] = []  # (path, type)
 
         # 1. Index codebase
-        allowed_extensions = {".py", ".md", ".js", ".ts", ".html", ".css", ".json", ".yml", ".yaml", ".toml"}
+        allowed_extensions = {
+            ".py",
+            ".md",
+            ".js",
+            ".ts",
+            ".html",
+            ".css",
+            ".json",
+            ".yml",
+            ".yaml",
+            ".toml",
+        }
         if self.kb_config.enabled:
-             allowed_extensions.update(self.kb_config.file_extensions)
+            allowed_extensions.update(self.kb_config.file_extensions)
 
         for path in self.project_path.rglob("*"):
             if path.is_dir():
@@ -79,9 +99,7 @@ class ContextService:
                 if key:
                     if key not in existing_items:
                         existing_items[key] = []
-                    existing_items[key].append(
-                        (chunk, self.vector_store.embeddings[i], meta)
-                    )
+                    existing_items[key].append((chunk, self.vector_store.embeddings[i], meta))
 
         new_store = VectorStore()
 
@@ -110,16 +128,14 @@ class ContextService:
                     if not chunk.strip():
                         continue
 
-                    embedding = await asyncio.to_thread(self.embeddings_service.generate_embeddings, chunk)
+                    embedding = await asyncio.to_thread(
+                        self.embeddings_service.generate_embeddings, chunk
+                    )
                     if embedding:
                         new_store.add(
                             chunk=chunk,
                             embedding=embedding,
-                            metadata={
-                                "file": rel_path,
-                                "mtime": current_mtime,
-                                "type": file_type
-                            },
+                            metadata={"file": rel_path, "mtime": current_mtime, "type": file_type},
                         )
             except Exception as e:
                 logger.warning(f"Failed to index {file_path}: {e}")
@@ -136,7 +152,7 @@ class ContextService:
     async def _index_external_resources(
         self,
         store: VectorStore,
-        existing_items: dict[str, list[tuple[str, list[float], dict[str, Any]]]]
+        existing_items: dict[str, list[tuple[str, list[float], dict[str, Any]]]],
     ) -> None:
         """Index configured external resources."""
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -161,22 +177,20 @@ class ContextService:
                     else:
                         text = response.text
 
-                    chunks = CodeChunker.chunk_content(text, "external.txt") # force text chunking
+                    chunks = CodeChunker.chunk_content(text, "external.txt")  # force text chunking
 
                     for chunk in chunks:
                         if not chunk.strip():
                             continue
 
-                        embedding = await asyncio.to_thread(self.embeddings_service.generate_embeddings, chunk)
+                        embedding = await asyncio.to_thread(
+                            self.embeddings_service.generate_embeddings, chunk
+                        )
                         if embedding:
                             store.add(
                                 chunk=chunk,
                                 embedding=embedding,
-                                metadata={
-                                    "file": url,
-                                    "type": "external_doc",
-                                    "source": "url"
-                                },
+                                metadata={"file": url, "type": "external_doc", "source": "url"},
                             )
 
                 except Exception as e:
@@ -209,10 +223,12 @@ class ContextService:
 
             header = f"File: {source}"
             if doc_type == "external_doc":
-                 header = f"External Resource: {source}"
+                header = f"External Resource: {source}"
             elif doc_type == "docs":
-                 header = f"Documentation: {source}"
+                header = f"Documentation: {source}"
 
-            context_chunks.append(f"{header}\nWait, Score: {res.score:.2f}\n```\n{res.content}\n```")
+            context_chunks.append(
+                f"{header}\nWait, Score: {res.score:.2f}\n```\n{res.content}\n```"
+            )
 
         return context_chunks

@@ -15,6 +15,7 @@ def test_defaults():
     assert config.sync_direction == "bidirectional"
     assert config.sync_interval_minutes == 30
 
+
 def test_custom_values():
     config = GitHubSyncConfig(
         enabled=True,

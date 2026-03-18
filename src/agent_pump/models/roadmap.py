@@ -20,9 +20,7 @@ class RoadmapItem(BaseModel):
     model_config = ConfigDict(strict=True)
 
     title: str = Field(description="Feature title")
-    status: RoadmapStatus = Field(
-        default=RoadmapStatus.NOT_STARTED, description="Current status"
-    )
+    status: RoadmapStatus = Field(default=RoadmapStatus.NOT_STARTED, description="Current status")
     priority: str = Field(default="Medium", description="Priority level")
     description: str = Field(default="", description="Detailed description")
     metadata: dict[str, str | int | bool] = Field(
@@ -56,6 +54,4 @@ class Roadmap(BaseModel):
     future_sprints: list[RoadmapItem] = Field(
         default_factory=list, description="Items planned for future sprints"
     )
-    deferred: list[RoadmapItem] = Field(
-        default_factory=list, description="Deferred items"
-    )
+    deferred: list[RoadmapItem] = Field(default_factory=list, description="Deferred items")

@@ -15,7 +15,7 @@ def test_create_fix_task(tmp_path):
         errors=[{"type": "python_error", "details": "Error: foo"}],
         raw_log="some log",
         suggested_fix="Fix foo",
-        run_id=123
+        run_id=123,
     )
 
     service.create_fix_task(project, failure_info, 123, 0)

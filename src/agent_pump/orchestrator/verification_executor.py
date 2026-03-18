@@ -1,12 +1,11 @@
 """Verification executor for running custom build, lint, and test commands."""
 
-import asyncio
 import logging
 from pathlib import Path
 from typing import NamedTuple
 
-from agent_pump.models.verification_config import VerificationConfig
 from agent_pump.models.tool_security import ToolSecurityConfig
+from agent_pump.models.verification_config import VerificationConfig
 from agent_pump.utils.execution import SecureExecutor
 
 logger = logging.getLogger(__name__)

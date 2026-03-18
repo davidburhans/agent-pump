@@ -27,9 +27,11 @@ async def test_gemini_run_stdin_write_failure(gemini_backend, sample_project_pat
 
     # Mock stdout to hang (to prove we don't wait for it)
     mock_stdout = MagicMock()
+
     async def slow_readline(*args, **kwargs):
         await asyncio.sleep(10)
         return b""
+
     mock_stdout.readline = AsyncMock(side_effect=slow_readline)
     mock_process.stdout = mock_stdout
 
@@ -55,14 +57,14 @@ async def test_gemini_run_stdin_write_failure(gemini_backend, sample_project_pat
             async for line in gemini_backend.run(sample_project_path, "prompt", timeout=1):
                 lines.append(line)
         except Exception:
-            pass # We expect it might fail or return error lines
+            pass  # We expect it might fail or return error lines
 
         # It should NOT timeout. If it timeouts, it means it waited unnecessarily.
         # The current implementation waits for timeout, so this assertion will fail,
         # confirming the bug.
-        assert not any(
-            "[TIMEOUT]" in line for line in lines
-        ), "Backend waited for timeout instead of aborting on stdin failure"
+        assert not any("[TIMEOUT]" in line for line in lines), (
+            "Backend waited for timeout instead of aborting on stdin failure"
+        )
 
         # Verify stdin write was attempted
         mock_process.stdin.write.assert_called_once()
@@ -102,7 +104,7 @@ async def test_gemini_run_track_failure(gemini_backend, sample_project_path):
     mock_process.pid = 12345
     mock_process.returncode = None
     mock_process.wait = AsyncMock()
-    mock_process.terminate = MagicMock() # standard terminate
+    mock_process.terminate = MagicMock()  # standard terminate
 
     # Always mock create_subprocess_exec as implementation uses it explicitly
     target = "asyncio.create_subprocess_exec"

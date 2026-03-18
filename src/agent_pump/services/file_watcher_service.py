@@ -134,15 +134,9 @@ class FileWatcherService(BaseService):
             # We filter config.ignore_patterns for simple directory names (no globs/slashes)
             ignore_dirs = [p for p in config.ignore_patterns if "/" not in p and "*" not in p]
 
-            watch_filter = DefaultFilter(
-                ignore_dirs=ignore_dirs
-            )
+            watch_filter = DefaultFilter(ignore_dirs=ignore_dirs)
 
-            async for changes in awatch(
-                path,
-                debounce=debounce_ms,
-                watch_filter=watch_filter
-            ):
+            async for changes in awatch(path, debounce=debounce_ms, watch_filter=watch_filter):
                 # Filter changes based on patterns and ignore_patterns
                 relevant_changes = []
                 for change_type, file_path in changes:

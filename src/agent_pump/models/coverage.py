@@ -9,9 +9,7 @@ from pydantic import BaseModel, Field
 class CoverageReportModel(BaseModel):
     """Model representing a code coverage report."""
 
-    total_coverage: float = Field(
-        ..., description="Total coverage percentage (0.0 to 100.0)"
-    )
+    total_coverage: float = Field(..., description="Total coverage percentage (0.0 to 100.0)")
     files: dict[str, float] = Field(
         default_factory=dict,
         description="Dictionary mapping file paths to their coverage percentage",
@@ -19,9 +17,7 @@ class CoverageReportModel(BaseModel):
     timestamp: datetime = Field(
         default_factory=datetime.now, description="When this report was generated"
     )
-    raw_output: str | None = Field(
-        default=None, description="Raw output from the coverage tool"
-    )
+    raw_output: str | None = Field(default=None, description="Raw output from the coverage tool")
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary suitable for JSON serialization."""

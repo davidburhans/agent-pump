@@ -158,6 +158,7 @@ class TestProjectWorkflowIsolated:
         mock_token_counter,
     ):
         """Test running a phase that fails (e.g. backend error)."""
+
         # Make backend raise an exception
         async def _run_error(*args, **kwargs):
             raise Exception("Backend Error")

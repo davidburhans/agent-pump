@@ -79,43 +79,56 @@ class ScheduleModal(ModalScreen[Schedule | None]):
                 ],
                 value=self.current_type.value,
                 id="schedule_type",
-                allow_blank=False
+                allow_blank=False,
             )
 
             with Vertical(id="cron-config"):
                 yield Label("Cron Expression:")
                 yield Input(
                     placeholder="0 2 * * * (min hour dom month dow)",
-                    value=self.existing_schedule.cron_expression if self.existing_schedule and self.existing_schedule.schedule_type == ScheduleType.CRON else "0 2 * * *",
-                    id="cron_expression"
+                    value=self.existing_schedule.cron_expression
+                    if self.existing_schedule
+                    and self.existing_schedule.schedule_type == ScheduleType.CRON
+                    else "0 2 * * *",
+                    id="cron_expression",
                 )
-                yield Static("Examples: '0 2 * * *' (2am daily), '0 0 * * 1-5' (midnight weekdays)", classes="help-text")
+                yield Static(
+                    "Examples: '0 2 * * *' (2am daily), '0 0 * * 1-5' (midnight weekdays)",
+                    classes="help-text",
+                )
 
             with Vertical(id="interval-config", classes="hidden"):
                 yield Label("Interval (minutes):")
                 yield Input(
                     placeholder="60",
-                    value=str(self.existing_schedule.interval_minutes) if self.existing_schedule and self.existing_schedule.schedule_type == ScheduleType.INTERVAL else "60",
+                    value=str(self.existing_schedule.interval_minutes)
+                    if self.existing_schedule
+                    and self.existing_schedule.schedule_type == ScheduleType.INTERVAL
+                    else "60",
                     id="interval_minutes",
-                    type="integer"
+                    type="integer",
                 )
 
             yield Label("Constraints:")
             yield Checkbox(
                 "Only during working hours (9am-5pm)",
-                value=self.existing_schedule.working_hours_only if self.existing_schedule else False,
-                id="working_hours"
+                value=self.existing_schedule.working_hours_only
+                if self.existing_schedule
+                else False,
+                id="working_hours",
             )
 
             yield Checkbox(
                 "Enabled",
                 value=self.existing_schedule.enabled if self.existing_schedule else True,
-                id="enabled"
+                id="enabled",
             )
 
             with Grid(id="dialog-buttons"):
                 yield Button("Cancel", variant="default", id="cancel")
-                yield Button("Delete", variant="error", id="delete", disabled=self.existing_schedule is None)
+                yield Button(
+                    "Delete", variant="error", id="delete", disabled=self.existing_schedule is None
+                )
                 yield Button("Save", variant="primary", id="save")
 
     def on_mount(self) -> None:
@@ -163,7 +176,9 @@ class ScheduleModal(ModalScreen[Schedule | None]):
                 "enabled": enabled,
                 "working_hours_only": working_hours,
                 "cron_expression": cron_expr if self.current_type == ScheduleType.CRON else None,
-                "interval_minutes": int(interval_mins_str) if self.current_type == ScheduleType.INTERVAL else None,
+                "interval_minutes": int(interval_mins_str)
+                if self.current_type == ScheduleType.INTERVAL
+                else None,
             }
 
             # If editing, preserve ID and timezone

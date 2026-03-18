@@ -59,9 +59,7 @@ class GitHubIssueSync:
                         issue = self._find_github_issue(item)
                         if issue and issue.state == "open":
                             issue.edit(state="closed")
-                            issue.create_comment(
-                                "✅ Closed by Agent Pump - feature completed!"
-                            )
+                            issue.create_comment("✅ Closed by Agent Pump - feature completed!")
 
     def _fetch_issues(self) -> list[Issue]:
         """Fetch open issues matching sync labels."""
@@ -100,7 +98,7 @@ class GitHubIssueSync:
             priority=priority,
             status=RoadmapStatus.NOT_STARTED,
             metadata={"github_issue": issue.number},
-            section="future"  # Default to future sprint
+            section="future",  # Default to future sprint
         )
 
     def _map_priority(self, labels: list[Any]) -> str:

@@ -31,7 +31,7 @@ async def test_execute_tool_with_tracking_and_timeout(server):
         command="echo hello",
         working_dir=".",
         sandbox=False,
-        timeout=30  # Custom timeout
+        timeout=30,  # Custom timeout
     )
 
     project_path = Path("/tmp/test_project")
@@ -45,16 +45,14 @@ async def test_execute_tool_with_tracking_and_timeout(server):
     # mock communicate to return immediately
     process_mock.communicate.return_value = (b"hello\n", b"")
 
-    with patch(
-        "asyncio.create_subprocess_exec", return_value=process_mock
-    ) as mock_exec, patch(
-        "agent_pump.utils.subprocess_manager.subprocess_manager.track_process"
-    ) as mock_track, patch(
-        "agent_pump.utils.subprocess_manager.subprocess_manager.untrack_process"
-    ) as mock_untrack, patch(
-        "asyncio.wait_for", side_effect=asyncio.wait_for
-    ) as mock_wait_for:
-
+    with (
+        patch("asyncio.create_subprocess_exec", return_value=process_mock) as mock_exec,
+        patch("agent_pump.utils.subprocess_manager.subprocess_manager.track_process") as mock_track,
+        patch(
+            "agent_pump.utils.subprocess_manager.subprocess_manager.untrack_process"
+        ) as mock_untrack,
+        patch("asyncio.wait_for", side_effect=asyncio.wait_for) as mock_wait_for,
+    ):
         # We wrap the real wait_for to spy on it, but wait_for needs a coroutine.
         # Easier to just verify arguments if we mock it completely, but we want the logic to run.
         # Let's mock it but return the result of the coroutine if timeout is not triggered.
@@ -80,7 +78,7 @@ async def test_execute_tool_with_tracking_and_timeout(server):
 
         # Verify timeout was used
         assert mock_wait_for.called
-        assert mock_wait_for.call_args[1]['timeout'] == 30
+        assert mock_wait_for.call_args[1]["timeout"] == 30
 
 
 @pytest.mark.asyncio
@@ -89,10 +87,7 @@ async def test_execute_tool_timeout_handling(server):
     Test that _execute_tool handles timeouts correctly.
     """
     tool_config = ToolConfig(
-        name="slow_tool",
-        description="Slow Tool",
-        command="sleep 10",
-        timeout=1
+        name="slow_tool", description="Slow Tool", command="sleep 10", timeout=1
     )
 
     project_path = Path("/tmp/test_project")
@@ -111,16 +106,17 @@ async def test_execute_tool_timeout_handling(server):
 
     process_mock.communicate.side_effect = timeout_communicate
 
-    with patch("asyncio.create_subprocess_exec", return_value=process_mock), patch(
-        "agent_pump.utils.subprocess_manager.subprocess_manager.track_process"
-    ), patch(
-        "agent_pump.utils.subprocess_manager.subprocess_manager.record_timeout"
-    ) as mock_rec_to, patch(
-        "agent_pump.utils.subprocess_manager.subprocess_manager.terminate_process"
-    ) as mock_term, patch(
-        "asyncio.wait_for", side_effect=asyncio.TimeoutError
+    with (
+        patch("asyncio.create_subprocess_exec", return_value=process_mock),
+        patch("agent_pump.utils.subprocess_manager.subprocess_manager.track_process"),
+        patch(
+            "agent_pump.utils.subprocess_manager.subprocess_manager.record_timeout"
+        ) as mock_rec_to,
+        patch(
+            "agent_pump.utils.subprocess_manager.subprocess_manager.terminate_process"
+        ) as mock_term,
+        patch("asyncio.wait_for", side_effect=asyncio.TimeoutError),
     ):  # Force TimeoutError
-
         result = await server._execute_tool(tool_config, [], project_path)
 
         # SecureExecutor returns timeout message in stderr

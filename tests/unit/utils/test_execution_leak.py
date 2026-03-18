@@ -1,12 +1,12 @@
 import asyncio
-import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from agent_pump.utils.execution import SecureExecutor
 from agent_pump.utils.subprocess_manager import SubprocessManager
+
 
 @pytest.mark.asyncio
 async def test_sandbox_cleanup_on_track_failure():
@@ -23,10 +23,10 @@ async def test_sandbox_cleanup_on_track_failure():
     async def _subprocess_exec(*args, **kwargs):
         # Check if cleanup command: docker rm -f <container_name>
         if len(args) > 1 and args[0] == "docker" and args[1] == "rm":
-             cleanup = AsyncMock()
-             cleanup.wait.return_value = None
-             cleanup_calls.append(args)
-             return cleanup
+            cleanup = AsyncMock()
+            cleanup.wait.return_value = None
+            cleanup_calls.append(args)
+            return cleanup
 
         return mock_process
 
@@ -34,14 +34,12 @@ async def test_sandbox_cleanup_on_track_failure():
     with patch("asyncio.create_subprocess_exec", side_effect=_subprocess_exec) as mock_exec:
         # Patch shutil.which
         with patch("shutil.which", return_value="/usr/bin/docker"):
-
             # Create a real manager instance but with failing track_process
             real_mgr = SubprocessManager()
             real_mgr.track_process = AsyncMock(side_effect=Exception("Failed to track"))
 
             # Patch subprocess_manager inside execution module to be our modified instance
             with patch("agent_pump.utils.execution.subprocess_manager", new=real_mgr):
-
                 cwd = Path("/tmp/project")
 
                 # Execute
@@ -50,7 +48,7 @@ async def test_sandbox_cleanup_on_track_failure():
                     cwd=cwd,
                     sandbox=True,
                     sandbox_image="python:3.11-slim",
-                    timeout=1
+                    timeout=1,
                 )
 
                 success, stdout, stderr, exit_code, duration = result

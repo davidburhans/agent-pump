@@ -19,6 +19,7 @@ def mock_project(tmp_path):
     project.config = MagicMock()
     return project
 
+
 @pytest.fixture
 def mock_workflow(mock_project):
     workflow = ProjectWorkflow(project=mock_project)
@@ -26,6 +27,7 @@ def mock_workflow(mock_project):
     # Mock workflow state
     workflow.workflow_state = MagicMock()
     return workflow
+
 
 @pytest.mark.asyncio
 async def test_workflow_creates_pr_on_commit(mock_workflow, mock_project):
@@ -46,6 +48,7 @@ async def test_workflow_creates_pr_on_commit(mock_workflow, mock_project):
         mock_pr_instance.create_pr.assert_called_once()
         mock_workflow._emit_output.assert_any_call("[SUCCESS] Created PR: http://pr.url\n")
 
+
 @pytest.mark.asyncio
 async def test_workflow_skips_pr_creation_if_disabled(mock_workflow, mock_project):
     # Disable PR creation
@@ -58,6 +61,7 @@ async def test_workflow_skips_pr_creation_if_disabled(mock_workflow, mock_projec
 
         assert success is True
         MockPRService.assert_not_called()
+
 
 @pytest.mark.asyncio
 async def test_workflow_skips_pr_creation_if_no_config(mock_workflow, mock_project):

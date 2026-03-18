@@ -1,12 +1,9 @@
-import asyncio
 import fnmatch
 import json
 import logging
 import os
 import re
-import shutil
 import sys
-import time
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -83,11 +80,7 @@ class AgentPumpMCPServer:
         )
 
         # If security is enabled (default) and unsandboxed tools are not allowed (default)
-        if (
-            tool_security
-            and tool_security.enabled
-            and not tool_security.allow_unsandboxed_tools
-        ):
+        if tool_security and tool_security.enabled and not tool_security.allow_unsandboxed_tools:
             safe_configs = []
             for config in configs:
                 if config.type == "stdio":
@@ -128,9 +121,7 @@ class AgentPumpMCPServer:
         if tool_security and tool_security.enabled and not tool_security.allow_unsandboxed_tools:
             for tool in tools:
                 if not tool.sandbox:
-                    logger.warning(
-                        f"Forcing sandbox for tool {tool.name} due to security policy."
-                    )
+                    logger.warning(f"Forcing sandbox for tool {tool.name} due to security policy.")
                     tool.sandbox = True
 
         # 2. Implicit tools from .agent-pump/tools/
@@ -291,7 +282,9 @@ class AgentPumpMCPServer:
                         resolved_path = (abs_project_path / check_val).resolve()
 
                         # Check if the resolved path is within the project root
-                        if os.path.commonpath([resolved_path, abs_project_path]) != str(abs_project_path):
+                        if os.path.commonpath([resolved_path, abs_project_path]) != str(
+                            abs_project_path
+                        ):
                             return f"Security Error: Argument {i} '{arg_val}' attempts to escape project root (path traversal)."
                     except OSError:
                         # If resolution fails (e.g. invalid characters, filename too long),
@@ -470,9 +463,7 @@ class AgentPumpMCPServer:
             return json.dumps([t.model_dump() for t in tools])
 
         @self.server.tool()
-        async def run_custom_tool(
-            project_id: str, tool_name: str, arguments: list[str]
-        ) -> str:
+        async def run_custom_tool(project_id: str, tool_name: str, arguments: list[str]) -> str:
             """
             Execute a custom tool.
 

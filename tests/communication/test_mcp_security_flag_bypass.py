@@ -1,13 +1,10 @@
-
-import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-import os
-import sys
 
 from agent_pump.communication.mcp_server import AgentPumpMCPServer
-from agent_pump.models.tool_config import ToolConfig, ToolArgument
+from agent_pump.models.tool_config import ToolArgument, ToolConfig
 from agent_pump.models.tool_security import ToolSecurityConfig
 
 
@@ -40,9 +37,7 @@ async def test_flag_argument_bypass_check(server, mock_app_state):
 
     # Enable unsandboxed tools to test the host path traversal check
     tool_security = ToolSecurityConfig(
-        enabled=True,
-        allow_unsandboxed_tools=True,
-        allowed_path_patterns=["**"]
+        enabled=True, allow_unsandboxed_tools=True, allowed_path_patterns=["**"]
     )
 
     mock_config.tool_security = tool_security
@@ -57,11 +52,11 @@ async def test_flag_argument_bypass_check(server, mock_app_state):
         description="Grep",
         command="grep",
         working_dir=".",
-        sandbox=False, # UNSANDBOXED
+        sandbox=False,  # UNSANDBOXED
         args=[
             ToolArgument(name="pattern", type="string"),
-            ToolArgument(name="file", type="string")
-        ]
+            ToolArgument(name="file", type="string"),
+        ],
     )
 
     # Exploit payload: Pass absolute path as a flag value
@@ -78,9 +73,10 @@ async def test_flag_argument_bypass_check(server, mock_app_state):
         process_mock.returncode = 0
         process_mock.pid = 12345
 
-        with patch("agent_pump.utils.subprocess_manager.subprocess_manager.track_process"), \
-             patch("agent_pump.utils.subprocess_manager.subprocess_manager.untrack_process"):
-
+        with (
+            patch("agent_pump.utils.subprocess_manager.subprocess_manager.track_process"),
+            patch("agent_pump.utils.subprocess_manager.subprocess_manager.untrack_process"),
+        ):
             # Execute
             result = await server._execute_tool(tool_config, [exploit_arg], project_path)
 

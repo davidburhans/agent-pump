@@ -58,7 +58,6 @@ A test feature to implement.
     return project_path
 
 
-
 @pytest.fixture(autouse=True, scope="session")
 def mock_app_paths(tmp_path_factory):
     """

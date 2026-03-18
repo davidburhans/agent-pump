@@ -1,18 +1,24 @@
 """Tests for ChatService default backend configuration."""
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+
 from pathlib import Path
-from agent_pump.services.chat_service import ChatService
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 from agent_pump.events.bus import EventBus
-from agent_pump.models.workspace import BackendInstance, BackendFallback, ProjectConfig, Workspace
+from agent_pump.models.workspace import BackendFallback, BackendInstance, ProjectConfig, Workspace
+from agent_pump.services.chat_service import ChatService
+
 
 @pytest.fixture
 def event_bus():
     return EventBus()
 
+
 @pytest.fixture
 def chat_service(event_bus):
     return ChatService(event_bus)
+
 
 @pytest.mark.asyncio
 async def test_chat_stream_uses_provided_backend(chat_service):
@@ -23,16 +29,23 @@ async def test_chat_stream_uses_provided_backend(chat_service):
     # Mock get_backend
     mock_backend = AsyncMock()
     mock_backend.is_available.return_value = True
+
     async def mock_run_gen(*args, **kwargs):
         yield "response"
+
     mock_backend.run = MagicMock(side_effect=mock_run_gen)
 
-    with patch("agent_pump.services.chat_service.get_backend", return_value=mock_backend) as mock_get_backend:
+    with patch(
+        "agent_pump.services.chat_service.get_backend", return_value=mock_backend
+    ) as mock_get_backend:
         with patch("agent_pump.services.chat_service.ContextManager"):
-            async for _ in chat_service.chat_stream("query", project_path, backend_name=backend_name):
+            async for _ in chat_service.chat_stream(
+                "query", project_path, backend_name=backend_name
+            ):
                 pass
 
             mock_get_backend.assert_called_with(backend_name)
+
 
 @pytest.mark.asyncio
 async def test_chat_stream_uses_project_config_default(chat_service):
@@ -53,15 +66,19 @@ async def test_chat_stream_uses_project_config_default(chat_service):
     # Mock get_backend
     mock_backend = AsyncMock()
     mock_backend.is_available.return_value = True
+
     async def mock_run_gen(*args, **kwargs):
         yield "response"
+
     mock_backend.run = MagicMock(side_effect=mock_run_gen)
 
     # We expect Workspace to be imported in chat_service.py
     with patch("agent_pump.services.chat_service.Workspace") as mock_workspace_cls:
         mock_workspace_cls.load_async = AsyncMock(return_value=mock_workspace)
 
-        with patch("agent_pump.services.chat_service.get_backend", return_value=mock_backend) as mock_get_backend:
+        with patch(
+            "agent_pump.services.chat_service.get_backend", return_value=mock_backend
+        ) as mock_get_backend:
             with patch("agent_pump.services.chat_service.ContextManager"):
                 async for _ in chat_service.chat_stream("query", project_path, backend_name=None):
                     pass
@@ -72,6 +89,7 @@ async def test_chat_stream_uses_project_config_default(chat_service):
                 mock_workspace.get_project_config.assert_called_with(project_path)
                 # Verify get_backend was called with "opencode"
                 mock_get_backend.assert_called_with("opencode")
+
 
 @pytest.mark.asyncio
 async def test_chat_stream_fallback_to_gemini_on_error(chat_service):
@@ -84,16 +102,21 @@ async def test_chat_stream_fallback_to_gemini_on_error(chat_service):
 
         mock_backend = AsyncMock()
         mock_backend.is_available.return_value = True
+
         async def mock_run_gen(*args, **kwargs):
             yield "response"
+
         mock_backend.run = MagicMock(side_effect=mock_run_gen)
 
-        with patch("agent_pump.services.chat_service.get_backend", return_value=mock_backend) as mock_get_backend:
-             with patch("agent_pump.services.chat_service.ContextManager"):
+        with patch(
+            "agent_pump.services.chat_service.get_backend", return_value=mock_backend
+        ) as mock_get_backend:
+            with patch("agent_pump.services.chat_service.ContextManager"):
                 async for _ in chat_service.chat_stream("query", project_path, backend_name=None):
                     pass
 
                 mock_get_backend.assert_called_with("gemini")
+
 
 @pytest.mark.asyncio
 async def test_chat_stream_fallback_to_gemini_no_config(chat_service):
@@ -110,12 +133,16 @@ async def test_chat_stream_fallback_to_gemini_no_config(chat_service):
 
         mock_backend = AsyncMock()
         mock_backend.is_available.return_value = True
+
         async def mock_run_gen(*args, **kwargs):
             yield "response"
+
         mock_backend.run = MagicMock(side_effect=mock_run_gen)
 
-        with patch("agent_pump.services.chat_service.get_backend", return_value=mock_backend) as mock_get_backend:
-             with patch("agent_pump.services.chat_service.ContextManager"):
+        with patch(
+            "agent_pump.services.chat_service.get_backend", return_value=mock_backend
+        ) as mock_get_backend:
+            with patch("agent_pump.services.chat_service.ContextManager"):
                 async for _ in chat_service.chat_stream("query", project_path, backend_name=None):
                     pass
 

@@ -28,7 +28,9 @@ class VectorStore:
         self.metadata: list[dict[str, Any]] = []
         self._matrix: NDArray[np.float32] | None = None
 
-    def add(self, chunk: str, embedding: list[float], metadata: dict[str, Any] | None = None) -> None:
+    def add(
+        self, chunk: str, embedding: list[float], metadata: dict[str, Any] | None = None
+    ) -> None:
         """Add a chunk and its embedding to the store."""
         self.chunks.append(chunk)
         self.embeddings.append(embedding)

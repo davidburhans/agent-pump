@@ -28,9 +28,7 @@ def validate_github_signature(body: bytes, signature: str, secret: str) -> bool:
     return hmac.compare_digest(f"sha256={expected}", signature)
 
 
-def validate_slack_signature(
-    body: bytes, signature: str, timestamp: str, secret: str
-) -> bool:
+def validate_slack_signature(body: bytes, signature: str, timestamp: str, secret: str) -> bool:
     """Validate Slack webhook signature and timestamp."""
     if not signature or not timestamp:
         return False
@@ -44,7 +42,9 @@ def validate_slack_signature(
 
         # Slack suggests checking if timestamp is older than 5 minutes
         if abs(now - req_timestamp) > 300:
-            logger.warning(f"Slack request timestamp expired or too far in future: {req_timestamp} vs {now}")
+            logger.warning(
+                f"Slack request timestamp expired or too far in future: {req_timestamp} vs {now}"
+            )
             return False
 
     except (ValueError, TypeError):
@@ -77,7 +77,7 @@ async def start_workflow_task(project_path: Path, app_state: Any) -> None:
 
         # Check status and reset if needed
         if workflow.project.status in (ProjectStatus.COMPLETED, ProjectStatus.ERROR):
-             workflow.reset_workflow()
+            workflow.reset_workflow()
 
         # Run workflow
         logger.info(f"Starting workflow for {project_path} via webhook trigger")
@@ -149,7 +149,9 @@ async def handle_github_webhook(
             and proj_config.github_integration.owner
             and proj_config.github_integration.repo
         ):
-            full_name = f"{proj_config.github_integration.owner}/{proj_config.github_integration.repo}"
+            full_name = (
+                f"{proj_config.github_integration.owner}/{proj_config.github_integration.repo}"
+            )
             if full_name == repo_full_name:
                 target_path = Path(path_str)
                 break
@@ -161,9 +163,7 @@ async def handle_github_webhook(
     return {"status": "ignored", "reason": f"No project found for {repo_full_name}"}
 
 
-async def handle_slack_webhook(
-    request: Request, background_tasks: BackgroundTasks
-) -> dict:
+async def handle_slack_webhook(request: Request, background_tasks: BackgroundTasks) -> dict:
     """Handle Slack slash command."""
     # Command: /agent-pump [action] [project_name]
     # Slack sends form-encoded data
@@ -177,7 +177,9 @@ async def handle_slack_webhook(
 
         if action == "start":
             if len(text) < 2:
-                 return {"text": "Please specify a project name. Usage: `/agent-pump start <project_name>`"}
+                return {
+                    "text": "Please specify a project name. Usage: `/agent-pump start <project_name>`"
+                }
 
             project_name = text[1]
 
@@ -194,11 +196,11 @@ async def handle_slack_webhook(
 
             # 2. Fallback: match directory name
             if not target_path:
-                 for path_str in workspace.projects:
-                     p = Path(path_str)
-                     if p.name == project_name:
-                         target_path = p
-                         break
+                for path_str in workspace.projects:
+                    p = Path(path_str)
+                    if p.name == project_name:
+                        target_path = p
+                        break
 
             if target_path:
                 background_tasks.add_task(start_workflow_task, target_path, app_state)
@@ -207,7 +209,9 @@ async def handle_slack_webhook(
             return {"text": f"Project '{project_name}' not found."}
 
         elif action == "status":
-             return {"text": "Status: Online (Detailed status reporting not implemented via webhook yet)"}
+            return {
+                "text": "Status: Online (Detailed status reporting not implemented via webhook yet)"
+            }
 
     return {"text": f"Unknown command or action. Received: {command} {text}"}
 
@@ -245,7 +249,9 @@ async def webhook_trigger(
 
     if not config.secret_key:
         logger.error("Webhooks enabled but no secret key configured. Rejecting request.")
-        raise HTTPException(status_code=500, detail="Webhooks configuration error: No secret key set")
+        raise HTTPException(
+            status_code=500, detail="Webhooks configuration error: No secret key set"
+        )
 
     if source not in config.allowed_sources:
         raise HTTPException(status_code=403, detail="Source not allowed")
@@ -280,7 +286,7 @@ async def webhook_trigger(
         valid_raw = hmac.compare_digest(expected, x_signature)
 
         if not valid_prefixed and not valid_raw:
-             raise HTTPException(status_code=401, detail="Invalid signature")
+            raise HTTPException(status_code=401, detail="Invalid signature")
 
     # Process Payload
     try:

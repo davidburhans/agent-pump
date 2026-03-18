@@ -39,10 +39,7 @@ class TestWorkflowMergeProtection:
             token="test", owner="owner", repo="repo", base_branch="main"
         )
         # Setup branch state
-        workflow.branch_state = BranchState(
-            feature_branch="feature/test",
-            base_branch="main"
-        )
+        workflow.branch_state = BranchState(feature_branch="feature/test", base_branch="main")
         # Mock emit output
         workflow._emit_output = MagicMock()
         return workflow
@@ -50,9 +47,10 @@ class TestWorkflowMergeProtection:
     @pytest.mark.asyncio
     async def test_merge_no_protection(self, workflow):
         """Test merge when branch is not protected."""
-        with patch("agent_pump.orchestrator.workflow.BranchManager") as MockBranchManager, \
-             patch("agent_pump.orchestrator.workflow.GitHubService") as MockGitHubService:
-
+        with (
+            patch("agent_pump.orchestrator.workflow.BranchManager") as MockBranchManager,
+            patch("agent_pump.orchestrator.workflow.GitHubService") as MockGitHubService,
+        ):
             # Setup BranchManager
             mock_bm = MockBranchManager.return_value
             mock_bm.merge_to_base.return_value = MergeResult(success=True)
@@ -60,10 +58,9 @@ class TestWorkflowMergeProtection:
             # Setup GitHubService
             mock_gh = MockGitHubService.return_value
             # Branch not protected
-            mock_gh.get_branch_protection = AsyncMock(return_value=BranchProtectionInfo(
-                branch_name="main",
-                is_protected=False
-            ))
+            mock_gh.get_branch_protection = AsyncMock(
+                return_value=BranchProtectionInfo(branch_name="main", is_protected=False)
+            )
 
             result = await workflow._attempt_merge()
 
@@ -75,19 +72,20 @@ class TestWorkflowMergeProtection:
     @pytest.mark.asyncio
     async def test_merge_protected_checks_pass(self, workflow):
         """Test merge when branch is protected and checks pass."""
-        with patch("agent_pump.orchestrator.workflow.BranchManager") as MockBranchManager, \
-             patch("agent_pump.orchestrator.workflow.GitHubService") as MockGitHubService:
-
+        with (
+            patch("agent_pump.orchestrator.workflow.BranchManager") as MockBranchManager,
+            patch("agent_pump.orchestrator.workflow.GitHubService") as MockGitHubService,
+        ):
             mock_bm = MockBranchManager.return_value
             mock_bm.merge_to_base.return_value = MergeResult(success=True)
 
             mock_gh = MockGitHubService.return_value
             # Protected with status checks
-            mock_gh.get_branch_protection = AsyncMock(return_value=BranchProtectionInfo(
-                branch_name="main",
-                is_protected=True,
-                required_status_checks=["ci/test"]
-            ))
+            mock_gh.get_branch_protection = AsyncMock(
+                return_value=BranchProtectionInfo(
+                    branch_name="main", is_protected=True, required_status_checks=["ci/test"]
+                )
+            )
             # Checks pass
             mock_gh.wait_for_required_checks = AsyncMock(return_value=True)
 
@@ -100,17 +98,18 @@ class TestWorkflowMergeProtection:
     @pytest.mark.asyncio
     async def test_merge_protected_checks_fail(self, workflow):
         """Test merge aborts when checks fail."""
-        with patch("agent_pump.orchestrator.workflow.BranchManager") as MockBranchManager, \
-             patch("agent_pump.orchestrator.workflow.GitHubService") as MockGitHubService:
-
+        with (
+            patch("agent_pump.orchestrator.workflow.BranchManager") as MockBranchManager,
+            patch("agent_pump.orchestrator.workflow.GitHubService") as MockGitHubService,
+        ):
             mock_bm = MockBranchManager.return_value
 
             mock_gh = MockGitHubService.return_value
-            mock_gh.get_branch_protection = AsyncMock(return_value=BranchProtectionInfo(
-                branch_name="main",
-                is_protected=True,
-                required_status_checks=["ci/test"]
-            ))
+            mock_gh.get_branch_protection = AsyncMock(
+                return_value=BranchProtectionInfo(
+                    branch_name="main", is_protected=True, required_status_checks=["ci/test"]
+                )
+            )
             # Checks fail
             mock_gh.wait_for_required_checks = AsyncMock(return_value=False)
 
@@ -125,23 +124,23 @@ class TestWorkflowMergeProtection:
     @pytest.mark.asyncio
     async def test_merge_protected_review_approved(self, workflow):
         """Test merge when review is required and approved."""
-        with patch("agent_pump.orchestrator.workflow.BranchManager") as MockBranchManager, \
-             patch("agent_pump.orchestrator.workflow.GitHubService") as MockGitHubService:
-
+        with (
+            patch("agent_pump.orchestrator.workflow.BranchManager") as MockBranchManager,
+            patch("agent_pump.orchestrator.workflow.GitHubService") as MockGitHubService,
+        ):
             mock_bm = MockBranchManager.return_value
             mock_bm.merge_to_base.return_value = MergeResult(success=True)
 
             mock_gh = MockGitHubService.return_value
-            mock_gh.get_branch_protection = AsyncMock(return_value=BranchProtectionInfo(
-                branch_name="main",
-                is_protected=True,
-                reviews_required=True
-            ))
+            mock_gh.get_branch_protection = AsyncMock(
+                return_value=BranchProtectionInfo(
+                    branch_name="main", is_protected=True, reviews_required=True
+                )
+            )
             # Review approved
-            mock_gh.get_pr_status = AsyncMock(return_value=PRReviewResult(
-                pr_number=1,
-                approved=True
-            ))
+            mock_gh.get_pr_status = AsyncMock(
+                return_value=PRReviewResult(pr_number=1, approved=True)
+            )
 
             result = await workflow._attempt_merge()
 
@@ -152,17 +151,18 @@ class TestWorkflowMergeProtection:
     @pytest.mark.asyncio
     async def test_merge_protected_review_required_no_pr(self, workflow):
         """Test merge aborts when review required but no PR exists."""
-        with patch("agent_pump.orchestrator.workflow.BranchManager") as MockBranchManager, \
-             patch("agent_pump.orchestrator.workflow.GitHubService") as MockGitHubService:
-
+        with (
+            patch("agent_pump.orchestrator.workflow.BranchManager") as MockBranchManager,
+            patch("agent_pump.orchestrator.workflow.GitHubService") as MockGitHubService,
+        ):
             mock_bm = MockBranchManager.return_value
 
             mock_gh = MockGitHubService.return_value
-            mock_gh.get_branch_protection = AsyncMock(return_value=BranchProtectionInfo(
-                branch_name="main",
-                is_protected=True,
-                reviews_required=True
-            ))
+            mock_gh.get_branch_protection = AsyncMock(
+                return_value=BranchProtectionInfo(
+                    branch_name="main", is_protected=True, reviews_required=True
+                )
+            )
             # No PR found
             mock_gh.get_pr_status = AsyncMock(return_value=None)
 
@@ -175,23 +175,24 @@ class TestWorkflowMergeProtection:
     @pytest.mark.asyncio
     async def test_merge_protected_review_not_approved(self, workflow):
         """Test merge aborts when review required but not approved."""
-        with patch("agent_pump.orchestrator.workflow.BranchManager") as MockBranchManager, \
-             patch("agent_pump.orchestrator.workflow.GitHubService") as MockGitHubService:
-
+        with (
+            patch("agent_pump.orchestrator.workflow.BranchManager") as MockBranchManager,
+            patch("agent_pump.orchestrator.workflow.GitHubService") as MockGitHubService,
+        ):
             mock_bm = MockBranchManager.return_value
 
             mock_gh = MockGitHubService.return_value
-            mock_gh.get_branch_protection = AsyncMock(return_value=BranchProtectionInfo(
-                branch_name="main",
-                is_protected=True,
-                reviews_required=True
-            ))
+            mock_gh.get_branch_protection = AsyncMock(
+                return_value=BranchProtectionInfo(
+                    branch_name="main", is_protected=True, reviews_required=True
+                )
+            )
             # PR exists but not approved
-            mock_gh.get_pr_status = AsyncMock(return_value=PRReviewResult(
-                pr_number=1,
-                approved=False,
-                issues_found=["Changes requested"]
-            ))
+            mock_gh.get_pr_status = AsyncMock(
+                return_value=PRReviewResult(
+                    pr_number=1, approved=False, issues_found=["Changes requested"]
+                )
+            )
 
             result = await workflow._attempt_merge()
 

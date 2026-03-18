@@ -1,4 +1,3 @@
-import re
 
 
 class CodeChunker:
@@ -41,7 +40,9 @@ class CodeChunker:
 
         for line in lines:
             # Check if line starts with specific keywords at indent 0
-            if (line.startswith("class ") or line.startswith("def ") or line.startswith("@")) and not line.startswith("    "):
+            if (
+                line.startswith("class ") or line.startswith("def ") or line.startswith("@")
+            ) and not line.startswith("    "):
                 if current_chunk:
                     chunks.append("\n".join(current_chunk))
                     current_chunk = []

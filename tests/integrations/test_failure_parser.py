@@ -15,6 +15,7 @@ def test_parse_python_error():
     # Note: Regex captures "AssertionError" and "assert 1 == 2", then joins with ": "
     assert info.errors[0]["details"] == "AssertionError: assert 1 == 2"
 
+
 def test_parse_pytest_failure():
     logs = """
     FAILED tests/test_foo.py::test_bar
@@ -26,10 +27,14 @@ def test_parse_pytest_failure():
     assert info.errors[0]["type"] == "pytest_failure"
     assert info.errors[0]["details"] == "tests/test_foo.py: test_bar"
 
+
 def test_suggest_fix():
     parser = FailureParser()
-    fix = parser._suggest_fix([{"type": "python_error", "details": "ModuleNotFound: No module named 'foo'"}])
+    fix = parser._suggest_fix(
+        [{"type": "python_error", "details": "ModuleNotFound: No module named 'foo'"}]
+    )
     assert fix == "Install missing dependency"
+
 
 def test_no_errors():
     logs = "Build succeeded"

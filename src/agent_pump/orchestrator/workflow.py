@@ -898,6 +898,7 @@ class ProjectWorkflow:
                             backend_runner = self._get_backend_for_phase(phase.name)
 
                             from agent_pump.orchestrator.base_prompts import get_base_prompt_manager
+
                             default_prompt = get_base_prompt_manager().get_default(phase.name)
 
                             prompt = await self.prompt_loader.build_prompt(
@@ -1475,6 +1476,7 @@ class ProjectWorkflow:
             return success
 
         return True
+
     async def _prepare_planning_phase(self, context: dict[str, Any]) -> bool:
         """Logic to pick next task from roadmap if not set.
 
@@ -1619,9 +1621,7 @@ class ProjectWorkflow:
             # Initialize PR review service
             from agent_pump.services.pr_review_service import PRReviewService
 
-            github_config = (
-                self.project_config.github_integration if self.project_config else None
-            )
+            github_config = self.project_config.github_integration if self.project_config else None
             review_service = PRReviewService(
                 project_path=self.project.path,
                 github_config=github_config,
@@ -1629,12 +1629,8 @@ class ProjectWorkflow:
 
             # 1. Fetch changes
             # For local review, we compare feature branch to base branch
-            base_branch = (
-                self.branch_state.base_branch if self.branch_state else "main"
-            )
-            feature_branch = (
-                self.branch_state.feature_branch if self.branch_state else None
-            )
+            base_branch = self.branch_state.base_branch if self.branch_state else "main"
+            feature_branch = self.branch_state.feature_branch if self.branch_state else None
 
             changes = await review_service.fetch_pr_changes(
                 base_branch=base_branch,
@@ -1824,7 +1820,9 @@ Please analyze the file and apply a fix.
 
                         checks_passed = await gh_service.wait_for_required_checks(base_branch)
                         if not checks_passed:
-                            return MergeResult(success=False, error="Status checks failed or timed out")
+                            return MergeResult(
+                                success=False, error="Status checks failed or timed out"
+                            )
 
                     # Check required reviews
                     if protection.reviews_required:
@@ -1835,7 +1833,9 @@ Please analyze the file and apply a fix.
                         )
 
                         if not pr_status:
-                            return MergeResult(success=False, error="PR not found but review required")
+                            return MergeResult(
+                                success=False, error="PR not found but review required"
+                            )
 
                         if not pr_status.approved:
                             msg = "PR review not approved"

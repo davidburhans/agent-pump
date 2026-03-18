@@ -1,6 +1,5 @@
 """Tests for MCP server implicit tool discovery security."""
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -52,7 +51,9 @@ def mock_workflow():
 
 
 @pytest.mark.asyncio
-async def test_implicit_tools_ignored_by_default(server, mock_project_service, mock_workflow, tmp_path):
+async def test_implicit_tools_ignored_by_default(
+    server, mock_project_service, mock_workflow, tmp_path
+):
     """Test that implicit tools are IGNORED by default (allow_implicit_discovery=False)."""
     # Create fake project structure
     project_path = tmp_path / "project_secure"
@@ -79,7 +80,9 @@ async def test_implicit_tools_ignored_by_default(server, mock_project_service, m
 
 
 @pytest.mark.asyncio
-async def test_implicit_tools_enabled_when_configured(server, mock_project_service, mock_workflow, tmp_path):
+async def test_implicit_tools_enabled_when_configured(
+    server, mock_project_service, mock_workflow, tmp_path
+):
     """Test that implicit tools are DISCOVERED when explicitly enabled."""
     # Create fake project structure
     project_path = tmp_path / "project_insecure"
@@ -105,8 +108,11 @@ async def test_implicit_tools_enabled_when_configured(server, mock_project_servi
     assert len(tools) == 1
     assert tools[0].name == "useful_script"
 
+
 @pytest.mark.asyncio
-async def test_implicit_tools_are_sandboxed_by_default(server, mock_project_service, mock_workflow, tmp_path):
+async def test_implicit_tools_are_sandboxed_by_default(
+    server, mock_project_service, mock_workflow, tmp_path
+):
     """Test that implicit tools are SANDBOXED by default."""
     # Create fake project structure
     project_path = tmp_path / "project_sandboxed"

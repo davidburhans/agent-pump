@@ -1,8 +1,10 @@
-import asyncio
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
+
 from click.testing import CliRunner
+
 from agent_pump.cli import main
+
 
 def test_web_server_startup_generates_key():
     runner = CliRunner()
@@ -20,6 +22,7 @@ def test_web_server_startup_generates_key():
             assert "WARNING: No API key provided" in result.output
             assert "Generated temporary key" in result.output
             assert "API Key:" in result.output
+
 
 def test_web_server_startup_uses_env_key():
     runner = CliRunner()

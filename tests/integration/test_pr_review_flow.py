@@ -33,9 +33,7 @@ class TestPRReviewFlow:
         github_config = GitHubIntegrationConfig(pr_review_config=review_config)
 
         project_config = ProjectConfig(
-            path=project_path,
-            branch_strategy=branch_config,
-            github_integration=github_config
+            path=project_path, branch_strategy=branch_config, github_integration=github_config
         )
 
         workflow = ProjectWorkflow(project=project, project_config=project_config)
@@ -65,9 +63,7 @@ class TestPRReviewFlow:
         github_config = GitHubIntegrationConfig(pr_review_config=review_config)
 
         project_config = ProjectConfig(
-            path=project_path,
-            branch_strategy=branch_config,
-            github_integration=github_config
+            path=project_path, branch_strategy=branch_config, github_integration=github_config
         )
 
         workflow = ProjectWorkflow(project=project, project_config=project_config)
@@ -98,9 +94,7 @@ class TestPRReviewFlow:
         github_config = GitHubIntegrationConfig(pr_review_config=review_config)
 
         project_config = ProjectConfig(
-            path=project_path,
-            branch_strategy=branch_config,
-            github_integration=github_config
+            path=project_path, branch_strategy=branch_config, github_integration=github_config
         )
 
         workflow = ProjectWorkflow(project=project, project_config=project_config)
@@ -108,7 +102,7 @@ class TestPRReviewFlow:
 
         with (
             patch("agent_pump.orchestrator.workflow.BranchManager") as mock_bm_cls,
-            patch("agent_pump.services.pr_review_service.PRReviewService") as mock_review_cls
+            patch("agent_pump.services.pr_review_service.PRReviewService") as mock_review_cls,
         ):
             # Setup BranchManager mock
             mock_manager = MagicMock()
@@ -126,10 +120,12 @@ class TestPRReviewFlow:
             workflow._handle_reviewing_phase = MagicMock()
 
             # Scenario 1: Review Passes
-            workflow._handle_reviewing_phase.return_value = True # awaitable?
+            workflow._handle_reviewing_phase.return_value = True  # awaitable?
 
             # We need to patch the async method on the instance
-            async def async_true(): return True
+            async def async_true():
+                return True
+
             workflow._handle_reviewing_phase.side_effect = async_true
 
             await workflow._post_phase("reviewing", True)
@@ -140,7 +136,9 @@ class TestPRReviewFlow:
             mock_manager.reset_mock()
 
             # Scenario 2: Review Fails
-            async def async_false(): return False
+            async def async_false():
+                return False
+
             workflow._handle_reviewing_phase.side_effect = async_false
 
             await workflow._post_phase("reviewing", True)

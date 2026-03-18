@@ -57,9 +57,7 @@ class PRCreatorService:
 
             commits = branch_manager.get_branch_commits(feature_branch, base_branch)
             commit_list = (
-                "\n".join([f"- {msg}" for msg in commits])
-                if commits
-                else "No new commits found."
+                "\n".join([f"- {msg}" for msg in commits]) if commits else "No new commits found."
             )
 
             # Format body

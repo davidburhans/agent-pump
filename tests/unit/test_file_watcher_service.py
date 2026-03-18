@@ -58,7 +58,9 @@ def file_watcher_service(event_bus, project_service, workspace):
         coro.close()
         return MagicMock()
 
-    with patch("agent_pump.services.file_watcher_service.asyncio.create_task", side_effect=side_effect) as mock_create_task:
+    with patch(
+        "agent_pump.services.file_watcher_service.asyncio.create_task", side_effect=side_effect
+    ) as mock_create_task:
         return FileWatcherService(event_bus, project_service, workspace)
 
 
@@ -128,9 +130,10 @@ async def test_on_config_updated(file_watcher_service):
     path = Path("/tmp/test-project")
     event = ConfigUpdatedEvent(project_path=path, config_type="project_config")
 
-    with patch.object(file_watcher_service, "stop_watching", new_callable=AsyncMock) as mock_stop, \
-         patch.object(file_watcher_service, "start_watching", new_callable=AsyncMock) as mock_start:
-
+    with (
+        patch.object(file_watcher_service, "stop_watching", new_callable=AsyncMock) as mock_stop,
+        patch.object(file_watcher_service, "start_watching", new_callable=AsyncMock) as mock_start,
+    ):
         await file_watcher_service.on_config_updated(event)
 
         mock_stop.assert_awaited_once_with(path)
@@ -153,7 +156,7 @@ async def test_watch_loop_verification(file_watcher_service, workspace, project_
     project_service.workflows = {path: workflow}
 
     # Mock awatch to yield one change then finish
-    changes = { (1, str(path / "file.py")) }
+    changes = {(1, str(path / "file.py"))}
 
     with patch("agent_pump.services.file_watcher_service.awatch") as mock_awatch:
         mock_awatch.return_value = MockAsyncGenerator([changes])
@@ -186,7 +189,7 @@ async def test_watch_loop_workflow(file_watcher_service, workspace, project_serv
     project_service.workflows = {path: workflow}
 
     # Mock awatch
-    changes = { (1, str(path / "file.py")) }
+    changes = {(1, str(path / "file.py"))}
 
     with patch("agent_pump.services.file_watcher_service.awatch") as mock_awatch:
         mock_awatch.return_value = MockAsyncGenerator([changes])
@@ -205,7 +208,9 @@ async def test_watch_loop_workflow(file_watcher_service, workspace, project_serv
 
 
 @pytest.mark.asyncio
-async def test_watch_loop_workflow_already_running(file_watcher_service, workspace, project_service):
+async def test_watch_loop_workflow_already_running(
+    file_watcher_service, workspace, project_service
+):
     """Test watch loop does not trigger workflow if already running."""
     path = Path("/tmp/test-project")
 
@@ -218,7 +223,7 @@ async def test_watch_loop_workflow_already_running(file_watcher_service, workspa
     workflow.run = AsyncMock()
     project_service.workflows = {path: workflow}
 
-    changes = { (1, str(path / "file.py")) }
+    changes = {(1, str(path / "file.py"))}
 
     with patch("agent_pump.services.file_watcher_service.awatch") as mock_awatch:
         mock_awatch.return_value = MockAsyncGenerator([changes])
@@ -237,10 +242,7 @@ async def test_watch_loop_filtering(file_watcher_service, workspace, project_ser
 
     config = MagicMock(spec=ProjectConfig)
     config.file_watcher = FileWatcherConfig(
-        enabled=True,
-        action="verification",
-        patterns=["*.py"],
-        ignore_patterns=["ignored.py"]
+        enabled=True, action="verification", patterns=["*.py"], ignore_patterns=["ignored.py"]
     )
     workspace.get_project_config.return_value = config
 
@@ -249,11 +251,11 @@ async def test_watch_loop_filtering(file_watcher_service, workspace, project_ser
     project_service.workflows = {path: workflow}
 
     # 1. Ignored file
-    changes1 = { (1, str(path / "ignored.py")) }
+    changes1 = {(1, str(path / "ignored.py"))}
     # 2. Non-matching file
-    changes2 = { (1, str(path / "README.md")) }
+    changes2 = {(1, str(path / "README.md"))}
     # 3. Matching file
-    changes3 = { (1, str(path / "test.py")) }
+    changes3 = {(1, str(path / "test.py"))}
 
     with patch("agent_pump.services.file_watcher_service.awatch") as mock_awatch:
         mock_awatch.return_value = MockAsyncGenerator([changes1, changes2, changes3])

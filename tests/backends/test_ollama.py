@@ -54,7 +54,7 @@ async def test_list_models(ollama_backend):
         mock_response.json.return_value = {
             "models": [
                 {"name": "llama3", "size": 4000000000},
-                {"name": "mistral", "size": 4000000000}
+                {"name": "mistral", "size": 4000000000},
             ]
         }
         mock_client.get.return_value = mock_response
@@ -70,7 +70,7 @@ async def test_run_success(ollama_backend, tmp_path):
     chunks = [
         {"response": "Hello", "done": False},
         {"response": " world", "done": False},
-        {"response": "", "done": True, "total_duration": 1000000000}
+        {"response": "", "done": True, "total_duration": 1000000000},
     ]
     lines = [json.dumps(chunk) for chunk in chunks]
 
@@ -129,7 +129,7 @@ async def test_run_with_config_override(ollama_backend, tmp_path):
             del os.environ["OLLAMA_MODEL"]
 
         try:
-             with patch("httpx.AsyncClient") as mock_client_cls:
+            with patch("httpx.AsyncClient") as mock_client_cls:
                 mock_client = AsyncMock()
                 mock_client_cls.return_value.__aenter__.return_value = mock_client
                 mock_response = MagicMock()

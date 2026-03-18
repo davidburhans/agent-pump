@@ -1,6 +1,5 @@
 """Tests for RoadmapService."""
 
-
 import pytest
 
 from agent_pump.models.project import Project
@@ -14,12 +13,14 @@ def temp_project(tmp_path):
     project_path.mkdir()
     return Project.from_path(project_path)
 
+
 def test_load_empty_roadmap(temp_project):
     service = RoadmapService(temp_project)
     roadmap = service.load()
     assert roadmap.current_sprint == []
     assert roadmap.future_sprints == []
     assert roadmap.deferred == []
+
 
 def test_load_populated_roadmap(temp_project):
     content = """# Roadmap
@@ -51,6 +52,7 @@ Description B
     assert roadmap.future_sprints[0].title == "Feature B"
     assert roadmap.future_sprints[0].status == RoadmapStatus.NOT_STARTED
 
+
 def test_add_item(temp_project):
     service = RoadmapService(temp_project)
     service.add_item("New Feature", "Desc", "Low", RoadmapStatus.NOT_STARTED, section="future")
@@ -61,6 +63,7 @@ def test_add_item(temp_project):
     assert item.title == "New Feature"
     assert item.priority == "Low"
     assert item.status == RoadmapStatus.NOT_STARTED
+
 
 def test_save_roadmap(temp_project):
     service = RoadmapService(temp_project)

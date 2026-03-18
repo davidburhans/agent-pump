@@ -64,9 +64,7 @@ class CoverageParser:
         # Regex for Jest/Istanbul table "All files ... | 85 | ..."
         # Usually: "All files | 85 | ..."
         # Allow leading whitespace
-        jest_match = re.search(
-            r"^\s*All files\s*\|\s*(\d+(?:\.\d+)?)\s*\|", output, re.MULTILINE
-        )
+        jest_match = re.search(r"^\s*All files\s*\|\s*(\d+(?:\.\d+)?)\s*\|", output, re.MULTILINE)
         if jest_match:
             try:
                 return CoverageReportModel(

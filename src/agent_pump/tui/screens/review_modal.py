@@ -183,7 +183,7 @@ class ReviewModal(ModalScreen[list[ReviewAction]]):
 
 **Description:** {issue.description}
 
-**Location:** {issue.file_path or 'General'}
+**Location:** {issue.file_path or "General"}
 """
         content.update(md)
 

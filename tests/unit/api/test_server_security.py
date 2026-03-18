@@ -1,8 +1,10 @@
 """Unit tests for server security configurations."""
 
+
 import pytest
-import os
+
 from agent_pump.api.server import create_server
+
 
 class TestServerSecurity:
     """Tests for server security configurations."""

@@ -20,11 +20,12 @@ from agent_pump.orchestrator.workflow import ProjectWorkflow
 try:
     from agent_pump.events.models import ReviewRequestedEvent
 except ImportError:
-
     from agent_pump.events.models import Event
+
     class ReviewRequestedEvent(Event):
         project_path: str
         report: ReviewReportModel
+
 
 @pytest.fixture
 def mock_project(tmp_path):
@@ -41,6 +42,7 @@ def mock_project(tmp_path):
     project.config.github_integration.pr_review_config.enabled = True
     return project
 
+
 @pytest.fixture
 def mock_workflow(mock_project):
     workflow = ProjectWorkflow(project=mock_project)
@@ -53,12 +55,15 @@ def mock_workflow(mock_project):
 
     # Add the resolve_review method if not present (simulate new code)
     if not hasattr(workflow, "resolve_review"):
+
         def resolve_review(decisions):
             if workflow._pending_review_future and not workflow._pending_review_future.done():
                 workflow._pending_review_future.set_result(decisions)
+
         workflow.resolve_review = resolve_review
 
     return workflow
+
 
 @pytest.mark.asyncio
 async def test_review_models():
@@ -66,29 +71,22 @@ async def test_review_models():
     action = ReviewAction(
         issue_id="test.py:10:error",
         status=ReviewStatus.IGNORED,
-        resolution_details="False positive"
+        resolution_details="False positive",
     )
     assert action.status == ReviewStatus.IGNORED
     assert action.issue_id == "test.py:10:error"
     assert action.resolution_details == "False positive"
 
+
 @pytest.mark.asyncio
 async def test_review_report_model():
     """Test ReviewReportModel structure."""
-    issue = IssueModel(
-        file_path="test.py",
-        line_number=10,
-        severity="high",
-        message="Test error"
-    )
-    report = ReviewReportModel(
-        approved=False,
-        issues=[issue],
-        blocked=True
-    )
+    issue = IssueModel(file_path="test.py", line_number=10, severity="high", message="Test error")
+    report = ReviewReportModel(approved=False, issues=[issue], blocked=True)
     assert len(report.issues) == 1
     assert report.issues[0].message == "Test error"
     assert report.blocked is True
+
 
 @pytest.mark.asyncio
 async def test_handle_reviewing_phase_with_issues(mock_workflow):
@@ -99,9 +97,11 @@ async def test_handle_reviewing_phase_with_issues(mock_workflow):
     with patch("agent_pump.services.pr_review_service.PRReviewService") as MockService:
         service_instance = MockService.return_value
         service_instance.fetch_pr_changes = AsyncMock(return_value=["file.py"])
-        service_instance.analyze_code_quality = AsyncMock(return_value=[
-            IssueModel(file_path="file.py", line_number=1, severity="high", message="Error")
-        ])
+        service_instance.analyze_code_quality = AsyncMock(
+            return_value=[
+                IssueModel(file_path="file.py", line_number=1, severity="high", message="Error")
+            ]
+        )
         service_instance.check_best_practices = AsyncMock(return_value=[])
 
         # Mock generate_review_report to return a blocked report
@@ -110,7 +110,7 @@ async def test_handle_reviewing_phase_with_issues(mock_workflow):
             issues=[
                 IssueModel(file_path="file.py", line_number=1, severity="high", message="Error")
             ],
-            blocked=True
+            blocked=True,
         )
         service_instance.generate_review_report = AsyncMock(return_value=report)
 
@@ -131,9 +131,7 @@ async def test_handle_reviewing_phase_with_issues(mock_workflow):
         # Resolve the review
         decisions = [
             ReviewAction(
-                issue_id=report.issues[0].id,
-                status=ReviewStatus.IGNORED,
-                resolution_details="test"
+                issue_id=report.issues[0].id, status=ReviewStatus.IGNORED, resolution_details="test"
             )
         ]
         mock_workflow.resolve_review(decisions)
@@ -143,6 +141,7 @@ async def test_handle_reviewing_phase_with_issues(mock_workflow):
 
         # Workflow should return True if issues were resolved (ignored)
         assert result is True
+
 
 @pytest.mark.asyncio
 async def test_handle_reviewing_phase_auto_fix(mock_workflow):
@@ -156,11 +155,7 @@ async def test_handle_reviewing_phase_auto_fix(mock_workflow):
         service_instance.analyze_code_quality = AsyncMock(return_value=[issue])
         service_instance.check_best_practices = AsyncMock(return_value=[])
 
-        report = ReviewReportModel(
-            approved=False,
-            issues=[issue],
-            blocked=True
-        )
+        report = ReviewReportModel(approved=False, issues=[issue], blocked=True)
         service_instance.generate_review_report = AsyncMock(return_value=report)
 
         # Mock prompt loader to verify it's called for auto-fix
@@ -177,9 +172,7 @@ async def test_handle_reviewing_phase_auto_fix(mock_workflow):
         # Resolve with Auto-Fix
         decisions = [
             ReviewAction(
-                issue_id=issue.id,
-                status=ReviewStatus.AUTO_FIX,
-                resolution_details="Fix it"
+                issue_id=issue.id, status=ReviewStatus.AUTO_FIX, resolution_details="Fix it"
             )
         ]
         mock_workflow.resolve_review(decisions)

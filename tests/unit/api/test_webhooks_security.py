@@ -1,14 +1,16 @@
+import hashlib
+import hmac
+from unittest.mock import MagicMock
 
 import pytest
-import hmac
-import hashlib
 from fastapi.testclient import TestClient
-from unittest.mock import MagicMock
+
 from agent_pump.api.server import app
 from agent_pump.models.webhook_config import WebhookConfig
 from agent_pump.models.workspace import Workspace
 
 client = TestClient(app)
+
 
 @pytest.fixture
 def mock_app_state(monkeypatch):
@@ -24,6 +26,7 @@ def mock_app_state(monkeypatch):
 
     return mock_workspace_service
 
+
 def test_webhook_no_secret_key(mock_app_state):
     """Test that requests are rejected with 500 if no secret key is configured."""
     workspace = Workspace(name="test_ws")
@@ -31,13 +34,12 @@ def test_webhook_no_secret_key(mock_app_state):
     mock_app_state.get_current_workspace.return_value = workspace
 
     response = client.post(
-        "/api/trigger/github",
-        json={"ref": "refs/heads/main"},
-        headers={"X-GitHub-Event": "push"}
+        "/api/trigger/github", json={"ref": "refs/heads/main"}, headers={"X-GitHub-Event": "push"}
     )
 
     assert response.status_code == 500
     assert response.json()["detail"] == "Webhooks configuration error: No secret key set"
+
 
 def test_webhook_invalid_signature_github(mock_app_state):
     """Test that requests with invalid signatures are rejected (GitHub)."""
@@ -49,14 +51,12 @@ def test_webhook_invalid_signature_github(mock_app_state):
     response = client.post(
         "/api/trigger/github",
         json={"ref": "refs/heads/main"},
-        headers={
-            "X-GitHub-Event": "push",
-            "X-Hub-Signature-256": "sha256=invalid_signature"
-        }
+        headers={"X-GitHub-Event": "push", "X-Hub-Signature-256": "sha256=invalid_signature"},
     )
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Invalid GitHub signature"
+
 
 def test_webhook_valid_signature_github(mock_app_state):
     """Test that requests with valid signatures are accepted (GitHub)."""
@@ -74,8 +74,8 @@ def test_webhook_valid_signature_github(mock_app_state):
         headers={
             "X-GitHub-Event": "push",
             "X-Hub-Signature-256": f"sha256={signature}",
-            "Content-Type": "application/json"
-        }
+            "Content-Type": "application/json",
+        },
     )
 
     # 200 means accepted/ignored, or triggered.
@@ -83,6 +83,7 @@ def test_webhook_valid_signature_github(mock_app_state):
     # The endpoint returns a dict, so 200 is expected.
     assert response.status_code == 200
     assert response.json()["status"] == "ignored"
+
 
 def test_webhook_valid_signature_custom(mock_app_state):
     """Test that requests with valid signatures are accepted (Custom)."""
@@ -95,11 +96,7 @@ def test_webhook_valid_signature_custom(mock_app_state):
     signature = hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
 
     response = client.post(
-        "/api/trigger/custom",
-        content=payload,
-        headers={
-            "X-Signature": signature
-        }
+        "/api/trigger/custom", content=payload, headers={"X-Signature": signature}
     )
 
     assert response.status_code == 200

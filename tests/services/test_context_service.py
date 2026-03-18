@@ -1,4 +1,3 @@
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -40,7 +39,9 @@ def context_service(mock_embeddings_service, mock_vector_store_cls, mock_code_ch
 
 
 @pytest.mark.asyncio
-async def test_index_project_walks_files(context_service, tmp_path, mock_code_chunker, mock_embeddings_service, mock_vector_store_cls):
+async def test_index_project_walks_files(
+    context_service, tmp_path, mock_code_chunker, mock_embeddings_service, mock_vector_store_cls
+):
     # Setup dummy project
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
@@ -65,7 +66,9 @@ async def test_index_project_walks_files(context_service, tmp_path, mock_code_ch
 
 
 @pytest.mark.asyncio
-async def test_get_relevant_context(context_service, mock_embeddings_service, mock_vector_store_cls):
+async def test_get_relevant_context(
+    context_service, mock_embeddings_service, mock_vector_store_cls
+):
     mock_embeddings_service.generate_embeddings.return_value = [0.5, 0.5]
 
     instance = mock_vector_store_cls.return_value

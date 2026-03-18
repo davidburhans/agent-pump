@@ -385,7 +385,9 @@ class PRReviewService:
         else:
             return "low"
 
-    async def check_best_practices(self, issues: list[IssueModel]) -> list[BestPracticeViolationModel]:
+    async def check_best_practices(
+        self, issues: list[IssueModel]
+    ) -> list[BestPracticeViolationModel]:
         """Check changes against BEST_PRACTICES.md requirements.
 
         Args:

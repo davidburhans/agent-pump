@@ -1,8 +1,10 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, ANY
-from pathlib import Path
+
+from agent_pump.models.workspace import KnowledgeBaseConfig, ProjectConfig
 from agent_pump.services.context_service import ContextService
-from agent_pump.models.workspace import ProjectConfig, KnowledgeBaseConfig
+
 
 @pytest.fixture
 def mock_project_path(tmp_path):
@@ -15,24 +17,25 @@ def mock_project_path(tmp_path):
     (s / "main.py").write_text("print('hello')", encoding="utf-8")
     return tmp_path
 
+
 @pytest.fixture
 def project_config(mock_project_path):
     return ProjectConfig(
         path=mock_project_path,
         name="test_proj",
         knowledge_base=KnowledgeBaseConfig(
-            enabled=True,
-            docs_dirs=["docs"],
-            external_resources=["http://example.com"]
-        )
+            enabled=True, docs_dirs=["docs"], external_resources=["http://example.com"]
+        ),
     )
+
 
 @pytest.mark.asyncio
 async def test_index_project_with_kb(mock_project_path, project_config):
-    with patch("agent_pump.services.context_service.VectorStore") as MockVectorStore, \
-         patch("agent_pump.services.context_service.EmbeddingsService") as MockEmbeddings, \
-         patch("httpx.AsyncClient") as MockClient:
-
+    with (
+        patch("agent_pump.services.context_service.VectorStore") as MockVectorStore,
+        patch("agent_pump.services.context_service.EmbeddingsService") as MockEmbeddings,
+        patch("httpx.AsyncClient") as MockClient,
+    ):
         # Mock embeddings
         mock_embeddings_instance = MockEmbeddings.return_value
         mock_embeddings_instance.generate_embeddings.return_value = [0.1, 0.2]
@@ -70,14 +73,14 @@ async def test_index_project_with_kb(mock_project_path, project_config):
 
         # Check adds
         adds = mock_store_instance.add.call_args_list
-        assert len(adds) >= 3 # main.py, index.md, external
+        assert len(adds) >= 3  # main.py, index.md, external
 
         files_indexed = []
         types_indexed = []
 
         for call in adds:
             meta = call.kwargs.get("metadata", {})
-            f = str(meta.get("file")).replace("\\", "/") # normalize
+            f = str(meta.get("file")).replace("\\", "/")  # normalize
             files_indexed.append(f)
             types_indexed.append(meta.get("type"))
 
@@ -95,11 +98,13 @@ async def test_index_project_with_kb(mock_project_path, project_config):
         ext_idx = files_indexed.index("http://example.com")
         assert types_indexed[ext_idx] == "external_doc"
 
+
 @pytest.mark.asyncio
 async def test_get_relevant_context_formatting(mock_project_path, project_config):
-    with patch("agent_pump.services.context_service.VectorStore") as MockVectorStore, \
-         patch("agent_pump.services.context_service.EmbeddingsService") as MockEmbeddings:
-
+    with (
+        patch("agent_pump.services.context_service.VectorStore") as MockVectorStore,
+        patch("agent_pump.services.context_service.EmbeddingsService") as MockEmbeddings,
+    ):
         mock_embeddings_instance = MockEmbeddings.return_value
         mock_embeddings_instance.generate_embeddings.return_value = [0.1, 0.2]
 

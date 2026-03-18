@@ -1,9 +1,9 @@
 """Tests for tool security validation."""
 
-import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
 from pathlib import Path
-import sys
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from agent_pump.communication.mcp_server import AgentPumpMCPServer
 from agent_pump.models.tool_config import ToolArgument, ToolConfig
@@ -54,7 +54,9 @@ def test_validate_argument_path_allowed(server):
 
     # Test with '**'
     security_wildcard = ToolSecurityConfig(allowed_path_patterns=["**"])
-    valid, msg = server._validate_argument("src/utils/helper.py", arg_def, security_wildcard, project_path)
+    valid, msg = server._validate_argument(
+        "src/utils/helper.py", arg_def, security_wildcard, project_path
+    )
     assert valid is True
 
 
@@ -103,7 +105,7 @@ async def test_execute_tool_validation_failure(server, mock_app_state):
         name="test",
         description="test",
         command="echo",
-        args=[ToolArgument(name="arg1", validation_regex=r"^\d+$")]
+        args=[ToolArgument(name="arg1", validation_regex=r"^\d+$")],
     )
 
     # Pass invalid arg
@@ -124,10 +126,7 @@ async def test_execute_tool_argument_count_failure(server, mock_app_state):
     mock_app_state.project_service.workflows = {project_path: mock_workflow}
 
     tool_config = ToolConfig(
-        name="test",
-        description="test",
-        command="echo",
-        args=[ToolArgument(name="arg1")]
+        name="test", description="test", command="echo", args=[ToolArgument(name="arg1")]
     )
 
     # Pass too many args
@@ -151,7 +150,7 @@ async def test_execute_tool_validation_success(server, mock_app_state):
         name="test",
         description="test",
         command="echo",
-        args=[ToolArgument(name="arg1", validation_regex=r"^\d+$")]
+        args=[ToolArgument(name="arg1", validation_regex=r"^\d+$")],
     )
 
     # Mock subprocess
@@ -163,11 +162,13 @@ async def test_execute_tool_validation_success(server, mock_app_state):
         # Async mock for communicate
         async def async_communicate():
             return b"output", b""
+
         mock_process.communicate.side_effect = async_communicate
 
         # Async mock for create_subprocess_exec
         async def async_create_exec(*args, **kwargs):
             return mock_process
+
         mock_exec.side_effect = async_create_exec
 
         # Pass valid arg
@@ -195,7 +196,7 @@ async def test_execute_tool_sandbox_docker_image_inference(server, mock_app_stat
             description="test",
             command=command,
             sandbox=True,
-            sandbox_image=override_image
+            sandbox_image=override_image,
         )
 
         with patch("shutil.which", return_value="/usr/bin/docker"):

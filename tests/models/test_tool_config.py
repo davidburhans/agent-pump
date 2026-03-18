@@ -1,12 +1,12 @@
-import pytest
-from agent_pump.models.tool_config import ToolConfig, ToolArgument
+from agent_pump.models.tool_config import ToolArgument, ToolConfig
+
 
 def test_tool_config_command_splitting():
     """Test that command string is split correctly, respecting quotes."""
     config = ToolConfig(
         name="test-tool",
         description="A test tool",
-        command='python -c "print(\'hello world\')"',
+        command="python -c \"print('hello world')\"",
     )
 
     # Current implementation uses .split(), which will fail this check
@@ -14,7 +14,8 @@ def test_tool_config_command_splitting():
     # Actual: ['python', '-c', '"print(\'hello', 'world\')"']
 
     args = config.get_command_args([])
-    assert args == ['python', '-c', "print('hello world')"]
+    assert args == ["python", "-c", "print('hello world')"]
+
 
 def test_tool_config_with_args_list():
     """Test that additional arguments are appended correctly."""
@@ -26,7 +27,8 @@ def test_tool_config_with_args_list():
 
     input_args = ["extra", "arg"]
     args = config.get_command_args(input_args)
-    assert args == ['echo', 'hello world', 'extra', 'arg']
+    assert args == ["echo", "hello world", "extra", "arg"]
+
 
 def test_tool_config_with_args_dict():
     """Test mapping dictionary arguments to flags."""
@@ -37,7 +39,7 @@ def test_tool_config_with_args_dict():
         args=[
             ToolArgument(name="file", type="string"),
             ToolArgument(name="force", type="boolean"),
-        ]
+        ],
     )
 
     input_args = {"file": "test.txt", "force": "true"}

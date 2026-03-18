@@ -20,6 +20,7 @@ def test_add_item_top(tmp_path):
     assert items[0].title == "Item 2"
     assert items[1].title == "Item 1"
 
+
 def test_add_item_bottom(tmp_path):
     project_path = tmp_path / "project"
     project_path.mkdir()

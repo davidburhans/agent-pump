@@ -18,11 +18,13 @@ def mock_config():
         sync_labels=["test_label"],
     )
 
+
 @pytest.fixture
 def mock_roadmap_service():
     service = MagicMock(spec=RoadmapService)
     service.get_all_items.return_value = []
     return service
+
 
 @patch("agent_pump.integrations.issue_sync.Github")
 def test_sync_new_issue(mock_github_cls, mock_config, mock_roadmap_service):
@@ -50,17 +52,16 @@ def test_sync_new_issue(mock_github_cls, mock_config, mock_roadmap_service):
 
     # Check arguments
     call_args = mock_roadmap_service.add_item.call_args
-    assert call_args.kwargs['title'] == "New Issue"
-    assert call_args.kwargs['status'] == RoadmapStatus.NOT_STARTED
-    assert call_args.kwargs['metadata'] == {"github_issue": 1}
+    assert call_args.kwargs["title"] == "New Issue"
+    assert call_args.kwargs["status"] == RoadmapStatus.NOT_STARTED
+    assert call_args.kwargs["metadata"] == {"github_issue": 1}
+
 
 @patch("agent_pump.integrations.issue_sync.Github")
 def test_sync_completed_item(mock_github_cls, mock_config, mock_roadmap_service):
     # Setup completed roadmap item
     item = RoadmapItem(
-        title="Completed Feature",
-        status=RoadmapStatus.COMPLETED,
-        metadata={"github_issue": 123}
+        title="Completed Feature", status=RoadmapStatus.COMPLETED, metadata={"github_issue": 123}
     )
     mock_roadmap_service.get_all_items.return_value = [item]
 
@@ -71,7 +72,7 @@ def test_sync_completed_item(mock_github_cls, mock_config, mock_roadmap_service)
 
     # Setup mock repo
     mock_repo = MagicMock()
-    mock_repo.get_issues.return_value = [] # No new issues
+    mock_repo.get_issues.return_value = []  # No new issues
     mock_repo.get_issue.return_value = mock_issue
 
     mock_github_cls.return_value.get_repo.return_value = mock_repo
@@ -84,6 +85,7 @@ def test_sync_completed_item(mock_github_cls, mock_config, mock_roadmap_service)
     mock_repo.get_issue.assert_called_with(123)
     mock_issue.edit.assert_called_with(state="closed")
     mock_issue.create_comment.assert_called_once()
+
 
 @patch("agent_pump.integrations.issue_sync.Github")
 def test_map_priority(mock_github_cls, mock_config, mock_roadmap_service):
@@ -100,9 +102,11 @@ def test_map_priority(mock_github_cls, mock_config, mock_roadmap_service):
     priority = sync_service._map_priority([label_unknown])
     assert priority == "Medium"
 
+
 def test_init_validation(mock_roadmap_service):
     with pytest.raises(ValueError, match="GitHub token is required"):
         GitHubIssueSync(GitHubSyncConfig(), mock_roadmap_service)
+
 
 @patch("agent_pump.integrations.issue_sync.Github")
 def test_sync_direction_github_to_roadmap(mock_github_cls, mock_config, mock_roadmap_service):
@@ -134,7 +138,7 @@ def test_sync_direction_github_to_roadmap(mock_github_cls, mock_config, mock_roa
         RoadmapItem(
             title="Completed Feature",
             status=RoadmapStatus.COMPLETED,
-            metadata={"github_issue": 123}
+            metadata={"github_issue": 123},
         )
     ]
 
@@ -148,6 +152,7 @@ def test_sync_direction_github_to_roadmap(mock_github_cls, mock_config, mock_roa
 
     # Should NOT close issue
     mock_issue_completed.edit.assert_not_called()
+
 
 @patch("agent_pump.integrations.issue_sync.Github")
 def test_sync_direction_roadmap_to_github(mock_github_cls, mock_config, mock_roadmap_service):
@@ -178,7 +183,7 @@ def test_sync_direction_roadmap_to_github(mock_github_cls, mock_config, mock_roa
         RoadmapItem(
             title="Completed Feature",
             status=RoadmapStatus.COMPLETED,
-            metadata={"github_issue": 123}
+            metadata={"github_issue": 123},
         )
     ]
 

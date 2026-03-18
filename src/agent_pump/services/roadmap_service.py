@@ -129,8 +129,8 @@ class RoadmapService:
 
         # First part is usually empty or intro text, ignore for now if empty
         if parts and not parts[0].strip().startswith("###"):
-             # The first part is text before the first item
-             parts = parts[1:]
+            # The first part is text before the first item
+            parts = parts[1:]
 
         for part in parts:
             if not part.strip():
@@ -181,13 +181,15 @@ class RoadmapService:
 
                 description_lines.append(line)
 
-            items.append(RoadmapItem(
-                title=title,
-                status=status,
-                priority=priority,
-                description="\n".join(description_lines).strip(),
-                metadata=metadata
-            ))
+            items.append(
+                RoadmapItem(
+                    title=title,
+                    status=status,
+                    priority=priority,
+                    description="\n".join(description_lines).strip(),
+                    metadata=metadata,
+                )
+            )
 
         return items
 
@@ -210,7 +212,7 @@ class RoadmapService:
             "---",
             "",
             "## Current Sprint",
-            ""
+            "",
         ]
 
         if not roadmap.current_sprint:
@@ -245,7 +247,7 @@ class RoadmapService:
             f"**Priority: {item.priority}**",
             "",
             item.description,
-            ""
+            "",
         ]
         # We could add metadata as HTML comments if needed
         # if item.metadata:

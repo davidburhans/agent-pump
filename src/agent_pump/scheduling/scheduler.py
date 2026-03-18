@@ -70,7 +70,7 @@ class WorkflowScheduler:
             try:
                 await self.scheduler.remove_schedule(schedule_id)
             except LookupError:
-                pass # Job might not exist if disabled or not started
+                pass  # Job might not exist if disabled or not started
 
             del self.schedules[schedule_id]
             await self._save_schedules()
@@ -122,20 +122,18 @@ class WorkflowScheduler:
             self._run_workflow,
             trigger,
             id=schedule.id,
-            kwargs={"project_id": schedule.project_id, "schedule_id": schedule.id}
+            kwargs={"project_id": schedule.project_id, "schedule_id": schedule.id},
         )
 
     def _create_trigger(self, schedule: Schedule):
         """Create an APScheduler trigger from the schedule."""
         if schedule.schedule_type == ScheduleType.CRON:
-            return CronTrigger.from_crontab(
-                schedule.cron_expression,
-                timezone=schedule.timezone
-            )
+            return CronTrigger.from_crontab(schedule.cron_expression, timezone=schedule.timezone)
         elif schedule.schedule_type == ScheduleType.INTERVAL:
             return IntervalTrigger(minutes=schedule.interval_minutes)
         elif schedule.schedule_type == ScheduleType.ONE_TIME:
             from apscheduler.triggers.date import DateTrigger
+
             return DateTrigger(run_time=schedule.run_at)
 
         raise ValueError(f"Unknown schedule type: {schedule.schedule_type}")

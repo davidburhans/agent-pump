@@ -166,20 +166,21 @@ class SecureExecutor:
 
             # Execute
             if sandbox:
-                 process = await asyncio.create_subprocess_exec(
+                process = await asyncio.create_subprocess_exec(
                     *exec_cmd,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     # No cwd/env needed as docker handles it
                 )
             else:
-                 # Platform-specific flags
-                 creationflags = 0
-                 if sys.platform == "win32":
-                     import subprocess
-                     creationflags = subprocess.CREATE_NO_WINDOW
+                # Platform-specific flags
+                creationflags = 0
+                if sys.platform == "win32":
+                    import subprocess
 
-                 process = await asyncio.create_subprocess_exec(
+                    creationflags = subprocess.CREATE_NO_WINDOW
+
+                process = await asyncio.create_subprocess_exec(
                     *exec_cmd,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,

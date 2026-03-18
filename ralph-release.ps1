@@ -5,15 +5,12 @@
 
 param(
     [int]$MaxIterations = 600,
-    [int]$TimeoutSeconds = 7200,
+    [int]$TimeoutSeconds = 14400,
     # [int]$TimeoutSeconds = 3600,
     [string]$TestCommand = "exit 1",
     [string]$IterateCommand = @"
-opencode run "Please work on the next item on the roadmap. Plan the changes needed throughly and then write unit tests for the changes. 
-Then implement the changes. Then run the tests and fix any failures. Then run the tests again and fix any failures. 
-Repeat until the tests pass. Then update the roadmap and any other relevant files. Clean up any temporary files.
-If the task is complete, remove it from the roadmap and add it to the FEATURES.md document. Leave the code better than you found it.
-When done, brainstorm new features to add to the roadmap that will be useful to the goal of the project and add them to the roadmap. 
+opencode run "Please review this project and make sure it is ready for a full production release. First impressions are everything.
+As such, this code-base needs to be immaculate and the product a joy to use. Obviously we need it to be rock solid and fast too. Do the needful. 
 You are on Windows. Use uv for interacting with the environment: 
 
 uv run ruff check .
@@ -21,7 +18,7 @@ uv run pyright
 uv run pytest tests/ -v
 "
 --agent build --model lmstudio/qwen/qwen3-coder-next
--f ./BEST_PRACTICES.md -f ./README.md -f ./ROADMAP.md
+-f ./BEST_PRACTICES.md -f ./README.md
 "@,
     [int]$ShowLines = 30,
     [switch]$Verbose = $false

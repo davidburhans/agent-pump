@@ -1,11 +1,14 @@
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+import asyncio
 from pathlib import Path
-from agent_pump.models.project import Project
-from agent_pump.orchestrator.workflow import ProjectWorkflow
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 from agent_pump.events.bus import EventBus
 from agent_pump.events.models import WorkflowCompletedEvent, WorkflowFailedEvent
-import asyncio
+from agent_pump.models.project import Project
+from agent_pump.orchestrator.workflow import ProjectWorkflow
+
 
 @pytest.fixture
 def mock_project():
@@ -19,11 +22,13 @@ def mock_project():
     project.config = MagicMock()
     return project
 
+
 @pytest.fixture
 def event_bus():
     bus = MagicMock(spec=EventBus)
     bus.publish = AsyncMock()
     return bus
+
 
 @pytest.fixture
 def workflow(mock_project, event_bus):
@@ -32,6 +37,7 @@ def workflow(mock_project, event_bus):
         with patch("agent_pump.models.state.WorkflowState.save"):
             wf = ProjectWorkflow(project=mock_project, event_bus=event_bus)
             yield wf
+
 
 @pytest.mark.asyncio
 async def test_emit_completed_event(workflow, event_bus):
@@ -58,6 +64,7 @@ async def test_emit_completed_event(workflow, event_bus):
             assert event.feature_name == "test-feature"
 
     assert completed_event_emitted
+
 
 @pytest.mark.asyncio
 async def test_emit_failed_event(workflow, event_bus):

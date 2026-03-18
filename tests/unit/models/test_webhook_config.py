@@ -19,7 +19,7 @@ def test_webhook_config_custom_values():
         enabled=True,
         secret_key="mysecret",
         allowed_sources=["custom"],
-        auto_trigger_branches=["develop"]
+        auto_trigger_branches=["develop"],
     )
     assert config.enabled is True
     assert config.secret_key == "mysecret"
@@ -30,10 +30,7 @@ def test_webhook_config_custom_values():
 def test_webhook_trigger_model():
     """Test WebhookTrigger model."""
     trigger = WebhookTrigger(
-        source="github",
-        event_type="push",
-        project_id="proj1",
-        phase="planning"
+        source="github", event_type="push", project_id="proj1", phase="planning"
     )
     assert trigger.source == "github"
     assert trigger.event_type == "push"

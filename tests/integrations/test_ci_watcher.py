@@ -46,16 +46,18 @@ async def test_handle_check_run_success():
         # Patch GitHubService
         with patch("agent_pump.integrations.ci_watcher.GitHubService") as MockGitHubService:
             mock_gh = MockGitHubService.return_value
-            mock_gh.get_check_run_logs.return_value = "ERROR: something broke\nFAILED tests/test_foo.py::test_bar"
+            mock_gh.get_check_run_logs.return_value = (
+                "ERROR: something broke\nFAILED tests/test_foo.py::test_bar"
+            )
 
             payload = {
                 "action": "completed",
                 "check_run": {
                     "id": 123,
                     "conclusion": "failure",
-                    "check_suite": {"head_branch": "feature/foo"}
+                    "check_suite": {"head_branch": "feature/foo"},
                 },
-                "repository": {"full_name": "owner/repo"}
+                "repository": {"full_name": "owner/repo"},
             }
 
             await watcher.handle_check_run(payload)
@@ -69,6 +71,7 @@ async def test_handle_check_run_success():
             # Check retry tracker
             key = f"{mock_project.path}:feature/foo"
             assert watcher.retry_tracker[key] == 1
+
 
 @pytest.mark.asyncio
 async def test_handle_check_run_ignored_actions():
@@ -106,9 +109,9 @@ async def test_handle_check_run_max_retries():
         "check_run": {
             "id": 123,
             "conclusion": "failure",
-            "check_suite": {"head_branch": "feature/foo"}
+            "check_suite": {"head_branch": "feature/foo"},
         },
-        "repository": {"full_name": "owner/repo"}
+        "repository": {"full_name": "owner/repo"},
     }
 
     # Setup workflow mock to ensure it's NOT called
@@ -120,6 +123,7 @@ async def test_handle_check_run_max_retries():
 
     project_service.add_project.assert_called()
     workflow.run.assert_not_called()
+
 
 @pytest.mark.asyncio
 async def test_handle_check_run_reset_on_success():
@@ -144,9 +148,9 @@ async def test_handle_check_run_reset_on_success():
         "check_run": {
             "id": 123,
             "conclusion": "success",
-            "check_suite": {"head_branch": "feature/foo"}
+            "check_suite": {"head_branch": "feature/foo"},
         },
-        "repository": {"full_name": "owner/repo"}
+        "repository": {"full_name": "owner/repo"},
     }
 
     await watcher.handle_check_run(payload)

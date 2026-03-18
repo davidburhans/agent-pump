@@ -163,7 +163,7 @@ class OllamaBackend(AgentBackend):
             "stream": True,
             "options": {
                 # "num_ctx": self.get_context_window_size(model) # Let server decide or config
-            }
+            },
         }
 
         logger.info(f"Calling Ollama at {url} with model {model}")

@@ -1,7 +1,6 @@
 """Unit tests for subprocess manager."""
 
 import asyncio
-import sys
 import time
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -201,9 +200,11 @@ class TestSubprocessManager:
         mock_proc = AsyncMock()
         mock_proc.wait = AsyncMock()
 
-        with patch("sys.platform", "win32"), patch("subprocess.run") as mock_run, patch(
-            "asyncio.create_subprocess_shell", return_value=mock_proc
-        ) as mock_create_shell:
+        with (
+            patch("sys.platform", "win32"),
+            patch("subprocess.run") as mock_run,
+            patch("asyncio.create_subprocess_shell", return_value=mock_proc) as mock_create_shell,
+        ):
             await manager.terminate_process(pid)
 
             # This confirms the FIX: blocking subprocess.run is NOT called

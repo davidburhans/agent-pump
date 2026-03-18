@@ -110,12 +110,12 @@ class CIWatcher:
         # Ensure workflow is loaded
         workflow = self.project_service.workflows.get(project.path)
         if not workflow:
-             try:
-                 await self.project_service.add_project(project.path)
-                 workflow = self.project_service.workflows.get(project.path)
-             except Exception as e:
-                 logger.error(f"Failed to load workflow for {project.name}: {e}")
-                 return
+            try:
+                await self.project_service.add_project(project.path)
+                workflow = self.project_service.workflows.get(project.path)
+            except Exception as e:
+                logger.error(f"Failed to load workflow for {project.name}: {e}")
+                return
 
         if workflow and not workflow.is_running():
             logger.info(f"Triggering auto-fix workflow for {project.name}")
@@ -124,7 +124,9 @@ class CIWatcher:
             except Exception as e:
                 logger.error(f"Failed to run workflow for {project.name}: {e}")
         else:
-            logger.info(f"Workflow already running for {project.name}, added task will be picked up next.")
+            logger.info(
+                f"Workflow already running for {project.name}, added task will be picked up next."
+            )
 
     async def _find_project(self, repo_full_name: str) -> Project | None:
         """Find project matching the repository name."""
@@ -136,7 +138,9 @@ class CIWatcher:
                 and proj_config.github_integration.owner
                 and proj_config.github_integration.repo
             ):
-                full = f"{proj_config.github_integration.owner}/{proj_config.github_integration.repo}"
+                full = (
+                    f"{proj_config.github_integration.owner}/{proj_config.github_integration.repo}"
+                )
                 if full == repo_full_name:
                     path = Path(path_str)
                     try:

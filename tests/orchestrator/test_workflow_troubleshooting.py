@@ -1,10 +1,13 @@
-import pytest
-from unittest.mock import MagicMock, patch
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 from agent_pump.models.project import Project, ProjectStatus
-from agent_pump.orchestrator.workflow import ProjectWorkflow
 from agent_pump.models.state import WorkflowState
+from agent_pump.orchestrator.workflow import ProjectWorkflow
 from agent_pump.orchestrator.workflow_definition import DEFAULT_WORKFLOW
+
 
 @pytest.fixture
 def mock_project():
@@ -19,6 +22,7 @@ def mock_project():
     project.status = ProjectStatus.IDLE
     return project
 
+
 @pytest.fixture
 def workflow(mock_project):
     with patch("agent_pump.models.state.WorkflowState.load", return_value=None):
@@ -27,6 +31,7 @@ def workflow(mock_project):
             # Create fresh state
             wf.workflow_state = WorkflowState(project_path=mock_project.path)
             yield wf
+
 
 @pytest.mark.asyncio
 async def test_failure_transition_to_troubleshooting(workflow):
@@ -40,6 +45,7 @@ async def test_failure_transition_to_troubleshooting(workflow):
 
     assert workflow.state == "troubleshooting"
     assert workflow.project.status == ProjectStatus.TROUBLESHOOTING
+
 
 @pytest.mark.asyncio
 async def test_retry_last_phase(workflow):

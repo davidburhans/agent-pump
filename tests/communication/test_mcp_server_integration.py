@@ -1,18 +1,21 @@
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 import json
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+from mcp import ClientSession
+from mcp.types import CallToolResult, ListToolsResult, TextContent, Tool
 
 from agent_pump.communication.mcp_server import AgentPumpMCPServer
 from agent_pump.models.mcp_config import MCPServerConfig
-from mcp import ClientSession
-from mcp.types import ListToolsResult, Tool, CallToolResult, TextContent
+
 
 @pytest.fixture
 def mock_app_state():
     mock = MagicMock()
     mock.project_service = MagicMock()
     return mock
+
 
 @pytest.fixture
 def mock_client_manager():
@@ -22,11 +25,13 @@ def mock_client_manager():
         manager.close = AsyncMock()
         yield manager
 
+
 @pytest.fixture
 def server(mock_app_state, mock_client_manager):
     server = AgentPumpMCPServer(mock_app_state)
-    server.client_manager = mock_client_manager # Ensure mock is used
+    server.client_manager = mock_client_manager  # Ensure mock is used
     return server
+
 
 @pytest.mark.asyncio
 async def test_list_remote_tools(server, mock_app_state, mock_client_manager):
@@ -38,20 +43,20 @@ async def test_list_remote_tools(server, mock_app_state, mock_client_manager):
     workflow.config = MagicMock()
     workflow.config.mcp_servers = [
         MCPServerConfig(name="server1", type="stdio", command="cmd"),
-        MCPServerConfig(name="server2", type="sse", url="http://url")
+        MCPServerConfig(name="server2", type="sse", url="http://url"),
     ]
     mock_app_state.project_service.workflows = {Path(project_id): workflow}
 
     # Setup session responses
     session1 = AsyncMock(spec=ClientSession)
-    session1.list_tools.return_value = ListToolsResult(tools=[
-        Tool(name="tool1", description="desc1", inputSchema={})
-    ])
+    session1.list_tools.return_value = ListToolsResult(
+        tools=[Tool(name="tool1", description="desc1", inputSchema={})]
+    )
 
     session2 = AsyncMock(spec=ClientSession)
-    session2.list_tools.return_value = ListToolsResult(tools=[
-        Tool(name="tool2", description="desc2", inputSchema={})
-    ])
+    session2.list_tools.return_value = ListToolsResult(
+        tools=[Tool(name="tool2", description="desc2", inputSchema={})]
+    )
 
     mock_client_manager.get_session.side_effect = [session1, session2]
 
@@ -68,15 +73,14 @@ async def test_list_remote_tools(server, mock_app_state, mock_client_manager):
     t2 = next(t for t in result if t["name"] == "tool2")
     assert t2["server"] == "server2"
 
+
 @pytest.mark.asyncio
 async def test_run_remote_tool(server, mock_app_state, mock_client_manager):
     project_id = "/path/to/project"
 
     workflow = MagicMock()
     workflow.config = MagicMock()
-    workflow.config.mcp_servers = [
-        MCPServerConfig(name="server1", type="stdio", command="cmd")
-    ]
+    workflow.config.mcp_servers = [MCPServerConfig(name="server1", type="stdio", command="cmd")]
     mock_app_state.project_service.workflows = {Path(project_id): workflow}
 
     session = AsyncMock(spec=ClientSession)
@@ -88,14 +92,12 @@ async def test_run_remote_tool(server, mock_app_state, mock_client_manager):
 
     # Call method
     result = await server.run_remote_tool(
-        project_id=project_id,
-        server_name="server1",
-        tool_name="tool1",
-        arguments={"arg": "val"}
+        project_id=project_id, server_name="server1", tool_name="tool1", arguments={"arg": "val"}
     )
 
     assert result == "Output from tool"
     session.call_tool.assert_called_with("tool1", {"arg": "val"})
+
 
 @pytest.mark.asyncio
 async def test_run_remote_tool_server_not_found(server, mock_app_state):
@@ -106,30 +108,23 @@ async def test_run_remote_tool_server_not_found(server, mock_app_state):
     mock_app_state.project_service.workflows = {Path(project_id): workflow}
 
     result = await server.run_remote_tool(
-        project_id=project_id,
-        server_name="unknown",
-        tool_name="tool",
-        arguments={}
+        project_id=project_id, server_name="unknown", tool_name="tool", arguments={}
     )
 
     assert "not configured" in result
+
 
 @pytest.mark.asyncio
 async def test_run_remote_tool_error(server, mock_app_state, mock_client_manager):
     project_id = "/path/to/project"
     workflow = MagicMock()
-    workflow.config.mcp_servers = [
-        MCPServerConfig(name="server1", type="stdio", command="cmd")
-    ]
+    workflow.config.mcp_servers = [MCPServerConfig(name="server1", type="stdio", command="cmd")]
     mock_app_state.project_service.workflows = {Path(project_id): workflow}
 
     mock_client_manager.get_session.side_effect = Exception("Connection failed")
 
     result = await server.run_remote_tool(
-        project_id=project_id,
-        server_name="server1",
-        tool_name="tool",
-        arguments={}
+        project_id=project_id, server_name="server1", tool_name="tool", arguments={}
     )
 
     assert "Error executing remote tool" in result

@@ -39,7 +39,7 @@ def scheduler(mock_project_service, temp_schedule_file):
 
         # Create scheduler
         scheduler = WorkflowScheduler(mock_project_service)
-        scheduler.scheduler = mock_instance # Ensure we use the mock
+        scheduler.scheduler = mock_instance  # Ensure we use the mock
 
         # Patch _schedule_file property
         with patch.object(WorkflowScheduler, "_schedule_file", new=temp_schedule_file):
@@ -50,9 +50,7 @@ def scheduler(mock_project_service, temp_schedule_file):
 async def test_add_schedule(scheduler):
     """Test adding a schedule."""
     schedule = Schedule(
-        project_id="/path/to/project",
-        schedule_type=ScheduleType.INTERVAL,
-        interval_minutes=60
+        project_id="/path/to/project", schedule_type=ScheduleType.INTERVAL, interval_minutes=60
     )
 
     # Mock _create_trigger to avoid complexity
@@ -74,9 +72,7 @@ async def test_add_schedule(scheduler):
 async def test_remove_schedule(scheduler):
     """Test removing a schedule."""
     schedule = Schedule(
-        project_id="/path/to/project",
-        schedule_type=ScheduleType.INTERVAL,
-        interval_minutes=60
+        project_id="/path/to/project", schedule_type=ScheduleType.INTERVAL, interval_minutes=60
     )
     scheduler.schedules[schedule.id] = schedule
     # Create file
@@ -100,9 +96,7 @@ async def test_remove_schedule(scheduler):
 async def test_load_schedules(scheduler):
     """Test loading schedules from disk."""
     schedule = Schedule(
-        project_id="p1",
-        schedule_type=ScheduleType.CRON,
-        cron_expression="* * * * *"
+        project_id="p1", schedule_type=ScheduleType.CRON, cron_expression="* * * * *"
     )
     data = [schedule.model_dump(mode="json")]
     scheduler._schedule_file.write_text(json.dumps(data))
@@ -120,9 +114,7 @@ async def test_load_schedules(scheduler):
 async def test_start(scheduler):
     """Test starting the scheduler."""
     schedule = Schedule(
-        project_id="p1",
-        schedule_type=ScheduleType.CRON,
-        cron_expression="* * * * *"
+        project_id="p1", schedule_type=ScheduleType.CRON, cron_expression="* * * * *"
     )
     data = [schedule.model_dump(mode="json")]
     scheduler._schedule_file.write_text(json.dumps(data))
@@ -146,9 +138,7 @@ async def test_start(scheduler):
 async def test_run_workflow(scheduler):
     """Test running a workflow."""
     schedule = Schedule(
-        project_id="/path/to/project",
-        schedule_type=ScheduleType.CRON,
-        cron_expression="* * * * *"
+        project_id="/path/to/project", schedule_type=ScheduleType.CRON, cron_expression="* * * * *"
     )
     scheduler.schedules[schedule.id] = schedule
 
@@ -180,7 +170,7 @@ async def test_run_workflow_working_hours(scheduler):
         working_hours_only=True,
         working_hours_start=time(9, 0),
         working_hours_end=time(17, 0),
-        timezone="UTC"
+        timezone="UTC",
     )
     scheduler.schedules[schedule.id] = schedule
 

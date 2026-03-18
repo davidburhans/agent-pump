@@ -1,4 +1,3 @@
-import asyncio
 import os
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -52,18 +51,15 @@ async def test_unsandboxed_tool_does_not_expose_host_secrets(server):
         "SECRET_KEY": "super_secret_value",
         "Path": "/usr/bin:/bin",  # Mixed case key
         "USER": "testuser",
-        "systemroot": "C:\\Windows" # Lowercase key
+        "systemroot": "C:\\Windows",  # Lowercase key
     }
 
     with patch.dict(os.environ, mock_environ, clear=True):
-        with patch(
-            "asyncio.create_subprocess_exec", return_value=process_mock
-        ) as mock_exec, patch(
-            "agent_pump.utils.subprocess_manager.subprocess_manager.track_process"
-        ), patch(
-            "agent_pump.utils.subprocess_manager.subprocess_manager.untrack_process"
+        with (
+            patch("asyncio.create_subprocess_exec", return_value=process_mock) as mock_exec,
+            patch("agent_pump.utils.subprocess_manager.subprocess_manager.track_process"),
+            patch("agent_pump.utils.subprocess_manager.subprocess_manager.untrack_process"),
         ):
-
             await server._execute_tool(tool_config, [], project_path)
 
             assert mock_exec.called

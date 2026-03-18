@@ -275,7 +275,7 @@ class GitHubService:
             try:
                 enforce_admins = protection.enforce_admins
                 if hasattr(enforce_admins, "enabled"):
-                     enforce_admins = enforce_admins.enabled
+                    enforce_admins = enforce_admins.enabled
             except (GithubException, AttributeError):
                 pass
 
@@ -301,7 +301,7 @@ class GitHubService:
                 required_status_checks=required_status_checks,
                 enforce_admins=bool(enforce_admins),
                 reviews_required=reviews_required,
-                required_pull_request_reviews=None, # List of users not easily accessible via standard protection object without extra calls
+                required_pull_request_reviews=None,  # List of users not easily accessible via standard protection object without extra calls
                 dismiss_stale_reviews=dismiss_stale_reviews,
                 require_code_owner_reviews=require_code_owner_reviews,
                 required_approving_review_count=required_approving_review_count,
@@ -422,7 +422,9 @@ class GitHubService:
             logger.error(f"Error checking status on {branch_name}: {e}")
             return False
 
-    async def get_pr_status(self, head_branch: str, base_branch: str = "main") -> PRReviewResult | None:
+    async def get_pr_status(
+        self, head_branch: str, base_branch: str = "main"
+    ) -> PRReviewResult | None:
         """Get the status of the Pull Request for the given branch.
 
         Args:
@@ -489,7 +491,7 @@ class GitHubService:
                 approved=is_approved,
                 issues_found=issues_found,
                 suggestions=[],
-                blocked=changes_requested
+                blocked=changes_requested,
             )
 
         except (GithubException, RateLimitExceededException):

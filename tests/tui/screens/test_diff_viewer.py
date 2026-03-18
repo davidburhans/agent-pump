@@ -135,7 +135,6 @@ async def test_diff_viewer_file_selection(sample_diff_files):
 
             # Simulate file selection by posting message
 
-
             file_list.post_message(DiffFileList.FileSelected(sample_diff_files[0]))
             await pilot.pause()
 

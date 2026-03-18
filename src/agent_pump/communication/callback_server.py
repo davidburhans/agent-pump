@@ -6,6 +6,7 @@ from agent_pump.models.backend_signal import BackendSignal, SignalType
 
 router = APIRouter(prefix="/callback", tags=["Backend Callbacks"])
 
+
 @router.post("/signal")
 async def receive_signal(signal: BackendSignal, request: Request):
     """
@@ -22,6 +23,7 @@ async def receive_signal(signal: BackendSignal, request: Request):
 
     return await handler(signal, request)
 
+
 async def handle_request_input(signal: BackendSignal, request: Request):
     """
     Pause workflow and wait for human input.
@@ -37,7 +39,7 @@ async def handle_request_input(signal: BackendSignal, request: Request):
 
     # Check if project exists and has a workflow
     if project_path not in project_service.workflows:
-         # Try to find by string match if direct path lookup fails (e.g. slight path diffs)
+        # Try to find by string match if direct path lookup fails (e.g. slight path diffs)
         found = False
         for p, w in project_service.workflows.items():
             if str(p) == signal.project_id:

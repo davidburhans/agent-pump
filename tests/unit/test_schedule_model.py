@@ -9,9 +9,7 @@ from agent_pump.models.schedule import Schedule, ScheduleType
 def test_schedule_creation_cron():
     """Test creating a cron schedule."""
     schedule = Schedule(
-        project_id="/path/to/project",
-        schedule_type=ScheduleType.CRON,
-        cron_expression="0 2 * * *"
+        project_id="/path/to/project", schedule_type=ScheduleType.CRON, cron_expression="0 2 * * *"
     )
     assert schedule.project_id == "/path/to/project"
     assert schedule.schedule_type == ScheduleType.CRON
@@ -24,9 +22,7 @@ def test_schedule_creation_cron():
 def test_schedule_creation_interval():
     """Test creating an interval schedule."""
     schedule = Schedule(
-        project_id="/path/to/project",
-        schedule_type=ScheduleType.INTERVAL,
-        interval_minutes=60
+        project_id="/path/to/project", schedule_type=ScheduleType.INTERVAL, interval_minutes=60
     )
     assert schedule.schedule_type == ScheduleType.INTERVAL
     assert schedule.interval_minutes == 60
@@ -36,9 +32,7 @@ def test_schedule_creation_one_time():
     """Test creating a one-time schedule."""
     now = datetime.now()
     schedule = Schedule(
-        project_id="/path/to/project",
-        schedule_type=ScheduleType.ONE_TIME,
-        run_at=now
+        project_id="/path/to/project", schedule_type=ScheduleType.ONE_TIME, run_at=now
     )
     assert schedule.schedule_type == ScheduleType.ONE_TIME
     assert schedule.run_at == now
@@ -46,10 +40,7 @@ def test_schedule_creation_one_time():
 
 def test_schedule_defaults():
     """Test default values."""
-    schedule = Schedule(
-        project_id="test",
-        schedule_type=ScheduleType.CRON
-    )
+    schedule = Schedule(project_id="test", schedule_type=ScheduleType.CRON)
     assert schedule.working_hours_only is False
     assert schedule.working_hours_start == time(9, 0)
     assert schedule.working_hours_end == time(17, 0)
