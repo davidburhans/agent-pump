@@ -57,8 +57,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict[str, Any], None]:
         app.state.event_bus = EventBus()
         app.state.workspace_service = WorkspaceService(app.state.event_bus, app.state.app_state)
         workspace = app.state.workspace_service.get_current_workspace()
+        from agent_pump.services.workflow_service import WorkflowService
+
         app.state.project_service = ProjectService(
             app.state.event_bus, workspace, app.state.app_state
+        )
+        app.state.workflow_service = WorkflowService(
+            app.state.event_bus, app.state.project_service
         )
 
         # Initialize File Watcher
@@ -98,6 +103,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict[str, Any], None]:
         await app.state.collaboration_service.start()
         logger.info("Collaboration services initialized")
 
+        # Start WebSocket event bridge
+        websocket_manager.start_event_bridge(app.state.event_bus)
+        logger.info("WebSocket EventBus bridge initialized")
+
         # Initialize metrics service
         app.state.metrics_service = MetricsService(app.state.event_bus, workspace.name)
         await app.state.metrics_service.start()
@@ -127,7 +136,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[dict[str, Any], None]:
 
     yield {"startup_time": app.state.startup_time}
 
-    # Shutdown
+    try:
+        websocket_manager.stop_event_bridge()
+    except Exception as e:
+        logger.error(f"Error shutting down WebSocket EventBus bridge: {e}")
+
+    if hasattr(app.state, "workflow_service"):
+        try:
+            await app.state.workflow_service.shutdown()
+        except Exception as e:
+            logger.error(f"Error shutting down Workflow Service: {e}")
+
     if hasattr(app.state, "notification_service"):
         try:
             await app.state.notification_service.stop()

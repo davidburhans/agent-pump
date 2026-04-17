@@ -7,8 +7,8 @@ from typing import Any, Self
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
-# Type aliases for forward references to internal models
-# Actual imports will be done inside methods to avoid circular dependencies
+from agent_pump.models.workspace import ModelCatalog
+
 Project = Any
 ProjectWorkflow = Any
 LogEntry = Any
@@ -598,3 +598,25 @@ class ActivityFilterRequest(APIBaseModel):
     action: str | None = Field(default=None, description="Filter by action type")
     limit: int = Field(default=50, description="Maximum number of results")
     since: str | None = Field(default=None, description="ISO timestamp to get activities since")
+
+
+class ModelCatalogDTO(APIBaseModel):
+    """DTO for the model catalog containing available models per backend."""
+
+    backends: dict[str, list[str]] = Field(
+        default_factory=dict,
+        description="Mapping of backend name to list of available models",
+    )
+
+    @classmethod
+    def from_internal(cls, catalog: ModelCatalog) -> Self:
+        """Convert from internal ModelCatalog."""
+        return cls(backends=catalog.backends.copy())
+
+
+class ModelCatalogUpdateRequest(APIBaseModel):
+    """Request to update the model catalog."""
+
+    backends: dict[str, list[str]] = Field(
+        description="Updated mapping of backend name to list of available models",
+    )

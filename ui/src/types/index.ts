@@ -43,3 +43,7 @@ export interface Workspace {
   name: string;
   projects: ProjectStatus[];
 }
+
+export interface ModelCatalog {
+  backends: Record<string, string[]>;
+}

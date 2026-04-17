@@ -147,7 +147,7 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
         width: 18;
     }
 
-    .backend-row Select#*-model-* {
+    .backend-row Select.model-select {
         width: 30;
     }
 
@@ -351,10 +351,11 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
             )
         )
 
-        # Check if this backend supports model selection
-        supports_models = self._backend_supports_models.get(backend.name, False)
+        # Check if this backend has models in the catalog
+        catalog_models = self.workspace.model_catalog.get_models(backend.name)
+        has_catalog_models = bool(catalog_models)
 
-        if supports_models:
+        if has_catalog_models:
             # Parse current model from args
             current_model = ""
             extra_args = []
@@ -369,13 +370,14 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
                     extra_args.append(arg)
 
             # Add model dropdown
-            models = self._backend_models.get(backend.name, [])
+            models = catalog_models
             model_options = [("(select model)", "")] + [(m, m) for m in models]
             row.compose_add_child(
                 Select(
                     model_options,
                     value=current_model if current_model else "",
                     id=f"{phase}-model-{rc}-{idx}",
+                    classes="model-select",
                     allow_blank=False,
                 )
             )
@@ -539,6 +541,14 @@ class BackendConfigModal(ModalScreen[PhaseBackends | None]):
             await self._update_model_dropdown(phase, idx, backend_name)
             return
 
+        # First check the workspace's ModelCatalog
+        catalog_models = self.workspace.model_catalog.get_models(backend_name)
+        if catalog_models:
+            self._backend_models[backend_name] = catalog_models
+            await self._update_model_dropdown(phase, idx, backend_name)
+            return
+
+        # If catalog is empty, try dynamic listing from backend
         try:
             backend = get_backend(backend_name)
             if backend.supports_model_selection():

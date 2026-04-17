@@ -33,6 +33,7 @@ class ConnectionManager:
         self.rooms: dict[str, set[str]] = {}
         self.collaboration_service = collaboration_service
         self.activity_service = activity_service
+        self._bridge_task: asyncio.Task | None = None
 
     def set_services(
         self,
@@ -42,6 +43,65 @@ class ConnectionManager:
         """Set the collaboration and activity services."""
         self.collaboration_service = collaboration_service
         self.activity_service = activity_service
+
+    def start_event_bridge(self, event_bus: Any) -> None:
+        """Start the EventBus-to-WebSocket bridge task."""
+        if self._bridge_task is not None:
+            logger.warning("Event bridge task already running, stopping it first")
+            self.stop_event_bridge()
+
+        self._bridge_task = asyncio.create_task(self._event_bridge_loop(event_bus))
+        logger.info("EventBus-to-WebSocket bridge started")
+
+    def stop_event_bridge(self) -> None:
+        """Stop the EventBus-to-WebSocket bridge task."""
+        if self._bridge_task is not None:
+            self._bridge_task.cancel()
+            self._bridge_task = None
+            logger.info("EventBus-to-WebSocket bridge stopped")
+
+    async def _event_bridge_loop(self, event_bus: Any) -> None:
+        """Async loop to process events from the EventBus and broadcast them."""
+        from agent_pump.events.models import LogEntryEvent, WorkflowStateChangedEvent
+        from agent_pump.api.schemas import LogEntryDTO
+
+        try:
+            async for event in event_bus.subscribe():
+                try:
+                    if isinstance(event, LogEntryEvent):
+                        if event.project_path:
+                            # Normalize path for matching room key
+                            project_path_str = str(event.project_path.resolve())
+                            dto = LogEntryDTO.from_internal(event)
+                            await self.broadcast_to_room(
+                                project_path_str,
+                                {
+                                    "type": "log_entry",
+                                    **dto.model_dump(by_alias=True)
+                                }
+                            )
+                    elif isinstance(event, WorkflowStateChangedEvent):
+                        if event.project_path:
+                            project_path_str = str(event.project_path.resolve())
+                            await self.broadcast_to_room(
+                                project_path_str,
+                                {
+                                    "type": "workflow_state",
+                                    "projectPath": project_path_str,
+                                    "project_path": project_path_str,
+                                    "newState": event.new_state,
+                                    "currentState": event.new_state,
+                                    "new_state": event.new_state,
+                                    "old_state": event.old_state,
+                                    "timestamp": event.timestamp.isoformat()
+                                }
+                            )
+                except Exception as e:
+                    logger.error(f"Error in EventBus WebSocket bridge processing event: {e}")
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            logger.error(f"EventBus-to-WebSocket bridge crashed: {e}")
 
     async def connect(
         self,

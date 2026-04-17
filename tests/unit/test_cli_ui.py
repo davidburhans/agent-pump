@@ -118,3 +118,40 @@ def test_run_ui_build_function():
 
         # Check calls
         assert mock_popen.call_count >= 1
+
+
+def test_ui_serve_invalid_port():
+    """Test validation of invalid port numbers."""
+    runner = CliRunner()
+    result = runner.invoke(main, ["ui", "serve", "--port", "80"])
+
+    assert result.exit_code == 0
+    assert "Invalid port: 80" in result.output
+
+    result = runner.invoke(main, ["ui", "serve", "--port", "70000"])
+    assert result.exit_code == 0
+    assert "Invalid port: 70000" in result.output
+
+
+@patch("agent_pump.cli._run_web_server")
+@patch("agent_pump.utils.subprocess_manager.subprocess_manager.cleanup")
+def test_ui_serve_success(mock_cleanup, mock_run_web_server):
+    """Test successful UI server startup with cleanup."""
+
+    # We must patch asyncio.run to not actually run the real event loop since we are
+    # mocking coroutines inside synchronous contexts differently, OR we just let it run
+    # our mocked async functions. Since _run_web_with_cleanup is called via asyncio.run(),
+    # the mocked async functions will be awaited.
+    # To make MagicMock awaitable, we use AsyncMock. Python 3.8+ unittest.mock.AsyncMock
+    from unittest.mock import AsyncMock
+
+    mock_run_web_server.side_effect = AsyncMock()
+    mock_cleanup.side_effect = AsyncMock()
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["ui", "serve", "--port", "8080"])
+
+    assert result.exit_code == 0
+    mock_run_web_server.assert_called_once_with(8080)
+    mock_cleanup.assert_called_once()
+

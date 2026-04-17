@@ -9,50 +9,43 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../.
 
 def test_imports():
     """Test that core modules can be imported."""
-    try:
-        from agent_pump.utils.roadmap import RoadmapParser
+    from agent_pump.utils.roadmap import RoadmapParser
 
-        _ = RoadmapParser
+    _ = RoadmapParser
 
-        print("✓ RoadmapParser imported successfully")
+    print("✓ RoadmapParser imported successfully")
 
-        from agent_pump.tui.screens.roadmap_modal import RoadmapModal
+    from agent_pump.tui.screens.roadmap_modal import RoadmapModal
 
-        _ = RoadmapModal
+    _ = RoadmapModal
 
-        print("✓ RoadmapModal imported successfully")
+    print("✓ RoadmapModal imported successfully")
 
-        from agent_pump.models.project import Project
+    from agent_pump.models.project import Project
 
-        _ = Project
+    _ = Project
 
-        print("✓ Project imported successfully")
+    print("✓ Project imported successfully")
 
-        from agent_pump.config import Config
+    from agent_pump.config import Config
 
-        _ = Config
+    _ = Config
 
-        print("✓ Config imported successfully")
-
-        return True
-    except ImportError as e:
-        print(f"✗ Import error: {e}")
-        return False
+    print("✓ Config imported successfully")
 
 
 def test_roadmap_functionality():
     """Test roadmap parsing functionality."""
-    try:
-        import tempfile
-        from pathlib import Path
+    import tempfile
+    from pathlib import Path
 
-        from agent_pump.utils.roadmap import RoadmapParser
+    from agent_pump.utils.roadmap import RoadmapParser
 
-        # Create a temporary roadmap file
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".md", delete=False, encoding="utf-8"
-        ) as f:
-            f.write("""# Agent Pump - Roadmap
+    # Create a temporary roadmap file
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".md", delete=False, encoding="utf-8"
+    ) as f:
+        f.write("""# Agent Pump - Roadmap
 
 ## Status Legend
 
@@ -92,38 +85,30 @@ Ability to see the current state of the machine while the machine is executing.
 Future notification capabilities.
 
 """)
-            temp_path = f.name
+        temp_path = f.name
 
-        # Test parsing
-        parser = RoadmapParser(Path(temp_path))
-        features = parser.parse()
+    # Test parsing
+    parser = RoadmapParser(Path(temp_path))
+    features = parser.parse()
 
-        print(f"✓ Parsed {len(features)} features from roadmap")
+    print(f"✓ Parsed {len(features)} features from roadmap")
 
-        uncompleted = parser.get_uncompleted_features()
-        print(f"✓ Found {len(uncompleted)} uncompleted features")
+    uncompleted = parser.get_uncompleted_features()
+    print(f"✓ Found {len(uncompleted)} uncompleted features")
 
-        # Clean up
-        os.unlink(temp_path)
-
-        return True
-    except Exception as e:
-        print(f"✗ Roadmap functionality test failed: {e}")
-        import traceback
-
-        traceback.print_exc()
-        return False
+    # Clean up
+    os.unlink(temp_path)
 
 
 if __name__ == "__main__":
     print("Running simple verification tests...")
 
-    success = True
-    success &= test_imports()
-    success &= test_roadmap_functionality()
-
-    if success:
+    try:
+        test_imports()
+        test_roadmap_functionality()
         print("\n✓ All verification tests passed!")
-    else:
+    except Exception:
+        import traceback
+        traceback.print_exc()
         print("\n✗ Some verification tests failed!")
         sys.exit(1)

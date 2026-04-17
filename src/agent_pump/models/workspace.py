@@ -5,6 +5,7 @@ import logging
 import shutil
 from datetime import datetime
 from pathlib import Path
+from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -223,6 +224,54 @@ class GlobalPromptSettings(BaseModel):
         return prefix, suffix
 
 
+class ModelCatalog(BaseModel):
+    """Global catalog of available models per backend.
+
+    This allows users to configure which models are available for each
+    backend, enabling dropdown selection in the UI instead of manual entry.
+    """
+
+    backends: dict[str, list[str]] = Field(
+        default_factory=dict,
+        description="Mapping of backend name to list of available models",
+    )
+
+    DEFAULT_MODELS: ClassVar[dict[str, list[str]]] = {
+        "gemini": ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"],
+        "claude": ["claude-sonnet-4-5", "claude-opus-4-5", "claude-haiku-4"],
+        "opencode": ["default"],
+        "opencode-api": ["default"],
+        "qwen": ["qwen-coder", "qwen-chat"],
+    }
+
+    def get_models(self, backend_name: str) -> list[str]:
+        """Get the list of models for a backend."""
+        return self.backends.get(backend_name, [])
+
+    def set_models(self, backend_name: str, models: list[str]) -> None:
+        """Set the list of models for a backend."""
+        self.backends[backend_name] = models
+
+    def add_model(self, backend_name: str, model: str) -> None:
+        """Add a model to a backend's list if not already present."""
+        if backend_name not in self.backends:
+            self.backends[backend_name] = []
+        if model and model not in self.backends[backend_name]:
+            self.backends[backend_name].append(model)
+
+    def remove_model(self, backend_name: str, model: str) -> bool:
+        """Remove a model from a backend's list. Returns True if removed."""
+        if backend_name in self.backends and model in self.backends[backend_name]:
+            self.backends[backend_name].remove(model)
+            return True
+        return False
+
+    @classmethod
+    def create_default(cls) -> "ModelCatalog":
+        """Create a ModelCatalog with default known models."""
+        return cls(backends=dict(cls.DEFAULT_MODELS))
+
+
 class ProjectConfig(BaseModel):
     """Per-project configuration within a workspace."""
 
@@ -342,6 +391,10 @@ class Workspace(BaseModel):
     notification_config: NotificationConfig = Field(
         default_factory=NotificationConfig,
         description="Notification configuration",
+    )
+    model_catalog: ModelCatalog = Field(
+        default_factory=ModelCatalog.create_default,
+        description="Global catalog of available models per backend for dropdown selection",
     )
     created_at: datetime = Field(default_factory=datetime.now)
     last_modified: datetime = Field(default_factory=datetime.now)

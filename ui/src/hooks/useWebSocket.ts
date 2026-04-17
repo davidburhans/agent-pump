@@ -3,20 +3,31 @@ import { LogEntry, WorkflowState } from '../types';
 
 interface WebSocketMessage {
   type: string;
-  data: any;
+  [key: string]: any;
 }
 
 export function useWebSocket(selectedProjectPath: string | null) {
   const [isConnected, setIsConnected] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [workflow, setWorkflow] = useState<WorkflowState | null>(null);
-  
+
   const socketRef = useRef<WebSocket | null>(null);
+  const selectedProjectPathRef = useRef<string | null>(null);
 
   useEffect(() => {
-    // Connect to WebSocket
-    // Note: In prod build, we might use relative path if served from same origin
-    // For dev, vite proxy handles /ws
+    selectedProjectPathRef.current = selectedProjectPath;
+  }, [selectedProjectPath]);
+
+  const sendJoinProject = (projectPath: string | null) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        type: 'join_project',
+        project_path: projectPath,
+      }));
+    }
+  };
+
+  useEffect(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
     const wsUrl = `${protocol}//${host}/ws`;
@@ -27,11 +38,51 @@ export function useWebSocket(selectedProjectPath: string | null) {
     socket.onopen = () => {
       console.log('WebSocket connected');
       setIsConnected(true);
+      sendJoinProject(selectedProjectPathRef.current);
     };
 
     socket.onclose = () => {
       console.log('WebSocket disconnected');
       setIsConnected(false);
+    };
+
+    const handleMessage = (msg: WebSocketMessage) => {
+      switch (msg.type) {
+        case 'log_entry':
+          if (msg.project_path || msg.projectPath) {
+            const entry: LogEntry = {
+              timestamp: msg.timestamp || new Date().toISOString(),
+              level: msg.level || 'INFO',
+              message: msg.message || '',
+              projectPath: msg.project_path || msg.projectPath,
+              state: msg.state || 'unknown',
+              task: msg.task || null,
+            };
+            const currentProject = selectedProjectPathRef.current;
+            if (!currentProject || entry.projectPath === currentProject) {
+              setLogs(prev => [...prev, entry]);
+            }
+          }
+          break;
+        case 'workflow_state':
+          if (msg.project_path || msg.projectPath) {
+            const state: WorkflowState = {
+              currentState: msg.new_state || msg.currentState || 'unknown',
+              iteration: msg.iteration || 0,
+              timeInState: msg.time_in_state || 0,
+              availableTransitions: msg.available_transitions || [],
+              nodes: msg.nodes || [],
+              edges: msg.edges || [],
+            };
+            setWorkflow(state);
+          }
+          break;
+        case 'connected':
+        case 'heartbeat_ack':
+          break;
+        default:
+          console.log('Unknown message type', msg.type);
+      }
     };
 
     socket.onmessage = (event) => {
@@ -46,32 +97,11 @@ export function useWebSocket(selectedProjectPath: string | null) {
     return () => {
       socket.close();
     };
-  }, []); // Connect once on mount
+  }, []);
 
-  const handleMessage = (msg: WebSocketMessage) => {
-    // Dispatch based on type
-    switch (msg.type) {
-      case 'log_entry':
-        // Append log if it matches selected project (or all?)
-        // The DTO has project_path.
-        const entry = msg.data as LogEntry;
-        if (!selectedProjectPath || entry.projectPath === selectedProjectPath) {
-             setLogs(prev => [...prev, entry]);
-        }
-        break;
-      case 'workflow_state':
-        // Update workflow if matches selected project
-        const state = msg.data as WorkflowState;
-        // We assume message contains project path, filtering needed?
-        // Ideally msg.data has projectPath or similar.
-        // DTO WorkflowStateDTO doesn't have path directly, but WorkflowStateChangedEvent does.
-        // Assuming the WS sends what we expect.
-        setWorkflow(state);
-        break;
-      default:
-        console.log('Unknown message type', msg.type);
-    }
-  };
+  useEffect(() => {
+    sendJoinProject(selectedProjectPath);
+  }, [selectedProjectPath]);
 
   return { isConnected, logs, workflow };
 }
