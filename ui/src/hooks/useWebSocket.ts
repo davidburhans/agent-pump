@@ -30,7 +30,13 @@ export function useWebSocket(selectedProjectPath: string | null) {
   useEffect(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    const wsUrl = `${protocol}//${host}/ws`;
+    
+    const params = new URLSearchParams(window.location.search);
+    const apiKey = params.get('api_key') || params.get('apiKey') || sessionStorage.getItem('agent_pump_api_key');
+    
+    const wsUrl = apiKey
+      ? `${protocol}//${host}/ws?api_key=${encodeURIComponent(apiKey)}`
+      : `${protocol}//${host}/ws`;
 
     const socket = new WebSocket(wsUrl);
     socketRef.current = socket;
