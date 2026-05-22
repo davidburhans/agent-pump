@@ -69,3 +69,63 @@ class TestSettingsAPI:
         # Verify workspace was updated and saved
         assert "anthropic" in workspace.model_catalog.backends
         mock_save.assert_called_once()
+
+    def test_get_general_settings(self, client_setup):
+        client, service, workspace, mock_save = client_setup
+        workspace.notifications_enabled = True
+
+        response = client.get("/settings/general")
+        assert response.status_code == 200
+        assert response.json()["notificationsEnabled"] is True
+
+    def test_update_general_settings(self, client_setup):
+        client, service, workspace, mock_save = client_setup
+        workspace.notifications_enabled = True
+
+        payload = {"notificationsEnabled": False}
+        response = client.put("/settings/general", json=payload)
+        assert response.status_code == 200
+        assert response.json()["notificationsEnabled"] is False
+        assert workspace.notifications_enabled is False
+        mock_save.assert_called_once()
+
+    @patch("agent_pump.utils.notifier.Notifier.test")
+    def test_test_notification(self, mock_notifier_test, client_setup):
+        client, _, _, _ = client_setup
+        response = client.post("/settings/test-notification")
+        assert response.status_code == 200
+        assert response.json()["status"] == "success"
+        mock_notifier_test.assert_called_once()
+
+    def test_save_backend_preset(self, client_setup):
+        client, service, workspace, mock_save = client_setup
+
+        preset_payload = {
+            "name": "MyCoolPreset",
+            "backends": {
+                "backends": [
+                    {
+                        "name": "gemini",
+                        "args": ["--temp", "0.7"],
+                        "timeout": 30,
+                        "concurrencyLimit": 4,
+                    }
+                ]
+            }
+        }
+
+
+        response = client.post("/settings/presets", json=preset_payload)
+        assert response.status_code == 200
+        assert response.json()["name"] == "MyCoolPreset"
+        assert response.json()["backends"]["backends"][0]["name"] == "gemini"
+
+        # Verify workspace has it
+        assert "MyCoolPreset" in workspace.backend_presets
+        preset = workspace.backend_presets["MyCoolPreset"]
+        assert preset.name == "MyCoolPreset"
+        assert preset.backends.backends[0].name == "gemini"
+        assert preset.backends.backends[0].args == ["--temp", "0.7"]
+        assert preset.backends.backends[0].timeout == 30
+        assert preset.backends.backends[0].concurrency_limit == 4
+        mock_save.assert_called_once()

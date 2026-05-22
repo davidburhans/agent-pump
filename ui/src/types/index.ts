@@ -47,3 +47,61 @@ export interface Workspace {
 export interface ModelCatalog {
   backends: Record<string, string[]>;
 }
+
+export interface ProjectWorkflowConfig {
+  maxIterations: number;
+  timeout: number;
+  branch: string | null;
+}
+
+export interface ProjectVerificationConfig {
+  buildCmd: string | null;
+  lintCmd: string | null;
+  testCmd: string | null;
+  coverageCmd: string | null;
+  coverageThreshold: number;
+  skipVerification: boolean;
+  sandboxImage: string | null;
+}
+
+export interface ProjectConfig {
+  backend: string;
+  workflow: ProjectWorkflowConfig;
+  verification: ProjectVerificationConfig;
+}
+
+export interface BackendInstance {
+  name: string;
+  args: string[];
+  timeout: number | null;
+  concurrencyLimit: number;
+}
+
+export interface BackendFallback {
+  backends: BackendInstance[];
+}
+
+export interface PhaseBackends {
+  defaults: BackendFallback;
+  planning: BackendFallback;
+  implementing: BackendFallback;
+  verifying: BackendFallback;
+  brainstorming: BackendFallback;
+  committing: BackendFallback;
+}
+
+export interface BackendPreset {
+  name: string;
+  backends: BackendFallback;
+}
+
+export interface ProjectBackends {
+  defaultChain: BackendFallback | null;
+  phaseBackends: PhaseBackends;
+  presets: BackendPreset[];
+}
+
+export interface GeneralSettings {
+  notificationsEnabled: boolean;
+}
+

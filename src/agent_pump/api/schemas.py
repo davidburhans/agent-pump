@@ -620,3 +620,133 @@ class ModelCatalogUpdateRequest(APIBaseModel):
     backends: dict[str, list[str]] = Field(
         description="Updated mapping of backend name to list of available models",
     )
+
+
+class ProjectWorkflowConfigDTO(APIBaseModel):
+    """Workflow configuration DTO."""
+
+    max_iterations: int = Field(default=10, description="Maximum workflow iterations")
+    timeout: int = Field(default=1800, description="Timeout per agent invocation in seconds")
+    branch: str | None = Field(default=None, description="Optional branch to isolate work")
+
+
+class ProjectVerificationConfigDTO(APIBaseModel):
+    """Verification configuration DTO."""
+
+    build_cmd: str | None = Field(default=None, description="Build command")
+    lint_cmd: str | None = Field(default=None, description="Lint command")
+    test_cmd: str | None = Field(default=None, description="Test command")
+    coverage_cmd: str | None = Field(default=None, description="Coverage command")
+    coverage_threshold: float = Field(default=0.0, description="Coverage threshold")
+    skip_verification: bool = Field(default=False, description="Skip verification entirely")
+    sandbox_image: str | None = Field(default=None, description="Sandbox docker image")
+
+
+class ProjectConfigDTO(APIBaseModel):
+    """Project-level configuration DTO (config.yml)."""
+
+    backend: str = Field(default="gemini", description="AI backend to use")
+    workflow: ProjectWorkflowConfigDTO = Field(default_factory=ProjectWorkflowConfigDTO)
+    verification: ProjectVerificationConfigDTO = Field(default_factory=ProjectVerificationConfigDTO)
+
+
+class BackendInstanceDTO(APIBaseModel):
+    """Backend instance config DTO."""
+
+    name: str = Field(default="gemini", description="Backend name")
+    args: list[str] = Field(default_factory=list, description="Backend arguments")
+    timeout: int | None = Field(default=None, description="Backend timeout")
+    concurrency_limit: int = Field(default=1, description="Concurrency limit")
+
+    @classmethod
+    def from_internal(cls, backend: Any) -> Self:
+        """Convert from internal BackendInstance."""
+        return cls(
+            name=getattr(backend, "name", "gemini"),
+            args=list(getattr(backend, "args", [])),
+            timeout=getattr(backend, "timeout", None),
+            concurrency_limit=getattr(backend, "concurrency_limit", 1),
+        )
+
+
+class BackendFallbackDTO(APIBaseModel):
+    """Fallback chain of backends DTO."""
+
+    backends: list[BackendInstanceDTO] = Field(
+        default_factory=list, description="Chain of backends"
+    )
+
+    @classmethod
+    def from_internal(cls, fallback: Any) -> Self:
+        """Convert from internal BackendFallback."""
+        backends = []
+        if fallback and hasattr(fallback, "backends"):
+            for b in fallback.backends:
+                backends.append(BackendInstanceDTO.from_internal(b))
+        return cls(backends=backends)
+
+
+class PhaseBackendsDTO(APIBaseModel):
+    """Phase specific backend fallbacks DTO."""
+
+    defaults: BackendFallbackDTO = Field(default_factory=BackendFallbackDTO)
+    planning: BackendFallbackDTO = Field(default_factory=BackendFallbackDTO)
+    implementing: BackendFallbackDTO = Field(default_factory=BackendFallbackDTO)
+    verifying: BackendFallbackDTO = Field(default_factory=BackendFallbackDTO)
+    brainstorming: BackendFallbackDTO = Field(default_factory=BackendFallbackDTO)
+    committing: BackendFallbackDTO = Field(default_factory=BackendFallbackDTO)
+
+    @classmethod
+    def from_internal(cls, phase_backends: Any) -> Self:
+        """Convert from internal PhaseBackends."""
+        return cls(
+            defaults=BackendFallbackDTO.from_internal(
+                getattr(phase_backends, "defaults", None)
+            ),
+            planning=BackendFallbackDTO.from_internal(
+                getattr(phase_backends, "planning", None)
+            ),
+            implementing=BackendFallbackDTO.from_internal(
+                getattr(phase_backends, "implementing", None)
+            ),
+            verifying=BackendFallbackDTO.from_internal(
+                getattr(phase_backends, "verifying", None)
+            ),
+            brainstorming=BackendFallbackDTO.from_internal(
+                getattr(phase_backends, "brainstorming", None)
+            ),
+            committing=BackendFallbackDTO.from_internal(
+                getattr(phase_backends, "committing", None)
+            ),
+        )
+
+
+
+class BackendPresetDTO(APIBaseModel):
+    """Backend preset DTO."""
+
+    name: str = Field(description="Preset name")
+    backends: BackendFallbackDTO = Field(default_factory=BackendFallbackDTO)
+
+    @classmethod
+    def from_internal(cls, preset: Any) -> Self:
+        """Convert from internal BackendPreset."""
+        return cls(
+            name=getattr(preset, "name", ""),
+            backends=BackendFallbackDTO.from_internal(getattr(preset, "backends", None)),
+        )
+
+
+class ProjectBackendsDTO(APIBaseModel):
+    """Combined project backends DTO."""
+
+    default_chain: BackendFallbackDTO | None = None
+    phase_backends: PhaseBackendsDTO = Field(default_factory=PhaseBackendsDTO)
+    presets: list[BackendPresetDTO] = Field(default_factory=list)
+
+
+class GeneralSettingsDTO(APIBaseModel):
+    """General workspace settings DTO."""
+
+    notifications_enabled: bool = Field(default=True, description="Enable notifications")
+

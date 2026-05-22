@@ -1,4 +1,12 @@
-import { ProjectStatus, ModelCatalog, WorkflowState } from './types';
+import {
+  ProjectStatus,
+  ModelCatalog,
+  WorkflowState,
+  ProjectConfig,
+  ProjectBackends,
+  GeneralSettings,
+  BackendPreset,
+} from './types';
 
 function getApiKey(): string | null {
   const params = new URLSearchParams(window.location.search);
@@ -117,5 +125,77 @@ export async function removeProject(projectPath: string): Promise<ProjectControl
   }
   return res.json();
 }
+
+export async function fetchProjectConfig(projectPath: string): Promise<ProjectConfig> {
+  const encodedPath = encodeURIComponent(projectPath);
+  const res = await fetch(`/api/projects/${encodedPath}/config`, { headers: getHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch project configuration');
+  return res.json();
+}
+
+export async function updateProjectConfig(projectPath: string, config: ProjectConfig): Promise<ProjectControlResponse> {
+  const encodedPath = encodeURIComponent(projectPath);
+  const res = await fetch(`/api/projects/${encodedPath}/config`, {
+    method: 'PUT',
+    headers: getHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(config),
+  });
+  if (!res.ok) throw new Error('Failed to update project configuration');
+  return res.json();
+}
+
+export async function fetchProjectBackends(projectPath: string): Promise<ProjectBackends> {
+  const encodedPath = encodeURIComponent(projectPath);
+  const res = await fetch(`/api/projects/${encodedPath}/backends`, { headers: getHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch project backends');
+  return res.json();
+}
+
+export async function updateProjectBackends(projectPath: string, backends: ProjectBackends): Promise<ProjectControlResponse> {
+  const encodedPath = encodeURIComponent(projectPath);
+  const res = await fetch(`/api/projects/${encodedPath}/backends`, {
+    method: 'PUT',
+    headers: getHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(backends),
+  });
+  if (!res.ok) throw new Error('Failed to update project backends');
+  return res.json();
+}
+
+export async function fetchGeneralSettings(): Promise<GeneralSettings> {
+  const res = await fetch('/api/settings/general', { headers: getHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch general settings');
+  return res.json();
+}
+
+export async function updateGeneralSettings(settings: GeneralSettings): Promise<GeneralSettings> {
+  const res = await fetch('/api/settings/general', {
+    method: 'PUT',
+    headers: getHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(settings),
+  });
+  if (!res.ok) throw new Error('Failed to update general settings');
+  return res.json();
+}
+
+export async function testNotification(): Promise<{ status: string; message: string }> {
+  const res = await fetch('/api/settings/test-notification', {
+    method: 'POST',
+    headers: getHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to trigger test notification');
+  return res.json();
+}
+
+export async function saveBackendPreset(preset: BackendPreset): Promise<BackendPreset> {
+  const res = await fetch('/api/settings/presets', {
+    method: 'POST',
+    headers: getHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(preset),
+  });
+  if (!res.ok) throw new Error('Failed to save backend preset');
+  return res.json();
+}
+
 
 

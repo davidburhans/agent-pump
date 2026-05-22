@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ModelCatalog } from '../types';
-import { fetchModelCatalog, updateModelCatalog } from '../api';
-import { X, Settings, Database, Plus, Trash2, Loader2, Check } from 'lucide-react';
+import { fetchModelCatalog, updateModelCatalog, fetchGeneralSettings, updateGeneralSettings, testNotification } from '../api';
+import { X, Settings, Database, Plus, Trash2, Loader2, Check, Bell } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -48,28 +48,42 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [newModels, setNewModels] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
-  const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState(() => {
+    return localStorage.getItem('autoScrollEnabled') !== 'false';
+  });
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [isTestingNotification, setIsTestingNotification] = useState(false);
+  const [notificationTestStatus, setNotificationTestStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
-      loadModelCatalog();
+      loadSettings();
     }
   }, [isOpen]);
 
-  async function loadModelCatalog() {
+  async function loadSettings() {
+    setIsLoading(true);
     try {
-      const catalog = await fetchModelCatalog();
+      const [catalog, general] = await Promise.all([
+        fetchModelCatalog(),
+        fetchGeneralSettings()
+      ]);
       setModelCatalog(catalog);
+      setNotificationsEnabled(general.notificationsEnabled);
     } catch (e) {
-      console.error('Failed to load model catalog:', e);
+      console.error('Failed to load settings:', e);
+    } finally {
+      setIsLoading(false);
     }
   }
 
   async function handleSave() {
     setIsLoading(true);
     try {
-      await updateModelCatalog(modelCatalog);
+      await Promise.all([
+        updateModelCatalog(modelCatalog),
+        updateGeneralSettings({ notificationsEnabled })
+      ]);
       setIsSaved(true);
       setTimeout(() => {
         setIsSaved(false);
@@ -79,6 +93,33 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       console.error('Failed to save settings:', e);
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  function handleToggleAutoScroll() {
+    const nextVal = !autoScrollEnabled;
+    setAutoScrollEnabled(nextVal);
+    localStorage.setItem('autoScrollEnabled', String(nextVal));
+  }
+
+  async function handleTestNotification() {
+    setIsTestingNotification(true);
+    setNotificationTestStatus('Sending...');
+    try {
+      const res = await testNotification();
+      if (res.status === 'success') {
+        setNotificationTestStatus('Sent!');
+      } else {
+        setNotificationTestStatus('Failed');
+      }
+    } catch (e) {
+      console.error('Failed to trigger test notification:', e);
+      setNotificationTestStatus('Error');
+    } finally {
+      setIsTestingNotification(false);
+      setTimeout(() => {
+        setNotificationTestStatus(null);
+      }, 2000);
     }
   }
 
@@ -219,7 +260,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         Automatically scroll to latest log entry
                       </p>
                     </div>
-                    <Toggle enabled={autoScrollEnabled} onToggle={() => setAutoScrollEnabled(!autoScrollEnabled)} />
+                    <Toggle enabled={autoScrollEnabled} onToggle={handleToggleAutoScroll} />
                   </div>
 
                   <div className="flex items-center justify-between py-3 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
@@ -227,9 +268,34 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
                         Notifications
                       </p>
-                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
                         Desktop notifications for state changes
                       </p>
+                      {notificationsEnabled && (
+                        <button
+                          onClick={handleTestNotification}
+                          disabled={isTestingNotification}
+                          className="mt-2 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200"
+                          style={{
+                            background: 'rgba(91, 141, 239, 0.1)',
+                            color: 'var(--accent-primary)',
+                            border: '1px solid rgba(91, 141, 239, 0.2)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'rgba(91, 141, 239, 0.18)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'rgba(91, 141, 239, 0.1)';
+                          }}
+                        >
+                          {isTestingNotification ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Bell className="w-3.5 h-3.5" />
+                          )}
+                          {notificationTestStatus || 'Test Notification'}
+                        </button>
+                      )}
                     </div>
                     <Toggle enabled={notificationsEnabled} onToggle={() => setNotificationsEnabled(!notificationsEnabled)} />
                   </div>

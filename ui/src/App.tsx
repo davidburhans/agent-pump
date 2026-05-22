@@ -3,6 +3,7 @@ import { Sidebar } from './components/Sidebar';
 import { LogPanel } from './components/LogPanel';
 import { WorkflowGraph } from './components/WorkflowGraph';
 import { SettingsModal } from './components/SettingsModal';
+import { ProjectConfigModal } from './components/ProjectConfigModal';
 import { ProjectStatus, LogEntry, WorkflowState } from './types';
 import {
   fetchProjects,
@@ -22,7 +23,8 @@ import {
   Play,
   Square,
   RotateCcw,
-  SkipForward
+  SkipForward,
+  Sliders
 } from 'lucide-react';
 import { cn } from './utils/cn';
 
@@ -30,6 +32,7 @@ function App() {
   const [projects, setProjects] = useState<ProjectStatus[]>([]);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showProjectConfig, setShowProjectConfig] = useState(false);
 
   const { isConnected, logs: streamLogs, workflow: streamWorkflow } = useWebSocket(selectedPath);
 
@@ -193,8 +196,18 @@ function App() {
               </h1>
             </div>
             <div className="h-5 w-px" style={{ background: 'var(--border-subtle)' }} />
-            <span className="text-sm font-mono animate-entrance animate-shine" style={{ color: 'var(--text-muted)', animationDelay: '100ms' }}>
+            <span className="text-sm font-mono animate-entrance animate-shine flex items-center gap-2" style={{ color: 'var(--text-muted)', animationDelay: '100ms' }}>
               {selectedPath ? selectedPath.split(/[/\\]/).pop() : 'No project selected'}
+              {selectedProject && (
+                <button
+                  onClick={() => setShowProjectConfig(true)}
+                  title="Configure Project"
+                  className="p-1.5 rounded-lg border transition-all duration-200 flex items-center justify-center text-xs font-semibold backdrop-blur-sm hover:bg-[rgba(91,141,239,0.15)] hover:border-[var(--accent-primary)] text-[var(--text-muted)] hover:text-[var(--accent-primary)] border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] cursor-pointer"
+                >
+                  <Sliders className="w-3.5 h-3.5" />
+                  <span className="ml-1 text-xs">Config</span>
+                </button>
+              )}
             </span>
             {selectedProject && (
               <div className="flex items-center gap-2 animate-entrance ml-6" style={{ animationDelay: '120ms' }}>
@@ -353,6 +366,13 @@ function App() {
       <SettingsModal
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
+      />
+
+      <ProjectConfigModal
+        isOpen={showProjectConfig}
+        onClose={() => setShowProjectConfig(false)}
+        projectPath={selectedPath || ''}
+        projectName={selectedPath ? selectedPath.split(/[/\\]/).pop() || '' : ''}
       />
     </div>
   );
