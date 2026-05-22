@@ -119,7 +119,8 @@ class TestVerificationExecutor:
         assert result.success is False
         assert result.command == "nonexistentcommand12345"
         assert result.exit_code is None
-        assert "not found" in result.stderr.lower() or "No such file" in result.stderr
+        stderr_lower = result.stderr.lower()
+        assert any(x in stderr_lower for x in ["not found", "no such file", "cannot find the file", "winerror 2"])
 
     @pytest.mark.asyncio
     async def test_run_empty_command(self, tmp_path):

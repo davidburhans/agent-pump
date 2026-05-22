@@ -31,9 +31,10 @@ async def test_execute_command_leak_prevention():
     mock_process.kill = MagicMock()
 
     # Patch create_subprocess_exec to return our mock process
-    with patch(
-        "agent_pump.utils.execution.asyncio.create_subprocess_exec", new_callable=AsyncMock
-    ) as mock_exec:
+    with (
+        patch("agent_pump.utils.execution.asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_exec,
+        patch("agent_pump.utils.subprocess_manager.sys.platform", "linux"),
+    ):
         mock_exec.return_value = mock_process
 
         # Patch track_process to raise an exception

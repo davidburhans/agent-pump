@@ -158,7 +158,7 @@ class SettingsModal(ModalScreen[bool]):
     def on_mount(self) -> None:
         """Called when the modal is mounted."""
         self.query_one("#ok-btn").focus()
-        
+
         # Pre-compute the mapping of safe IDs to original backend names
         for backend_name in BACKEND_REGISTRY.keys():
             safe_backend = self._sanitize_id(backend_name)

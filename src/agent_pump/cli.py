@@ -597,6 +597,35 @@ def build_ui(force: bool) -> None:
         sys.exit(1)
 
 
+@ui_group.command(name="serve")
+@click.option(
+    "--port",
+    default=8000,
+    type=int,
+    help="Port for the HTTP server (default: 8000)",
+)
+def serve_ui(port: int) -> None:
+    """Start the Web UI development server / REST API server."""
+    # Validate port range
+    if not (1024 <= port <= 65535):
+        console.print(
+            f"[bold red]Invalid port: {port}. Must be between 1024 and 65535.[/bold red]"
+        )
+        return
+
+    # Start HTTP server
+    from agent_pump.utils.subprocess_manager import subprocess_manager
+
+    async def _run_web_with_cleanup():
+        try:
+            await _run_web_server(port)
+        finally:
+            await subprocess_manager.cleanup()
+
+    asyncio.run(_run_web_with_cleanup())
+
+
+
 # ============================================================================
 # Workspace Commands
 # ============================================================================

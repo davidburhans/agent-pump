@@ -112,7 +112,7 @@ async def test_get_project_tools_implicit(server, mock_project_service, mock_wor
 @pytest.mark.asyncio
 async def test_execute_tool_success(server, mock_project_service, mock_workflow):
     """Test successful tool execution."""
-    project_path = Path("/tmp/project")
+    project_path = Path("/tmp/project").resolve()
     mock_project_service.workflows = {project_path: mock_workflow}
 
     tool_config = ToolConfig(name="test_tool", description="test", command="./test.sh")
@@ -138,7 +138,7 @@ async def test_execute_tool_success(server, mock_project_service, mock_workflow)
 @pytest.mark.asyncio
 async def test_execute_tool_failure(server, mock_project_service, mock_workflow):
     """Test failed tool execution."""
-    project_path = Path("/tmp/project")
+    project_path = Path("/tmp/project").resolve()
     mock_project_service.workflows = {project_path: mock_workflow}
 
     tool_config = ToolConfig(name="test_tool", description="test", command="./test.sh")

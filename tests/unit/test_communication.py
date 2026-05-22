@@ -145,7 +145,7 @@ async def test_handle_request_input():
     mock_workflow.request_input = AsyncMock(return_value="User says yes")
 
     mock_project_service = MagicMock()
-    mock_project_service.workflows = {Path("/tmp/test"): mock_workflow}
+    mock_project_service.workflows = {Path("/tmp/test").resolve(): mock_workflow}
 
     mock_request = MagicMock()
     mock_request.app.state.project_service = mock_project_service

@@ -251,7 +251,10 @@ class TestSubprocessManager:
             await original_terminate(pid)
 
         # Patch on the instance
-        with patch.object(manager, "terminate_process", side_effect=slow_terminate):
+        with (
+            patch("agent_pump.utils.subprocess_manager.sys.platform", "linux"),
+            patch.object(manager, "terminate_process", side_effect=slow_terminate),
+        ):
             start_time = time.time()
             await manager.cleanup()
             duration = time.time() - start_time

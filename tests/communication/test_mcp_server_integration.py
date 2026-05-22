@@ -42,10 +42,10 @@ async def test_list_remote_tools(server, mock_app_state, mock_client_manager):
     workflow = MagicMock()
     workflow.config = MagicMock()
     workflow.config.mcp_servers = [
-        MCPServerConfig(name="server1", type="stdio", command="cmd"),
-        MCPServerConfig(name="server2", type="sse", url="http://url"),
+        MCPServerConfig(name="server1", type="stdio", command="cmd", url=None),
+        MCPServerConfig(name="server2", type="sse", url="http://url", command=None),
     ]
-    mock_app_state.project_service.workflows = {Path(project_id): workflow}
+    mock_app_state.project_service.workflows = {Path(project_id).resolve(): workflow}
 
     # Setup session responses
     session1 = AsyncMock(spec=ClientSession)
@@ -80,8 +80,10 @@ async def test_run_remote_tool(server, mock_app_state, mock_client_manager):
 
     workflow = MagicMock()
     workflow.config = MagicMock()
-    workflow.config.mcp_servers = [MCPServerConfig(name="server1", type="stdio", command="cmd")]
-    mock_app_state.project_service.workflows = {Path(project_id): workflow}
+    workflow.config.mcp_servers = [
+        MCPServerConfig(name="server1", type="stdio", command="cmd", url=None)
+    ]
+    mock_app_state.project_service.workflows = {Path(project_id).resolve(): workflow}
 
     session = AsyncMock(spec=ClientSession)
 
@@ -105,7 +107,7 @@ async def test_run_remote_tool_server_not_found(server, mock_app_state):
     workflow = MagicMock()
     workflow.config = MagicMock()
     workflow.config.mcp_servers = []
-    mock_app_state.project_service.workflows = {Path(project_id): workflow}
+    mock_app_state.project_service.workflows = {Path(project_id).resolve(): workflow}
 
     result = await server.run_remote_tool(
         project_id=project_id, server_name="unknown", tool_name="tool", arguments={}
@@ -118,8 +120,10 @@ async def test_run_remote_tool_server_not_found(server, mock_app_state):
 async def test_run_remote_tool_error(server, mock_app_state, mock_client_manager):
     project_id = "/path/to/project"
     workflow = MagicMock()
-    workflow.config.mcp_servers = [MCPServerConfig(name="server1", type="stdio", command="cmd")]
-    mock_app_state.project_service.workflows = {Path(project_id): workflow}
+    workflow.config.mcp_servers = [
+        MCPServerConfig(name="server1", type="stdio", command="cmd", url=None)
+    ]
+    mock_app_state.project_service.workflows = {Path(project_id).resolve(): workflow}
 
     mock_client_manager.get_session.side_effect = Exception("Connection failed")
 

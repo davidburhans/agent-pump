@@ -23,7 +23,8 @@ def server(mock_app_state):
 @pytest.mark.asyncio
 async def test_unsandboxed_tool_does_not_expose_host_secrets(server):
     """
-    Test that an unsandboxed tool receives only whitelisted environment variables and tool-specific ones.
+    Test that an unsandboxed tool receives only whitelisted environment
+    variables and tool-specific ones.
     Checks that filtering is case-insensitive for Windows compatibility.
     """
     tool_config = ToolConfig(
@@ -45,7 +46,8 @@ async def test_unsandboxed_tool_does_not_expose_host_secrets(server):
     process_mock.kill = MagicMock()
     process_mock.communicate.return_value = (b"hello\n", b"")
 
-    # Set a sensitive environment variable and a whitelisted one with weird casing (e.g. "Path" common on Windows)
+    # Set a sensitive environment variable and a whitelisted one with weird
+    # casing (e.g. "Path" common on Windows)
     # Also include a variable that should be whitelisted regardless of case
     mock_environ = {
         "SECRET_KEY": "super_secret_value",
@@ -66,33 +68,30 @@ async def test_unsandboxed_tool_does_not_expose_host_secrets(server):
             call_args = mock_exec.call_args
             kwargs = call_args.kwargs
             env_arg = kwargs.get("env")
+            assert env_arg is not None
 
             # Assert fix: SECRET_KEY is NOT present in the env passed to subprocess
             assert "SECRET_KEY" not in env_arg
 
             # Assert whitelisted vars are present regardless of input case
-            # "Path" (input) -> "PATH" (whitelist)
-            assert "Path" in env_arg
-            assert env_arg["Path"] == "/usr/bin:/bin"
+            # Support case insensitivity (especially on Windows where os.environ
+            # converts keys to UPPERCASE)
+            def get_case_insensitive(d, key):
+                for k, v in d.items():
+                    if k.upper() == key.upper():
+                        return k, v
+                return None, None
+
+            path_key, path_val = get_case_insensitive(env_arg, "Path")
+            assert path_key is not None
+            assert path_val == "/usr/bin:/bin"
 
             # "USER" (input) -> "USER" (whitelist)
-            assert "USER" in env_arg
-            assert env_arg["USER"] == "testuser"
+            user_key, user_val = get_case_insensitive(env_arg, "USER")
+            assert user_key is not None
+            assert user_val == "testuser"
 
-            # "systemroot" (input) -> "SystemRoot" (whitelist contains SystemRoot, so upper check matches SYSTEMROOT)
-            # The whitelist has "SystemRoot", but my code checks k.upper() in ALLOWED_ENV_VARS.
-            # Wait, my ALLOWED_ENV_VARS has keys like "SystemRoot", "Path" (actually "PATH").
-            # The keys in ALLOWED_ENV_VARS are NOT all uppercase in the code I wrote previously.
-            # I defined "SystemRoot" with mixed case in ALLOWED_ENV_VARS.
-
-            # Let's check the code I wrote in previous step.
-            # ALLOWED_ENV_VARS = {"PATH", ..., "SystemRoot", ...}
-
-            # If I check k.upper() in ALLOWED_ENV_VARS, then ALLOWED_ENV_VARS must contain uppercase keys.
-
-            # I need to fix ALLOWED_ENV_VARS to be all uppercase in the code if I use k.upper().
-
-            # Ah, I missed that in the previous step. I only changed the check to k.upper() but didn't uppercase the set.
-            # I need to fix that first.
-
-            pass
+            # "systemroot" (input) -> "systemroot" (whitelist)
+            sysroot_key, sysroot_val = get_case_insensitive(env_arg, "systemroot")
+            assert sysroot_key is not None
+            assert sysroot_val == "C:\\Windows"

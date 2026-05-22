@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import FastAPI
@@ -55,6 +55,9 @@ def client_setup():
     app.state.project_service = service
 
     wf_service = MagicMock()
+    wf_service.start_project = AsyncMock()
+    wf_service.stop_project = AsyncMock()
+    wf_service.reset_project = AsyncMock()
     app.state.workflow_service = wf_service
 
     return TestClient(app), service
@@ -138,7 +141,7 @@ class TestProjectsAPI:
     def test_start_project_success(self, client_setup):
         client, service = client_setup
         wf_service = client.app.state.workflow_service
-        
+
         test_path = Path("C:/test/project")
         service.workflows = {test_path: MagicMock()}
         wf_service.start_project.return_value = True
@@ -154,7 +157,7 @@ class TestProjectsAPI:
     def test_start_project_failed(self, client_setup):
         client, service = client_setup
         wf_service = client.app.state.workflow_service
-        
+
         test_path = Path("C:/test/project")
         service.workflows = {test_path: MagicMock()}
         wf_service.start_project.return_value = False
@@ -169,7 +172,7 @@ class TestProjectsAPI:
     def test_stop_project_success(self, client_setup):
         client, service = client_setup
         wf_service = client.app.state.workflow_service
-        
+
         test_path = Path("C:/test/project")
         service.workflows = {test_path: MagicMock()}
         wf_service.stop_project.return_value = True
@@ -185,7 +188,7 @@ class TestProjectsAPI:
     def test_reset_project_success(self, client_setup):
         client, service = client_setup
         wf_service = client.app.state.workflow_service
-        
+
         test_path = Path("C:/test/project")
         service.workflows = {test_path: MagicMock()}
         wf_service.reset_project.return_value = True
@@ -200,7 +203,7 @@ class TestProjectsAPI:
 
     def test_skip_project_feature_success(self, client_setup):
         client, service = client_setup
-        
+
         test_path = Path("C:/test/project")
         mock_workflow = MagicMock()
         mock_workflow.project.current_feature = "My Feature"
@@ -215,7 +218,7 @@ class TestProjectsAPI:
         data = response.json()
         assert data["success"] is True
         assert "skipped" in data["message"]
-        
+
         assert mock_workflow.project.current_feature is None
         assert "My Feature" in mock_workflow.project.failed_features
         mock_workflow.cancel.assert_called_once()
@@ -223,7 +226,7 @@ class TestProjectsAPI:
 
     def test_skip_project_feature_no_active_feature(self, client_setup):
         client, service = client_setup
-        
+
         test_path = Path("C:/test/project")
         mock_workflow = MagicMock()
         mock_workflow.project.current_feature = None

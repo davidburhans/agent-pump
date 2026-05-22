@@ -67,7 +67,7 @@ def file_watcher_service(event_bus, project_service, workspace):
 @pytest.mark.asyncio
 async def test_start_watching_enabled(file_watcher_service, workspace):
     """Test start_watching when enabled."""
-    path = Path("/tmp/test-project")
+    path = Path("/tmp/test-project").resolve()
 
     # Setup workspace config
     config = MagicMock(spec=ProjectConfig)
@@ -90,7 +90,7 @@ async def test_start_watching_enabled(file_watcher_service, workspace):
 @pytest.mark.asyncio
 async def test_start_watching_disabled(file_watcher_service, workspace):
     """Test start_watching when disabled."""
-    path = Path("/tmp/test-project")
+    path = Path("/tmp/test-project").resolve()
 
     # Setup workspace config
     config = MagicMock(spec=ProjectConfig)
@@ -105,7 +105,7 @@ async def test_start_watching_disabled(file_watcher_service, workspace):
 @pytest.mark.asyncio
 async def test_on_project_added(file_watcher_service):
     """Test on_project_added event handler."""
-    path = Path("/tmp/test-project")
+    path = Path("/tmp/test-project").resolve()
     event = ProjectAddedEvent(project_path=path)
 
     with patch.object(file_watcher_service, "start_watching", new_callable=AsyncMock) as mock_start:
@@ -116,7 +116,7 @@ async def test_on_project_added(file_watcher_service):
 @pytest.mark.asyncio
 async def test_on_project_removed(file_watcher_service):
     """Test on_project_removed event handler."""
-    path = Path("/tmp/test-project")
+    path = Path("/tmp/test-project").resolve()
     event = ProjectRemovedEvent(project_path=path)
 
     with patch.object(file_watcher_service, "stop_watching", new_callable=AsyncMock) as mock_stop:
@@ -127,7 +127,7 @@ async def test_on_project_removed(file_watcher_service):
 @pytest.mark.asyncio
 async def test_on_config_updated(file_watcher_service):
     """Test on_config_updated event handler."""
-    path = Path("/tmp/test-project")
+    path = Path("/tmp/test-project").resolve()
     event = ConfigUpdatedEvent(project_path=path, config_type="project_config")
 
     with (
@@ -143,7 +143,7 @@ async def test_on_config_updated(file_watcher_service):
 @pytest.mark.asyncio
 async def test_watch_loop_verification(file_watcher_service, workspace, project_service):
     """Test watch loop triggers verification."""
-    path = Path("/tmp/test-project")
+    path = Path("/tmp/test-project").resolve()
 
     # Setup workspace config
     config = MagicMock(spec=ProjectConfig)
@@ -175,7 +175,7 @@ async def test_watch_loop_verification(file_watcher_service, workspace, project_
 @pytest.mark.asyncio
 async def test_watch_loop_workflow(file_watcher_service, workspace, project_service):
     """Test watch loop triggers workflow."""
-    path = Path("/tmp/test-project")
+    path = Path("/tmp/test-project").resolve()
 
     # Setup workspace config
     config = MagicMock(spec=ProjectConfig)
@@ -212,7 +212,7 @@ async def test_watch_loop_workflow_already_running(
     file_watcher_service, workspace, project_service
 ):
     """Test watch loop does not trigger workflow if already running."""
-    path = Path("/tmp/test-project")
+    path = Path("/tmp/test-project").resolve()
 
     config = MagicMock(spec=ProjectConfig)
     config.file_watcher = FileWatcherConfig(enabled=True, action="workflow")
@@ -238,7 +238,7 @@ async def test_watch_loop_workflow_already_running(
 @pytest.mark.asyncio
 async def test_watch_loop_filtering(file_watcher_service, workspace, project_service):
     """Test watch loop filtering."""
-    path = Path("/tmp/test-project")
+    path = Path("/tmp/test-project").resolve()
 
     config = MagicMock(spec=ProjectConfig)
     config.file_watcher = FileWatcherConfig(

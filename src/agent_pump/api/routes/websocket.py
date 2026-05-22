@@ -62,8 +62,8 @@ class ConnectionManager:
 
     async def _event_bridge_loop(self, event_bus: Any) -> None:
         """Async loop to process events from the EventBus and broadcast them."""
-        from agent_pump.events.models import LogEntryEvent, WorkflowStateChangedEvent
         from agent_pump.api.schemas import LogEntryDTO
+        from agent_pump.events.models import LogEntryEvent, WorkflowStateChangedEvent
 
         try:
             async for event in event_bus.subscribe():
