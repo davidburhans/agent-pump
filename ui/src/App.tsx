@@ -4,9 +4,26 @@ import { LogPanel } from './components/LogPanel';
 import { WorkflowGraph } from './components/WorkflowGraph';
 import { SettingsModal } from './components/SettingsModal';
 import { ProjectStatus, LogEntry, WorkflowState } from './types';
-import { fetchProjects, fetchWorkflow } from './api';
+import {
+  fetchProjects,
+  fetchWorkflow,
+  startProject,
+  stopProject,
+  resetProject,
+  skipProjectFeature,
+  addProject,
+  removeProject
+} from './api';
 import { useWebSocket } from './hooks/useWebSocket';
-import { Activity, Settings, WifiOff } from 'lucide-react';
+import {
+  Activity,
+  Settings,
+  WifiOff,
+  Play,
+  Square,
+  RotateCcw,
+  SkipForward
+} from 'lucide-react';
 import { cn } from './utils/cn';
 
 function App() {
@@ -39,8 +56,87 @@ function App() {
   }, [streamLogs]);
 
   useEffect(() => {
-    if (streamWorkflow) setWorkflow(streamWorkflow);
+    if (streamWorkflow) {
+      setWorkflow(streamWorkflow);
+      // Real-time workflow state change triggers a list refresh to update state badges in sidebar
+      fetchProjects().then(setProjects).catch(console.error);
+    }
   }, [streamWorkflow]);
+
+  const selectedProject = projects.find(p => p.path === selectedPath) || null;
+
+  const isRunning = selectedProject
+    ? !['idle', 'completed', 'error'].includes(selectedProject.state.toLowerCase())
+    : false;
+
+  const canStart = selectedProject?.state.toLowerCase() === 'idle';
+  const canStop = isRunning;
+  const canReset = selectedProject
+    ? ['idle', 'completed', 'error'].includes(selectedProject.state.toLowerCase())
+    : false;
+  const canSkip = selectedProject ? !!selectedProject.currentFeature : false;
+
+  const handleStart = async () => {
+    if (!selectedPath) return;
+    try {
+      await startProject(selectedPath);
+      const updated = await fetchProjects();
+      setProjects(updated);
+    } catch (e) {
+      console.error('Failed to start project:', e);
+    }
+  };
+
+  const handleStop = async () => {
+    if (!selectedPath) return;
+    try {
+      await stopProject(selectedPath);
+      const updated = await fetchProjects();
+      setProjects(updated);
+    } catch (e) {
+      console.error('Failed to stop project:', e);
+    }
+  };
+
+  const handleReset = async () => {
+    if (!selectedPath) return;
+    try {
+      await resetProject(selectedPath);
+      const updated = await fetchProjects();
+      setProjects(updated);
+      const wf = await fetchWorkflow(selectedPath);
+      setWorkflow(wf);
+    } catch (e) {
+      console.error('Failed to reset project:', e);
+    }
+  };
+
+  const handleSkip = async () => {
+    if (!selectedPath) return;
+    try {
+      await skipProjectFeature(selectedPath);
+      const updated = await fetchProjects();
+      setProjects(updated);
+    } catch (e) {
+      console.error('Failed to skip project feature:', e);
+    }
+  };
+
+  const handleAddProject = async (path: string) => {
+    const newProj = await addProject(path);
+    setProjects(prev => [...prev, newProj]);
+    await handleSelectProject(newProj.path);
+  };
+
+  const handleRemoveProject = async (path: string) => {
+    await removeProject(path);
+    setProjects(prev => prev.filter(p => p.path !== path));
+    if (selectedPath === path) {
+      setSelectedPath(null);
+      setWorkflow(null);
+      setLogs([]);
+    }
+  };
 
   const handleSelectProject = async (path: string) => {
     setSelectedPath(path);
@@ -65,6 +161,8 @@ function App() {
         projects={projects}
         selectedPath={selectedPath}
         onSelectProject={handleSelectProject}
+        onAddProject={handleAddProject}
+        onRemoveProject={handleRemoveProject}
       />
 
       <div className="flex-1 flex flex-col min-w-0 relative">
@@ -95,9 +193,75 @@ function App() {
               </h1>
             </div>
             <div className="h-5 w-px" style={{ background: 'var(--border-subtle)' }} />
-            <span className="text-sm font-mono animate-entrance" style={{ color: 'var(--text-muted)', animationDelay: '100ms' }}>
-              {selectedPath ? selectedPath.split('/').pop() : 'No project selected'}
+            <span className="text-sm font-mono animate-entrance animate-shine" style={{ color: 'var(--text-muted)', animationDelay: '100ms' }}>
+              {selectedPath ? selectedPath.split(/[/\\]/).pop() : 'No project selected'}
             </span>
+            {selectedProject && (
+              <div className="flex items-center gap-2 animate-entrance ml-6" style={{ animationDelay: '120ms' }}>
+                <button
+                  onClick={handleStart}
+                  disabled={!canStart}
+                  title="Start Workflow"
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg border transition-all duration-200 flex items-center justify-center gap-1.5 text-xs font-semibold backdrop-blur-sm",
+                    canStart
+                      ? "hover:bg-[rgba(16,185,129,0.15)] hover:border-[var(--accent-green)] text-[var(--accent-green)] border-[rgba(16,185,129,0.25)] bg-[rgba(16,185,129,0.05)] cursor-pointer"
+                      : "opacity-45 cursor-not-allowed border-transparent bg-transparent text-[var(--text-muted)]"
+                  )}
+                  style={{
+                    boxShadow: isRunning ? '0 0 15px rgba(16, 185, 129, 0.25)' : 'none'
+                  }}
+                >
+                  <Play className={cn("w-3.5 h-3.5 fill-current", isRunning && "animate-pulse")} />
+                  <span>Start</span>
+                </button>
+
+                <button
+                  onClick={handleStop}
+                  disabled={!canStop}
+                  title="Stop Workflow"
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg border transition-all duration-200 flex items-center justify-center gap-1.5 text-xs font-semibold backdrop-blur-sm",
+                    canStop
+                      ? "hover:bg-[rgba(239,68,68,0.15)] hover:border-[var(--accent-red)] text-[var(--accent-red)] border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.05)] cursor-pointer"
+                      : "opacity-45 cursor-not-allowed border-transparent bg-transparent text-[var(--text-muted)]"
+                  )}
+                >
+                  <Square className="w-3.5 h-3.5 fill-current" />
+                  <span>Stop</span>
+                </button>
+
+                <button
+                  onClick={handleReset}
+                  disabled={!canReset}
+                  title="Reset Iteration Count & State"
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg border transition-all duration-200 flex items-center justify-center gap-1.5 text-xs font-semibold backdrop-blur-sm",
+                    canReset
+                      ? "hover:bg-[rgba(245,158,11,0.15)] hover:border-[var(--accent-amber)] text-[var(--accent-amber)] border-[rgba(245,158,11,0.25)] bg-[rgba(245,158,11,0.05)] cursor-pointer"
+                      : "opacity-45 cursor-not-allowed border-transparent bg-transparent text-[var(--text-muted)]"
+                  )}
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Reset</span>
+                </button>
+
+                <button
+                  onClick={handleSkip}
+                  disabled={!canSkip}
+                  title="Skip Current Feature"
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg border transition-all duration-200 flex items-center justify-center gap-1.5 text-xs font-semibold backdrop-blur-sm",
+                    canSkip
+                      ? "hover:bg-[rgba(91,141,239,0.15)] hover:border-[var(--accent-primary)] text-[var(--accent-primary)] border-[rgba(91,141,239,0.25)] bg-[rgba(91,141,239,0.05)] cursor-pointer"
+                      : "opacity-45 cursor-not-allowed border-transparent bg-transparent text-[var(--text-muted)]"
+                  )}
+                >
+                  <SkipForward className="w-3.5 h-3.5" />
+                  <span>Skip</span>
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-4">

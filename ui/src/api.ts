@@ -61,3 +61,26 @@ export async function skipProjectFeature(projectPath: string): Promise<ProjectCo
   return res.json();
 }
 
+export async function addProject(projectPath: string): Promise<ProjectStatus> {
+  const res = await fetch('/api/projects/add', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path: projectPath }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to add project');
+  }
+  return res.json();
+}
+
+export async function removeProject(projectPath: string): Promise<ProjectControlResponse> {
+  const encodedPath = encodeURIComponent(projectPath);
+  const res = await fetch(`/api/projects/${encodedPath}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to remove project');
+  }
+  return res.json();
+}
+

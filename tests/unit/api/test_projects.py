@@ -237,3 +237,55 @@ class TestProjectsAPI:
         assert response.status_code == 400
         assert "no feature in progress" in response.json()["detail"].lower()
 
+    def test_add_project_success(self, client_setup, tmp_path):
+        client, service = client_setup
+
+        project = Project(
+            path=tmp_path, name="test-project", status=ProjectStatus.IDLE
+        )
+        service.add_project = AsyncMock(return_value=project)
+
+        response = client.post("/projects/add", json={"path": str(tmp_path)})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["name"] == "test-project"
+        assert data["path"] == str(tmp_path)
+        service.add_project.assert_called_once_with(Path(tmp_path).resolve())
+
+    def test_add_project_not_found(self, client_setup):
+        client, service = client_setup
+
+        response = client.post("/projects/add", json={"path": "/nonexistent/path"})
+        assert response.status_code == 400
+        assert "does not exist or is not a directory" in response.json()["detail"].lower()
+
+    def test_remove_project_success(self, client_setup):
+        client, service = client_setup
+
+        test_path = Path("C:/test/project")
+        service.remove_project = AsyncMock(return_value=True)
+
+        encoded_path = "C:%252Ftest%252Fproject"
+        response = client.delete(f"/projects/{encoded_path}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "removed" in data["message"].lower()
+        service.remove_project.assert_called_once_with(test_path)
+
+    def test_remove_project_failed(self, client_setup):
+        client, service = client_setup
+
+        test_path = Path("C:/test/project")
+        service.remove_project = AsyncMock(return_value=False)
+
+        encoded_path = "C:%252Ftest%252Fproject"
+        response = client.delete(f"/projects/{encoded_path}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is False
+        assert "failed" in data["message"].lower()
+        service.remove_project.assert_called_once_with(test_path)
+
+
+
