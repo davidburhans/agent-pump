@@ -18,9 +18,13 @@ from fastapi.staticfiles import StaticFiles
 from agent_pump import __version__
 from agent_pump.api.middleware.auth import AuthMiddleware
 from agent_pump.api.middleware.cors import get_cors_config_secure
+from agent_pump.api.routes.chat import router as chat_router
+from agent_pump.api.routes.checkpoints import router as checkpoints_router
+from agent_pump.api.routes.diffs import router as diffs_router
 from agent_pump.api.routes.health import router as health_router
 from agent_pump.api.routes.metrics import router as metrics_router
 from agent_pump.api.routes.projects import router as projects_router
+from agent_pump.api.routes.roadmap import router as roadmap_router
 from agent_pump.api.routes.webhooks import router as webhooks_router
 from agent_pump.api.routes.websocket import manager as websocket_manager
 from agent_pump.api.routes.websocket import router as websocket_router
@@ -265,9 +269,13 @@ def create_server(
 
     # Include routers
     app.include_router(health_router)
-    app.include_router(projects_router, prefix="/api")
-    app.include_router(metrics_router, prefix="/api")
+    app.include_router(projects_router, prefix="/api", tags=["projects"])
+    app.include_router(roadmap_router, prefix="/api", tags=["roadmap"])
+    app.include_router(checkpoints_router, prefix="/api/projects", tags=["checkpoints"])
+    app.include_router(diffs_router, prefix="/api", tags=["diffs"])
+    app.include_router(metrics_router, prefix="/api", tags=["metrics"])
     app.include_router(websocket_router)
+    app.include_router(chat_router)
     app.include_router(callback_router, prefix="/api")
     app.include_router(webhooks_router, prefix="/api")
 

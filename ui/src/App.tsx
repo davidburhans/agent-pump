@@ -4,6 +4,8 @@ import { LogPanel } from './components/LogPanel';
 import { WorkflowGraph } from './components/WorkflowGraph';
 import { SettingsModal } from './components/SettingsModal';
 import { ProjectConfigModal } from './components/ProjectConfigModal';
+import { RoadmapModal } from './components/RoadmapModal';
+import { DiffModal } from './components/DiffModal';
 import { ProjectStatus, LogEntry, WorkflowState } from './types';
 import {
   fetchProjects,
@@ -24,7 +26,8 @@ import {
   Square,
   RotateCcw,
   SkipForward,
-  Sliders
+  Map as MapIcon,
+  FileDiff
 } from 'lucide-react';
 import { cn } from './utils/cn';
 
@@ -33,6 +36,8 @@ function App() {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showProjectConfig, setShowProjectConfig] = useState(false);
+  const [showRoadmap, setShowRoadmap] = useState(false);
+  const [showDiff, setShowDiff] = useState(false);
 
   const { isConnected, logs: streamLogs, workflow: streamWorkflow } = useWebSocket(selectedPath);
 
@@ -199,14 +204,24 @@ function App() {
             <span className="text-sm font-mono animate-entrance animate-shine flex items-center gap-2" style={{ color: 'var(--text-muted)', animationDelay: '100ms' }}>
               {selectedPath ? selectedPath.split(/[/\\]/).pop() : 'No project selected'}
               {selectedProject && (
-                <button
-                  onClick={() => setShowProjectConfig(true)}
-                  title="Configure Project"
-                  className="p-1.5 rounded-lg border transition-all duration-200 flex items-center justify-center text-xs font-semibold backdrop-blur-sm hover:bg-[rgba(91,141,239,0.15)] hover:border-[var(--accent-primary)] text-[var(--text-muted)] hover:text-[var(--accent-primary)] border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] cursor-pointer"
-                >
-                  <Sliders className="w-3.5 h-3.5" />
-                  <span className="ml-1 text-xs">Config</span>
-                </button>
+                <>
+                  <button
+                    onClick={() => setShowRoadmap(true)}
+                    title="Project Roadmap"
+                    className="p-1.5 rounded-lg border transition-all duration-200 flex items-center justify-center text-xs font-semibold backdrop-blur-sm hover:bg-[rgba(139,92,246,0.15)] hover:border-[var(--accent-purple)] text-[var(--text-muted)] hover:text-[var(--accent-purple)] border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] cursor-pointer"
+                  >
+                    <MapIcon className="w-3.5 h-3.5" />
+                    <span className="ml-1 text-xs">Roadmap</span>
+                  </button>
+                  <button
+                    onClick={() => setShowDiff(true)}
+                    title="Code Review & Diff"
+                    className="p-1.5 rounded-lg border transition-all duration-200 flex items-center justify-center text-xs font-semibold backdrop-blur-sm hover:bg-[rgba(59,130,246,0.15)] hover:border-[rgba(59,130,246,0.5)] text-[var(--text-muted)] hover:text-[rgba(96,165,250,1)] border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] cursor-pointer"
+                  >
+                    <FileDiff className="w-3.5 h-3.5" />
+                    <span className="ml-1 text-xs">Diff</span>
+                  </button>
+                </>
               )}
             </span>
             {selectedProject && (
@@ -371,6 +386,20 @@ function App() {
       <ProjectConfigModal
         isOpen={showProjectConfig}
         onClose={() => setShowProjectConfig(false)}
+        projectPath={selectedPath || ''}
+        projectName={selectedPath ? selectedPath.split(/[/\\]/).pop() || '' : ''}
+      />
+
+      <RoadmapModal
+        isOpen={showRoadmap}
+        onClose={() => setShowRoadmap(false)}
+        projectPath={selectedPath || ''}
+        projectName={selectedPath ? selectedPath.split(/[/\\]/).pop() || '' : ''}
+      />
+
+      <DiffModal
+        isOpen={showDiff}
+        onClose={() => setShowDiff(false)}
         projectPath={selectedPath || ''}
         projectName={selectedPath ? selectedPath.split(/[/\\]/).pop() || '' : ''}
       />

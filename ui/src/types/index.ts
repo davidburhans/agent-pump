@@ -105,3 +105,84 @@ export interface GeneralSettings {
   notificationsEnabled: boolean;
 }
 
+export interface PhaseMetricsDTO {
+  phase: string;
+  duration_seconds: number;
+}
+
+export interface VerificationResultDTO {
+  command_type: string;
+  command: string | null;
+  status: string;
+  duration_seconds: number;
+  executed_at: string;
+}
+
+export interface FeatureCompletionDTO {
+  name: string;
+  project_path: string;
+  started_at: string;
+  completed_at: string;
+  phases: PhaseMetricsDTO[];
+  verification_results: VerificationResultDTO[];
+  iterations: number;
+  success: boolean;
+  total_duration_seconds: number;
+  verification_success_rate: number;
+}
+
+export interface ProjectMetricsDTO {
+  project_path: string;
+  project_name: string;
+  total_features: number;
+  successful_features: number;
+  failed_features: number;
+  average_duration_seconds: number;
+  verification_success_rate: number;
+  phase_durations: Record<string, number>;
+  features: FeatureCompletionDTO[];
+}
+
+export interface CheckpointCommit {
+  hash: string;
+  short_hash: string;
+  message: string;
+  timestamp: string;
+  author: string;
+}
+export interface Checkpoint {
+  id: string;
+  timestamp: string;
+  phase: string;
+  feature_name: string | null;
+  git_commit_hash: string;
+  description: string;
+  files_modified: string[];
+  auto_created: boolean;
+}
+
+export type RoadmapStatus = 'not_started' | 'in_progress' | 'deferred' | 'completed';
+
+export interface RoadmapItem {
+  title: string;
+  status: RoadmapStatus;
+  priority: string;
+  description: string;
+  metadata: Record<string, string | number | boolean>;
+  status_emoji?: string;
+}
+
+export interface Roadmap {
+  current_sprint: RoadmapItem[];
+  future_sprints: RoadmapItem[];
+  deferred: RoadmapItem[];
+}
+
+export interface IdeaSubmit {
+  title: string;
+  description: string;
+  priority?: string;
+  section?: 'current' | 'future' | 'deferred';
+  position?: 'top' | 'bottom';
+}
+

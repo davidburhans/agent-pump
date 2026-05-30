@@ -13,6 +13,7 @@ from agent_pump.backends.gemini import GeminiBackend
 from agent_pump.backends.ollama import OllamaBackend
 from agent_pump.backends.opencode import OpenCodeBackend
 from agent_pump.backends.opencode_api import OpenCodeAPIBackend
+from agent_pump.backends.pi import PiBackend
 from agent_pump.backends.qwen import QwenBackend
 
 # Registry of available backends by name
@@ -22,6 +23,7 @@ BACKEND_REGISTRY: dict[str, type[AgentBackend]] = {
     "ollama": OllamaBackend,
     "opencode": OpenCodeBackend,
     "opencode-api": OpenCodeAPIBackend,
+    "pi": PiBackend,
     "qwen": QwenBackend,
 }
 
@@ -85,6 +87,7 @@ __all__ = [
     "OllamaBackend",
     "OpenCodeBackend",
     "OpenCodeAPIBackend",
+    "PiBackend",
     "QwenBackend",
     "check_all_backends",
     "create_fallback_runner",

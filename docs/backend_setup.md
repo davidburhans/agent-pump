@@ -9,6 +9,7 @@ Agent Pump supports multiple AI backends for code generation and analysis. This 
 - [Qwen](#qwen)
 - [Claude Code](#claude-code-beta)
 - [OpenCode](#opencode-beta)
+- [Pi Coding Agent](#pi-coding-agent)
 - [Dry Run](#dry-run)
 - [Fallback Chains](#fallback-chains)
 - [Troubleshooting](#troubleshooting)
@@ -21,6 +22,7 @@ Agent Pump supports multiple AI backends for code generation and analysis. This 
 | Qwen | ✅ Production Ready | Alibaba Cloud | 32K tokens |
 | Claude Code | ⚠️ Beta | Anthropic | 200K tokens |
 | OpenCode | ⚠️ Beta | OpenCode.ai | Varies |
+| Pi Coding Agent | ⚠️ Beta | Multi (Extensible) | 128K+ tokens |
 | Dry Run | ✅ Always Available | N/A (Mock) | N/A |
 
 ## Gemini
@@ -217,6 +219,50 @@ max_tokens: 4000
 - Experimental integration
 - May require manual setup
 - Not recommended as primary backend
+
+## Pi Coding Agent
+
+Pi is a minimalist, open-source terminal coding agent harness that supports multiple LLM providers (15+) and is highly customizable.
+
+### Prerequisites
+
+Install the Pi Coding Agent globally using npm:
+
+```bash
+npm install -g @earendil-works/pi-coding-agent
+```
+
+### Configuration
+
+**Option 1: Environment Variables**
+Pi is provider-agnostic. Provide your API keys based on the backend you configure:
+```bash
+export ANTHROPIC_API_KEY="your-api-key-here"
+export GOOGLE_API_KEY="your-api-key-here"
+```
+
+**Option 2: Configuration File**
+Set as your default backend or specify provider and model overrides in `.agent-pump/config.yml`:
+```yaml
+backends:
+  default: pi
+  pi:
+    extra_args:
+      - "--provider"
+      - "anthropic"
+      - "--model"
+      - "claude-3-5-sonnet"
+```
+
+### Setup Verification
+
+```bash
+# Verify pi CLI works
+pi --help
+
+# Test with Agent Pump
+uv run agent-pump --backend pi ask "Hello" ./your-project
+```
 
 ## Dry Run
 

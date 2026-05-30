@@ -6,6 +6,9 @@ import {
   ProjectBackends,
   GeneralSettings,
   BackendPreset,
+  ProjectMetricsDTO,
+  CheckpointCommit,
+  Checkpoint,
 } from './types';
 
 function getApiKey(): string | null {
@@ -197,5 +200,65 @@ export async function saveBackendPreset(preset: BackendPreset): Promise<BackendP
   return res.json();
 }
 
+export async function fetchProjectMetrics(projectPath: string): Promise<ProjectMetricsDTO> {
+  const encodedPath = encodeURIComponent(projectPath);
+  const res = await fetch(`/api/metrics/projects/${encodedPath}`, { headers: getHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch project metrics');
+  return res.json();
+}
 
 
+
+export async function fetchCheckpoints(projectPath: string): Promise<CheckpointCommit[]> {
+  const encodedPath = encodeURIComponent(projectPath);
+  const res = await fetch(`/api/projects/${encodedPath}/checkpoints`, { headers: getHeaders() });
+  if (!res.ok) throw new Error("Failed to fetch checkpoints");
+  return res.json();
+}
+
+export async function createCheckpoint(projectPath: string, description: string): Promise<Checkpoint> {
+  const encodedPath = encodeURIComponent(projectPath);
+  const res = await fetch(`/api/projects/${encodedPath}/checkpoints`, {
+    method: "POST",
+    headers: getHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ description }),
+  });
+  if (!res.ok) throw new Error("Failed to create checkpoint");
+  return res.json();
+}
+
+export async function rollbackCheckpoint(projectPath: string, commitHash: string): Promise<ProjectControlResponse> {
+  const encodedPath = encodeURIComponent(projectPath);
+  const res = await fetch(`/api/projects/${encodedPath}/checkpoints/${commitHash}/rollback`, {
+    method: "POST",
+    headers: getHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to rollback checkpoint");
+  return res.json();
+}
+
+export async function fetchRoadmap(projectPath: string): Promise<any> {
+  const encodedPath = encodeURIComponent(projectPath);
+  const res = await fetch(`/api/projects/${encodedPath}/roadmap`, { headers: getHeaders() });
+  if (!res.ok) throw new Error("Failed to fetch roadmap");
+  return res.json();
+}
+
+export async function submitIdea(projectPath: string, idea: any): Promise<ProjectControlResponse> {
+  const encodedPath = encodeURIComponent(projectPath);
+  const res = await fetch(`/api/projects/${encodedPath}/roadmap/ideas`, {
+    method: "POST",
+    headers: getHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(idea),
+  });
+  if (!res.ok) throw new Error("Failed to submit idea");
+  return res.json();
+}
+
+export async function fetchDiffs(projectPath: string, diffType: string = "all"): Promise<any[]> {
+  const encodedPath = encodeURIComponent(projectPath);
+  const params = new URLSearchParams({ diff_type: diffType });
+  const res = await fetch(`/api/projects/${encodedPath}/diff?${params.toString()}`, { headers: getHeaders() });
+  if (!res.ok) throw new Error("Failed to fetch diffs");
+  return res.json();
+}
