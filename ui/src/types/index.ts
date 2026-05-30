@@ -186,3 +186,36 @@ export interface IdeaSubmit {
   position?: 'top' | 'bottom';
 }
 
+export interface RoutingChoice {
+  target: string;
+  description: string;
+}
+
+export interface WorkflowRouting {
+  type: string;
+  prompt_template: string | null;
+  choices: RoutingChoice[];
+}
+
+export interface WorkflowPhase {
+  name: string;
+  description: string;
+  icon: string;
+  on_success: string;
+  on_failure: string;
+  allow_failure_recovery: boolean;
+  timeout: number | null;
+  max_retries: number;
+  retry_delay: number;
+  routing: WorkflowRouting | null;
+}
+
+export interface WorkflowDefinition {
+  name: string;
+  description: string;
+  initial_state: string;
+  terminal_states: string[];
+  phases: WorkflowPhase[];
+}
+
+

@@ -8,6 +8,29 @@ can create custom workflows stored in workspace configuration.
 from pydantic import BaseModel, Field
 
 
+class RoutingChoice(BaseModel):
+    """A semantic choice representing a possible state to transition to."""
+
+    target: str = Field(
+        description="The target state or phase name (e.g. 'implementing', 'completed')"
+    )
+    description: str = Field(
+        description="Natural language description of when to select this target"
+    )
+
+
+class WorkflowRouting(BaseModel):
+    """Custom semantic routing options for a phase."""
+
+    type: str = Field(default="agent", description="Type of routing: 'agent' or 'linear'")
+    prompt_template: str | None = Field(
+        default=None, description="Optional custom prompt to guide the routing agent"
+    )
+    choices: list[RoutingChoice] = Field(
+        default_factory=list, description="List of possible routes/choices"
+    )
+
+
 class WorkflowPhase(BaseModel):
     """A single phase in a workflow.
 
@@ -48,6 +71,13 @@ class WorkflowPhase(BaseModel):
         default=True,
         description="Whether to attempt recovery on failure (vs immediate error)",
     )
+    routing: WorkflowRouting | None = Field(
+        default=None,
+        description=(
+            "Optional semantic routing configuration. If set, overrides on_success"
+            " and on_failure."
+        ),
+    )
 
 
 class WorkflowDefinition(BaseModel):
@@ -79,6 +109,11 @@ class WorkflowDefinition(BaseModel):
         for phase in self.phases:
             if phase.name not in states:
                 states.append(phase.name)
+            # Add dynamic choice targets to states list if they are not already listed
+            if phase.routing and phase.routing.choices:
+                for choice in phase.routing.choices:
+                    if choice.target not in states:
+                        states.append(choice.target)
         for terminal in self.terminal_states:
             if terminal not in states:
                 states.append(terminal)
@@ -104,23 +139,35 @@ class WorkflowDefinition(BaseModel):
 
         # Phase transitions
         for phase in self.phases:
-            # Success transition
-            transitions.append(
-                {
-                    "trigger": f"{phase.name}_complete",
-                    "source": phase.name,
-                    "dest": phase.on_success,
-                }
-            )
-            # Failure transition
-            if phase.on_failure:
+            if phase.routing and phase.routing.choices:
+                # Add custom dynamic transitions for each semantic routing choice
+                for choice in phase.routing.choices:
+                    transitions.append(
+                        {
+                            "trigger": f"{phase.name}_route_{choice.target}",
+                            "source": phase.name,
+                            "dest": choice.target,
+                        }
+                    )
+            else:
+                # Default success/failure transitions
+                # Success transition
                 transitions.append(
                     {
-                        "trigger": f"{phase.name}_failed",
+                        "trigger": f"{phase.name}_complete",
                         "source": phase.name,
-                        "dest": phase.on_failure,
+                        "dest": phase.on_success,
                     }
                 )
+                # Failure transition
+                if phase.on_failure:
+                    transitions.append(
+                        {
+                            "trigger": f"{phase.name}_failed",
+                            "source": phase.name,
+                            "dest": phase.on_failure,
+                        }
+                    )
 
         # Error recovery
         if "error" in self.terminal_states:

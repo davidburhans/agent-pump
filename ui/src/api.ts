@@ -262,3 +262,27 @@ export async function fetchDiffs(projectPath: string, diffType: string = "all"):
   if (!res.ok) throw new Error("Failed to fetch diffs");
   return res.json();
 }
+
+export async function fetchProjectWorkflowDef(projectPath: string): Promise<any> {
+  const encodedPath = encodeURIComponent(projectPath);
+  const res = await fetch(`/api/projects/${encodedPath}/workflow/definition`, { headers: getHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch workflow definition');
+  return res.json();
+}
+
+export async function updateProjectWorkflowDef(projectPath: string, def: any): Promise<void> {
+  const encodedPath = encodeURIComponent(projectPath);
+  const res = await fetch(`/api/projects/${encodedPath}/workflow/definition`, {
+    method: 'PUT',
+    headers: getHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(def),
+  });
+  if (!res.ok) throw new Error('Failed to update workflow definition');
+}
+
+export async function fetchWorkflowTemplate(name: string): Promise<any> {
+  const res = await fetch(`/api/projects/workflows/templates/${name}`, { headers: getHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch template');
+  return res.json();
+}
+

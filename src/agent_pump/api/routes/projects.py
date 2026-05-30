@@ -95,6 +95,105 @@ async def get_project_workflow(request: Request, project_path: str) -> WorkflowS
     return WorkflowStateDTO.from_internal(workflow)
 
 
+@router.get("/{project_path:path}/workflow/definition", response_model=WorkflowDefinition)
+async def get_project_workflow_definition(
+    request: Request, project_path: str
+) -> WorkflowDefinition:
+    """Get the active project-local workflow definition (.agent-pump/workflow.yaml)."""
+    project_service = request.app.state.project_service
+    try:
+        path = normalize_path(project_path)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid project path: {e}")
+
+    path_str = str(path.resolve()).lower()
+    workflow = None
+    for key in project_service.workflows.keys():
+        if str(key.resolve()).lower() == path_str:
+            workflow = project_service.workflows[key]
+            break
+
+    if not workflow or not hasattr(workflow, "workflow_def") or not workflow.workflow_def:
+        raise HTTPException(status_code=404, detail="Project workflow definition not found")
+
+    return workflow.workflow_def
+
+
+@router.put("/{project_path:path}/workflow/definition")
+async def update_project_workflow_definition(
+    request: Request, project_path: str, workflow_def: WorkflowDefinition
+) -> ProjectControlResponse:
+    """Update the project-local workflow definition (.agent-pump/workflow.yaml)."""
+    project_service = request.app.state.project_service
+    try:
+        path = normalize_path(project_path)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid project path: {e}")
+
+    path_str = str(path.resolve()).lower()
+    workflow = None
+    for key in project_service.workflows.keys():
+        if str(key.resolve()).lower() == path_str:
+            workflow = project_service.workflows[key]
+            break
+
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Project workflow not found")
+
+    try:
+        # Save to the local file .agent-pump/workflow.yaml
+        import yaml
+        local_path = path / ".agent-pump" / "workflow.yaml"
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        local_path.write_text(
+            yaml.dump(workflow_def.model_dump(exclude_none=True), sort_keys=False),
+            encoding="utf-8",
+        )
+
+        # Re-initialize the running project workflow definition
+        workflow.workflow_def = workflow_def
+
+        # Reinitialize pytransitions machine with the new config dynamically
+        from transitions import Machine
+        workflow.machine = Machine(
+            model=workflow,
+            states=workflow_def.get_states(),
+            transitions=workflow_def.get_transitions(),
+            initial=workflow.workflow_state.current_state,
+            auto_transitions=False,
+            after_state_change=workflow._after_state_change,
+        )
+
+        logger.info(f"Updated local workflow definition for {path}")
+        return ProjectControlResponse(
+            success=True, message="Workflow definition updated successfully."
+        )
+    except Exception as e:
+        logger.exception(f"Failed to update local workflow for {path}")
+        raise HTTPException(status_code=500, detail=f"Failed to update workflow: {e}")
+
+
+@router.get("/workflows/templates", response_model=list[str])
+async def list_builtin_workflow_templates(request: Request) -> list[str]:
+    """List available built-in workflow template names."""
+    return ["minimal", "default", "extended"]
+
+
+@router.get("/workflows/templates/{name}", response_model=WorkflowDefinition)
+async def get_builtin_workflow_template(
+    request: Request, name: str
+) -> WorkflowDefinition:
+    """Get details of a specific built-in template."""
+    from agent_pump.services.workflow_editor_service import WorkflowEditorService
+
+    project_service = request.app.state.project_service
+    editor = WorkflowEditorService(project_service.workspace)
+    try:
+        return editor.create_from_template(name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 class AddProjectRequest(BaseModel):
     """Request model for adding a new project."""
 

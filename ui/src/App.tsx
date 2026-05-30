@@ -6,6 +6,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { ProjectConfigModal } from './components/ProjectConfigModal';
 import { RoadmapModal } from './components/RoadmapModal';
 import { DiffModal } from './components/DiffModal';
+import { WorkflowDesignerModal } from './components/WorkflowDesignerModal';
 import { ProjectStatus, LogEntry, WorkflowState } from './types';
 import {
   fetchProjects,
@@ -27,7 +28,8 @@ import {
   RotateCcw,
   SkipForward,
   Map as MapIcon,
-  FileDiff
+  FileDiff,
+  GitBranch
 } from 'lucide-react';
 import { cn } from './utils/cn';
 
@@ -38,6 +40,7 @@ function App() {
   const [showProjectConfig, setShowProjectConfig] = useState(false);
   const [showRoadmap, setShowRoadmap] = useState(false);
   const [showDiff, setShowDiff] = useState(false);
+  const [showWorkflowDesigner, setShowWorkflowDesigner] = useState(false);
 
   const { isConnected, logs: streamLogs, workflow: streamWorkflow } = useWebSocket(selectedPath);
 
@@ -345,6 +348,32 @@ function App() {
               <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>for settings</span>
             </div>
 
+            {selectedProject && (
+              <button
+                onClick={() => setShowWorkflowDesigner(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 animate-entrance"
+                style={{
+                  background: 'var(--bg-tertiary)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-secondary)',
+                  animationDelay: '190ms'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--accent-primary)';
+                  e.currentTarget.style.color = 'var(--accent-primary)';
+                  e.currentTarget.style.background = 'var(--bg-hover)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                  e.currentTarget.style.color = 'var(--text-secondary)';
+                  e.currentTarget.style.background = 'var(--bg-tertiary)';
+                }}
+              >
+                <GitBranch className="w-4 h-4" style={{ color: 'var(--accent-primary)' }} />
+                <span className="text-sm font-medium">Design Workflow</span>
+              </button>
+            )}
+
             <button
               onClick={() => setShowSettings(true)}
               className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 animate-entrance"
@@ -402,6 +431,12 @@ function App() {
         onClose={() => setShowDiff(false)}
         projectPath={selectedPath || ''}
         projectName={selectedPath ? selectedPath.split(/[/\\]/).pop() || '' : ''}
+      />
+
+      <WorkflowDesignerModal
+        isOpen={showWorkflowDesigner}
+        onClose={() => setShowWorkflowDesigner(false)}
+        projectPath={selectedPath || ''}
       />
     </div>
   );

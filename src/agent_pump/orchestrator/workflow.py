@@ -1,7 +1,9 @@
 """Workflow state machine using pytransitions."""
 
 import asyncio
+import json
 import logging
+import re
 from collections.abc import AsyncGenerator, Callable
 from datetime import datetime
 from pathlib import Path
@@ -244,6 +246,7 @@ class ProjectWorkflow:
 
         # Workspace reference (optional)
         self.workspace: Workspace | None = None
+        self._last_phase_output: list[str] = []
 
         # Initialize cost tracking service (will be set when workspace is assigned)
         self.cost_tracking_service: CostTrackingService | None = None
@@ -769,8 +772,113 @@ class ProjectWorkflow:
                 output_tokens=output_tokens,
                 model=metrics_model_name,
             )
-
+        self._last_phase_output = output_lines
         return success
+
+    async def _run_semantic_router(self, phase_name: str, phase_logs: list[str]) -> str:
+        """Invokes the agent harness to semantically route the workflow to the next phase.
+
+        Args:
+            phase_name: Name of the phase that just completed
+            phase_logs: Execution output logs from the phase
+
+        Returns:
+            The selected target state name.
+        """
+        phase = self.workflow_def.get_phase(phase_name)
+        if not phase or not phase.routing or not phase.routing.choices:
+            return phase.on_success if phase else "error"
+
+        self._emit_output(
+            f"\n[ROUTER] Invoking Semantic Routing Agent for phase '{phase_name}'...\n"
+        )
+
+        # Build semantic prompt
+        choices_text = "\n".join(
+            f"- Target: '{choice.target}'\n  When to use: {choice.description}"
+            for choice in phase.routing.choices
+        )
+
+        custom_guidelines = phase.routing.prompt_template or ""
+        recent_logs = "\n".join(phase_logs[-40:])  # Read last 40 lines of log context
+
+        routing_prompt = f"""
+You are the Orchestration Router for Agent Pump.
+Your job is to read the recent execution context and select the best transition path.
+
+[EXECUTION CONTEXT]
+Finished Phase: {phase_name}
+Current Feature: {self.project.current_feature or "None"}
+Last Phase Error: {self.workflow_state.last_error or "None"}
+
+[RECENT PHASE LOGS]
+{recent_logs}
+
+[AVAILABLE ROUTING CHOICES]
+{choices_text}
+
+{custom_guidelines}
+
+Select exactly one Target from the list above.
+You MUST return your choice in the following JSON format:
+{{
+  "next_step": "target_name",
+  "reason": "Explain in one sentence why this state was chosen."
+}}
+"""
+
+        # Query LLM Backend
+        output_lines = []
+        try:
+            # We run the prompt using the same backend runner with auto-approve enabled
+            async for line in self.backend.run(
+                project_path=self.project.path,
+                prompt=routing_prompt,
+                timeout=90,  # 90-second timeout for quick routing decision
+                auto_approve=True,
+            ):
+                output_lines.append(line)
+        except Exception as e:
+            logger.error(f"Semantic router backend execution failed: {e}")
+            self._emit_output(
+                f"[ROUTER] LLM Query failed: {e}. Falling back to default success target.\n"
+            )
+            return phase.on_success
+
+        decision_text = "".join(output_lines)
+
+        # Parse output safely
+        selected_target = None
+
+        # Try to find a JSON block in the output
+        json_match = re.search(r"\{.*\}", decision_text, re.DOTALL)
+        if json_match:
+            try:
+                data = json.loads(json_match.group(0))
+                selected_target = data.get("next_step")
+                reason = data.get("reason", "No reason provided.")
+                self._emit_output(f"[ROUTER] Agent Decision: '{selected_target}'\n")
+                self._emit_output(f"[ROUTER] Rationale: {reason}\n")
+            except Exception:
+                pass
+
+        # Fallback to simple regex target search if JSON parsing failed
+        if not selected_target:
+            for choice in phase.routing.choices:
+                if f"'{choice.target}'" in decision_text or f'"{choice.target}"' in decision_text:
+                    selected_target = choice.target
+                    break
+
+        # Validation
+        valid_targets = [choice.target for choice in phase.routing.choices]
+        if selected_target in valid_targets:
+            return selected_target
+
+        self._emit_output(
+            f"[ROUTER] Warning: Selected invalid target '{selected_target}'."
+            " Falling back to default.\n"
+        )
+        return phase.on_success
 
     async def run(self, max_iterations: int = 10) -> None:
         """
@@ -959,27 +1067,42 @@ class ProjectWorkflow:
                             )
 
                         # Transitions
-                        if success:
-                            # Check iteration limits for committing/looping phases
-                            if phase.name == "committing":
-                                iteration += 1
-                                if iteration >= max_iterations:
-                                    self._emit_output(
-                                        f"\n[INFO] Max iterations ({max_iterations}) reached\n"
-                                    )
-                                    if hasattr(self, "no_more_features"):
-                                        self.no_more_features()
-                                        continue
-
-                            trigger_name = f"{phase.name}_complete"
+                        if phase.routing and phase.routing.choices:
+                            # Invoke Semantic Routing Agent
+                            selected_target = await self._run_semantic_router(
+                                phase.name, self._last_phase_output
+                            )
+                            trigger_name = f"{phase.name}_route_{selected_target}"
                             if hasattr(self, trigger_name):
                                 getattr(self, trigger_name)()
                             else:
-                                logger.warning(f"Trigger {trigger_name} not found.")
+                                logger.error(
+                                    f"Failed to trigger dynamic transition: {trigger_name}"
+                                )
+                                self.reset()
                         else:
-                            trigger_name = f"{phase.name}_failed"
-                            if hasattr(self, trigger_name):
-                                getattr(self, trigger_name)()
+                            # Default Linear Transitions (Linear fallback)
+                            if success:
+                                # Check iteration limits for committing/looping phases
+                                if phase.name == "committing":
+                                    iteration += 1
+                                    if iteration >= max_iterations:
+                                        self._emit_output(
+                                            f"\n[INFO] Max iterations ({max_iterations}) reached\n"
+                                        )
+                                        if hasattr(self, "no_more_features"):
+                                            self.no_more_features()
+                                            continue
+
+                                trigger_name = f"{phase.name}_complete"
+                                if hasattr(self, trigger_name):
+                                    getattr(self, trigger_name)()
+                                else:
+                                    logger.warning(f"Trigger {trigger_name} not found.")
+                            else:
+                                trigger_name = f"{phase.name}_failed"
+                                if hasattr(self, trigger_name):
+                                    getattr(self, trigger_name)()
 
         finally:
             self._running = False
